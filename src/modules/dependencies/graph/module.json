@@ -1,0 +1,5 @@
+{
+	"name": "business/dependencies/graph",
+	"bundle": "ts",
+	"files": "*"
+}

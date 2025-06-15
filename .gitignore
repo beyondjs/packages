@@ -1,0 +1,6 @@
+.beyond
+.idea
+node_modules
+!src/modules/node_modules
+credentials
+.env
