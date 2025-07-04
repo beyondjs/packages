@@ -1,6 +1,5 @@
-// data/collections/accounts.ts
 import { Collection, SubCollection } from '@beyond-js/firestore-collection/collection';
-import type { IAccountData, IProjectData } from '@beyond-js/cdn';
+import type { IAccountData, IProjectData } from '@beyond-js/packages/stores/interfaces';
 
 class Accounts extends Collection<IAccountData> {
 	#projects: SubCollection<IProjectData>;

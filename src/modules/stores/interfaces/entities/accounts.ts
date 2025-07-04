@@ -1,4 +1,4 @@
-interface IAccountData {
+export /*bundle*/ interface IAccountData {
 	id: string;
 	organization: { name: string };
 	plan: { type: 'free' | 'pro' | 'enterprise' };

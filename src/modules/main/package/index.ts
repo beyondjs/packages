@@ -1,7 +1,6 @@
-import type { Info, LocatorError } from '../locator';
-import type { PackageStore } from './store/interface';
+import type { Packages } from '@beyond-js/packages/stores/interfaces';
 
-let store: PackageStore;
+let store: Packages;
 
 export class Package {
 	#specifier: string;
@@ -11,7 +10,7 @@ export class Package {
 	}
 
 	static async load(env: 'local' | 'cdn') {
-		store = (await import(`./store/${env}`)) as { default: PackageStore };
+		store = <Package>await import(`./store/${env}`);
 	}
 
 	async install(): Promise<void> {

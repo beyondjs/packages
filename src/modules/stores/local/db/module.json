@@ -1,0 +1,5 @@
+{
+	"subpath": "db/local",
+	"bundle": "ts",
+	"files": "*"
+}

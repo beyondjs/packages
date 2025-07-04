@@ -1,4 +1,6 @@
-export interface IPackageData {
+import type { ICollection } from '../db/collection';
+
+export /*bundle*/ interface IPackageData {
 	key: string; // Unique key for the package, e.g., "react@18.2.0" or "github.com/facebook/react@main"
 	source: 'npm' | 'github' | 'github-pkg' | 'gitlab' | 'artifactory';
 
@@ -14,3 +16,5 @@ export interface IPackageData {
 		updated?: number;
 	};
 }
+
+export /*bundle*/ type Packages = ICollection<IPackageData>;

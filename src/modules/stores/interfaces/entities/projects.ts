@@ -1,4 +1,4 @@
-interface ITokenData {
+export /*bundle*/ interface ITokenData {
 	source: { type: 'npm' | 'github' | 'gitlab' | 'artifactory'; domain?: string };
 	credentials: { token: string; user?: string };
 	timestamps: {
@@ -6,7 +6,7 @@ interface ITokenData {
 	};
 }
 
-interface IProjectData {
+export /*bundle*/ interface IProjectData {
 	id: string;
 	account: { id: string; organization: { name: string } };
 	name: string;

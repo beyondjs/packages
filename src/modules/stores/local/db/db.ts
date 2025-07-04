@@ -4,12 +4,13 @@ import { join } from 'path';
 import { promisify } from 'util';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
-export class LocalDB {
+class LocalDB {
 	#db: sqlite.Database;
-	#ready: PendingPromise<void>;
 	#run: (sql: string, params?: any[]) => Promise<any>;
 	#get: (sql: string, params?: any[]) => Promise<any>;
 	#exec: (sql: string) => Promise<void>;
+
+	#ready: PendingPromise<void>;
 
 	constructor() {
 		this.#ready = this.#initialise();
@@ -34,7 +35,7 @@ export class LocalDB {
 		return this.#exec(sql);
 	}
 
-	async #initialise(): PendingPromise<void> {
+	#initialise(): PendingPromise<void> {
 		const promise = new PendingPromise<void>();
 
 		const name = 'packages.db';
@@ -48,14 +49,17 @@ export class LocalDB {
 		this.#get = promisify(this.#db.get.bind(this.#db));
 		this.#exec = promisify(this.#db.exec.bind(this.#db));
 
-		await this.#exec(`
+		const sql = `
 			CREATE TABLE IF NOT EXISTS packages (
-				key TEXT PRIMARY KEY,
+				id TEXT PRIMARY KEY,
 				data TEXT NOT NULL
 			);
-		`);
+		`;
 
-		promise.resolve();
+		this.exec(sql)
+			.then(() => promise.resolve())
+			.catch(err => promise.reject(err));
+
 		return promise;
 	}
 }
