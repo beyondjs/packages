@@ -1,0 +1,5 @@
+{
+	"subpath": "persistence/cdn/storage",
+	"bundle": "ts",
+	"files": "*"
+}

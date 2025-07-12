@@ -1,0 +1,5 @@
+{
+	"subpath": "persistence/interfaces",
+	"bundle": "ts",
+	"files": "*"
+}

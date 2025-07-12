@@ -1,0 +1,5 @@
+{
+	"subpath": "locator",
+	"bundle": "ts",
+	"files": "*"
+}
