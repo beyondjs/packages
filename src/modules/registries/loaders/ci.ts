@@ -7,7 +7,7 @@ import type { Registry } from '../types';
 /**
  * Loads registry and scope configurations from environment variables (CI context).
  */
-export class CiLoader extends Resolver {
+export class CILoader extends Resolver {
 	async process(): Promise<void> {
 		this.#known();
 		this.#custom();

@@ -1,7 +1,7 @@
 import type { TRegistryId, IRegistryAuth } from './types';
 
 /**
- * Describes the behavior of a known registry source.
+ * Describes the behavior of a registry source.
  */
 export type Rule = {
 	hosts: string[];

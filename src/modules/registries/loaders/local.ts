@@ -21,7 +21,7 @@ export class LocalLoader {
 		this.#registries = registries;
 	}
 
-	async load(pkg: string, workspace?: string): Promise<void> {
+	async process(pkg: string, workspace?: string): Promise<void> {
 		const files: { path: string; origin: TOrigin }[] = [];
 
 		files.push({ path: join(pkg, '.npmrc'), origin: 'project-rc' });

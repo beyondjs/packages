@@ -1,35 +1,12 @@
-import { Logger as CDNLogger } from '@beyond-js/logs/main';
+import type { Logger } from './type';
+import { get } from './get';
 
-type Environment = 'cdn' | 'ci' | 'local';
+let logger: Logger;
 
-export /*buncle*/ class Logger {
-	#id: string;
-	#env: Environment;
-
-	constructor(id: string, env: Environment) {
-		this.#id = id;
-		this.#env = env;
+export async function use(): Promise<Logger> {
+	if (!logger) {
+		logger = await get();
 	}
 
-	async initialize() {}
-
-	async add(message: string, level: 'info' | 'warn' | 'error' = 'info') {
-		if (this.#env === 'local') {
-			console[level](message);
-			return;
-		}
-
-		const logger = new CDNLogger('beyond-logs');
-		switch (level) {
-			case 'info':
-				logger.info(message);
-				break;
-			case 'warn':
-				logger.warn(message);
-				break;
-			case 'error':
-				logger.error(message);
-				break;
-		}
-	}
+	return logger;
 }

@@ -22,7 +22,7 @@ import type { Registry } from '../types';
  *   origin: 'cdn'
  * }
  */
-export class CdnLoader extends Resolver {
+export class CDNLoader extends Resolver {
 	async process(): Promise<void> {
 		// TODO: Fetch data from Firestore and populate this.registries and this.scopes
 		/*

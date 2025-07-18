@@ -1,7 +1,7 @@
 import type { IRegistryConfig } from './types';
-import { LocalLoader } from './sources/local';
-import { CiLoader } from './sources/ci';
-import { CdnLoader } from './sources/cdn';
+import { LocalLoader } from './loaders/local';
+import { CILoader } from './loaders/ci';
+import { CDNLoader } from './loaders/cdn';
 import { Registries } from './registries';
 import { rules } from './rules';
 
@@ -47,11 +47,11 @@ export class Resolver {
 		await local.process(options?.path, options?.workspace);
 		this.registries.merge(local.registries);
 
-		const ci = new CiLoader();
+		const ci = new CILoader();
 		await ci.process();
 		this.registries.merge(ci.registries);
 
-		const cdn = new CdnLoader();
+		const cdn = new CDNLoader();
 		await cdn.process();
 		this.registries.merge(cdn.registries);
 	}
