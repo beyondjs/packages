@@ -3,7 +3,7 @@ import type { DependenciesList } from '../list';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { NPM } from '@beyond-js/cdn/business/packages/registry';
-import { DependenciesSpecs } from '@beyond-js/cdn/business/dependencies/specs';
+import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
 
 export class DependenciesNode {
 	#list: DependenciesList;
@@ -64,7 +64,12 @@ export class DependenciesNode {
 		await this.#list.register(this);
 	}
 
-	async process() {
+	/**
+	 * Fetches the package dependencies and processes them.
+	 * If the node is already processed or being processed, it throws an error.
+	 * @returns
+	 */
+	async process(): Promise<void> {
 		if (this.#processing || this.#processed) {
 			throw new Error('Node is already processed or it is being processed');
 		}

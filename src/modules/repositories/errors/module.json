@@ -1,0 +1,6 @@
+{
+	"name": "repositories/errors",
+	"platforms": ["node"],
+	"bundle": "ts",
+	"files": "*"
+}

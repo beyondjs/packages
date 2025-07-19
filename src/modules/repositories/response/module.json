@@ -1,0 +1,6 @@
+{
+	"name": "repositories/response",
+	"platforms": ["node"],
+	"bundle": "ts",
+	"files": "*"
+}

@@ -1,4 +1,4 @@
-import type { Logger } from '@beyond-js/logs/main';
+import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
 
@@ -17,7 +17,6 @@ export /*bundle*/ interface IPackageSpecs extends IDependenciesSpecs {
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
 	specs: IPackageSpecs;
 	workspace?: { name: string; version: string }[];
-	logger: Logger;
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
@@ -39,7 +38,7 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		return this.dependencies.completed;
 	}
 
-	constructor({ specs, workspace, logger }: IDependenciesGraphConstructorParams) {
+	constructor({ specs, workspace }: IDependenciesGraphConstructorParams) {
 		const list = new DependenciesList();
 		const { name, version } = specs;
 		super(list, name, version);
@@ -47,11 +46,11 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		this.#specs = specs;
 		this.#workspace = workspace;
 		this.#list = list;
-		this.#logger = logger;
+		this.#logger = new Logger();
 	}
 
 	async process() {
-		this.#logger.add('Process has been started');
+		this.#logger.info('Process has been started');
 
 		console.log('done!');
 		return;
