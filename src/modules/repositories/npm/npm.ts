@@ -1,22 +1,40 @@
+import type { IRepository, IPackageSpecResponse, RepositoryType } from '@beyond-js/packages/repositories/types';
+import type { Logger } from '@beyond-js/packages/logs';
 import { ErrorGettingPackageVersions } from '@beyond-js/packages/repositories/errors';
 import { RepositoriesResponse } from '@beyond-js/packages/repositories/response';
 import { exec } from 'child_process';
 import { platform } from 'os';
-import type { ISpecsResponse } from './fetcher';
 import { PackageRegistryFetcher } from './fetcher';
 
 const nullDevice = platform() === 'win32' ? 'NUL' : '/dev/null';
 
-export /*bundle*/ interface IPackageJson {
-	name: string;
-	version: string;
-	dependencies?: { [key: string]: string };
-	devDependencies?: { [key: string]: string };
-	peerDependencies?: { [key: string]: string };
-}
+export /*bundle*/ class NPM implements IRepository {
+	#logger?: Logger;
 
-export /*bundle*/ class NPM {
-	static versions(name: string): Promise<RepositoriesResponse<string[]>> {
+	constructor(logger: Logger) {
+		this.#logger = logger;
+
+		this.#logger?.debug('NPM repository initialized');
+		this.#logger?.debug(`Using null device: ${nullDevice}`);
+		this.#logger?.debug(`Platform: ${platform()}`);
+	}
+
+	readonly #name = 'npm';
+	get name(): string {
+		return this.#name;
+	}
+
+	readonly #type: RepositoryType = 'npm';
+	get type(): RepositoryType {
+		return this.#type;
+	}
+
+	readonly #url = 'https://registry.npmjs.org';
+	get url(): string {
+		return this.#url;
+	}
+
+	versions(name: string): Promise<RepositoriesResponse<string[]>> {
 		return new Promise(resolve => {
 			try {
 				exec(`npm view ${name} versions --json 2>${nullDevice}`, (error, stdout) => {
@@ -37,9 +55,9 @@ export /*bundle*/ class NPM {
 		});
 	}
 
-	static async specs(name: string, version: string): Promise<ISpecsResponse> {
-		const fetcher = new PackageRegistryFetcher(name, version);
+	async spec(name: string, version: string): Promise<IPackageSpecResponse> {
+		const fetcher = new PackageRegistryFetcher(name, version, this.#logger);
 		await fetcher.fetch();
-		return fetcher.toJSON();
+		return fetcher.json();
 	}
 }

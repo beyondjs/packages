@@ -1,4 +1,5 @@
-import type { IPackageJson } from './npm';
+import type { IPackageSpec, IPackageSpecResponse } from '@beyond-js/packages/repositories/types';
+import type { Logger } from '@beyond-js/packages/logs';
 
 import {
 	RepositoriesErrorManager,
@@ -6,16 +7,9 @@ import {
 	RegistryResponseCouldNotBeParsed
 } from '@beyond-js/packages/repositories/errors';
 
-export interface ISpecsResponse {
-	name: string;
-	version: string;
-	found: boolean;
-	value: IPackageJson;
-	error: RepositoriesErrorManager;
-	valid: boolean;
-}
-
 export /*bundle*/ class PackageRegistryFetcher {
+	#logger?: Logger;
+
 	#name: string;
 	get name() {
 		return this.#name;
@@ -31,7 +25,7 @@ export /*bundle*/ class PackageRegistryFetcher {
 		return this.#found;
 	}
 
-	#value: IPackageJson;
+	#value: IPackageSpec;
 	get value() {
 		return this.#value;
 	}
@@ -45,9 +39,10 @@ export /*bundle*/ class PackageRegistryFetcher {
 		return this.#found && !this.#error;
 	}
 
-	constructor(name: string, version: string) {
+	constructor(name: string, version: string, logger?: Logger) {
 		this.#name = name;
 		this.#version = version;
+		this.#logger = logger;
 	}
 
 	async fetch() {
@@ -66,14 +61,14 @@ export /*bundle*/ class PackageRegistryFetcher {
 		}
 
 		try {
-			this.#value = <IPackageJson>await response.json();
+			this.#value = <IPackageSpec>await response.json();
 		} catch (exc) {
-			console.error(exc.stack);
+			this.#logger?.error(exc);
 			this.#error = new RegistryResponseCouldNotBeParsed();
 		}
 	}
 
-	toJSON(): ISpecsResponse {
+	json(): IPackageSpecResponse {
 		const { name, version, found, value, error, valid } = this;
 		return { name, version, found, value, error, valid };
 	}
