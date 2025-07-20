@@ -19,5 +19,4 @@ export /*bundle*/ type RepositoryAuthType = {
 	origin: OriginType;
 	token: string;
 	user?: string;
-	headers: Record<string, string>;
 };

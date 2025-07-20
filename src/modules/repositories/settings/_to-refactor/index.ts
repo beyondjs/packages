@@ -1,10 +1,3 @@
-import type { IRegistryConfig } from './types';
-import { LocalLoader } from './loaders/local';
-import { CILoader } from './loaders/ci';
-import { CDNLoader } from './loaders/cdn';
-import { Registries } from './registries';
-import { rules } from './rules';
-
 /**
  * Download details resolved from a package specifier.
  */
@@ -30,32 +23,7 @@ export type Download = {
 	url: string;
 };
 
-/**
- * Resolves the download source for a given dependency identifier.
- * Loads registry and scope configuration from multiple sources.
- */
-export class Resolver {
-	readonly registries = new Registries();
-
-	/**
-	 * Load registry data from local, CI, and CDN sources.
-	 *
-	 * @param options Optional context path or workspace
-	 */
-	async load(options?: { path?: string; workspace?: string }): Promise<void> {
-		const local = new LocalLoader();
-		await local.process(options?.path, options?.workspace);
-		this.registries.merge(local.registries);
-
-		const ci = new CILoader();
-		await ci.process();
-		this.registries.merge(ci.registries);
-
-		const cdn = new CDNLoader();
-		await cdn.process();
-		this.registries.merge(cdn.registries);
-	}
-
+class XX {
 	/**
 	 * Resolves a dependency identifier to its download source.
 	 *

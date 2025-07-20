@@ -1,25 +1,25 @@
-import type { TRegistryId, IRegistryAuth } from './types';
+import type { TRepositoryId, IRepositoryAuth } from '@beyond-js/packages/repositories/types';
 
 /**
- * Describes the behavior of a registry source.
+ * Describes the behavior of a repository source.
  */
 export type Rule = {
 	hosts: string[];
-	headers: (auth: IRegistryAuth) => Record<string, string>;
-	validate?: (auth: IRegistryAuth) => void;
+	headers: (auth: IRepositoryAuth) => Record<string, string>;
+	validate?: (auth: IRepositoryAuth) => void;
 	build: (scope: string, name: string) => string;
 };
 
-const token = (auth: IRegistryAuth) => ({ Authorization: `Bearer ${auth.token}` });
-const basic = (auth: IRegistryAuth) => ({ Authorization: `Basic ${auth.token}` });
-const userpass = (auth: IRegistryAuth) => ({
+const token = (auth: IRepositoryAuth) => ({ Authorization: `Bearer ${auth.token}` });
+const basic = (auth: IRepositoryAuth) => ({ Authorization: `Basic ${auth.token}` });
+const userpass = (auth: IRepositoryAuth) => ({
 	Authorization: `Basic ${Buffer.from(`${auth.user}:${auth.token}`).toString('base64')}`
 });
 
 /**
- * Known rules for registries, including hostnames, headers, and download logic.
+ * Known rules for repositories, including hostnames, headers, and download logic.
  */
-export const rules = new Map<TRegistryId, Rule>([
+export const rules = new Map<TRepositoryId, Rule>([
 	[
 		'npm',
 		{
