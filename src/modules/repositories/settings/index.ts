@@ -1,13 +1,21 @@
-import type { RepositoryAuthType } from '@beyond-js/packages/repositories/types';
-import type { IRepositorySettings } from './types';
-import { rules } from './rules';
+import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
+import type { IRepositoriesSettings } from './types';
+import { TokenTools } from './tools';
 
 // Import the loaders
 import { LocalLoader } from './loaders/local';
-import { CILoader } from './loaders/ci';
-import { CDNLoader } from './loaders/cdn';
+import { VarsSettingsLoader } from './loaders/vars';
+import { DbSettingsLoader, type CdnCredentials } from './loaders/db';
 
-export /*bundle*/ class RepositoriesSettings implements IRepositorySettings {
+export /*bundle*/ interface IRepositoriesSettingsOptions {
+	path?: string; // Optional context path for local settings
+	workspace?: string; // Optional workspace for local settings
+	cdn?: {
+		credentials: CdnCredentials; // Credentials for CDN-based settings
+	};
+}
+
+export /*bundle*/ class RepositoriesSettings implements IRepositoriesSettings {
 	// Scopes to registry mapping: the key is the scope and the value is the repository host
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
@@ -15,18 +23,18 @@ export /*bundle*/ class RepositoriesSettings implements IRepositorySettings {
 	}
 
 	// The hosts map: the key is the host and the value is the repository auth type
-	#hosts: Map<string, RepositoryAuthType> = new Map();
+	#hosts: Map<string, IRepositoryAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
 	// The default repository host
-	#default: { host: string; auth?: RepositoryAuthType } = { host: 'registry.npmjs.org' };
+	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}
 
-	#merge(settings: IRepositorySettings) {
+	#merge(settings: IRepositoriesSettings) {
 		// Merge scopes
 		for (const [scope, host] of settings.scopes) {
 			this.#scopes.set(scope, host);
@@ -35,6 +43,7 @@ export /*bundle*/ class RepositoriesSettings implements IRepositorySettings {
 		// Merge hosts
 		for (const [host, auth] of settings.hosts) {
 			this.#hosts.set(host, auth);
+			auth.token && (auth.token = TokenTools.clean(auth.token));
 		}
 
 		// Set default if not already set
@@ -42,6 +51,7 @@ export /*bundle*/ class RepositoriesSettings implements IRepositorySettings {
 			const { host, auth } = settings.default;
 			host && (this.#default.host = settings.default.host);
 			auth && (this.#default.auth = auth);
+			auth?.token && (this.#default.auth.token = TokenTools.clean(auth.token));
 		}
 	}
 
@@ -50,17 +60,19 @@ export /*bundle*/ class RepositoriesSettings implements IRepositorySettings {
 	 *
 	 * @param options Optional context path or workspace
 	 */
-	async load(options?: { path?: string; workspace?: string }): Promise<void> {
+	async load(options: IRepositoriesSettingsOptions = {}): Promise<void> {
+		const { path, workspace, cdn } = options;
+
 		const local = new LocalLoader();
-		await local.process(options?.path, options?.workspace);
+		path && (await local.load(path, workspace));
 		this.#merge(local);
 
-		const ci = new CILoader();
-		await ci.process();
-		this.#merge(ci);
+		const vars = new VarsSettingsLoader();
+		await vars.load();
+		this.#merge(vars);
 
-		const cdn = new CDNLoader();
-		await cdn.process();
-		this.#merge(cdn);
+		const db = new DbSettingsLoader();
+		cdn && (await db.load(cdn.credentials));
+		this.#merge(db);
 	}
 }

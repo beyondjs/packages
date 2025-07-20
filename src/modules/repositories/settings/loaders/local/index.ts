@@ -1,11 +1,11 @@
-import type { RepositoryAuthType } from '@beyond-js/packages/repositories/types';
-import type { IRepositorySettings } from '../../types';
+import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
+import type { IRepositoriesSettings } from '../../types';
 import { LocalSettingsFiles } from './files';
 
 /**
  * Load registry and scope configurations from local .npmrc files.
  */
-export class LocalLoader implements IRepositorySettings {
+export class LocalLoader implements IRepositoriesSettings {
 	// Scopes to registry mapping: the key is the scope and the value is the repository host
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
@@ -13,13 +13,13 @@ export class LocalLoader implements IRepositorySettings {
 	}
 
 	// The hosts map: the key is the host and the value is the repository auth type
-	#hosts: Map<string, RepositoryAuthType> = new Map();
+	#hosts: Map<string, IRepositoryAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
 	// The default repository host
-	#default: { host: string; auth?: RepositoryAuthType } = { host: 'registry.npmjs.org' };
+	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}
@@ -28,7 +28,7 @@ export class LocalLoader implements IRepositorySettings {
 		return url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 	}
 
-	async process(pkg: string, workspace?: string): Promise<void> {
+	async load(pkg: string, workspace?: string): Promise<void> {
 		const files = new LocalSettingsFiles(pkg, workspace);
 		await files.process();
 
@@ -52,15 +52,7 @@ export class LocalLoader implements IRepositorySettings {
 					continue;
 				}
 
-				// 2. Auth Token: //host/:_authToken=token
-				match = line.match(/^\/\/([^/]+)\/?:_authToken=(.+)$/);
-				if (match) {
-					const [, host, token] = match;
-					this.#hosts.set(host, { mode: 'token', token, origin });
-					continue;
-				}
-
-				// 3. Basic auth: _auth=base64 (applies to default host)
+				// 2. Basic auth: _auth=base64 (applies to default host)
 				match = line.match(/^_auth=(.+)$/);
 				if (match) {
 					const token = match[1];
@@ -68,7 +60,7 @@ export class LocalLoader implements IRepositorySettings {
 					continue;
 				}
 
-				// 4. Auth token for default host: _authToken=token
+				// 3. Auth Token: _authToken=token (applies to default host)
 				match = line.match(/^_authToken=(.+)$/);
 				if (match) {
 					const token = match[1];
@@ -76,7 +68,7 @@ export class LocalLoader implements IRepositorySettings {
 					continue;
 				}
 
-				// 5. User/pass auth: username=token (applies to default host)
+				// 4. User/pass auth: username=token (applies to default host)
 				match = line.match(/^username=(.+)$/);
 				if (match) {
 					const user = match[1];
@@ -88,7 +80,17 @@ export class LocalLoader implements IRepositorySettings {
 					continue;
 				}
 
-				// 6. User/pass auth: username + password for specific host
+				// 5. Host-specific auth token: //host/:_authToken=token
+				match = line.match(/^\/\/([^/]+)\/?:_authToken=(.+)$/);
+				if (match) {
+					const [, host, token] = match;
+					this.#hosts.set(host, { mode: 'token', token, origin });
+					continue;
+				}
+
+				// 6. Host-specific user/pass auth: //host/:username=user
+				// and //host/:password=pass
+				// Note: This handles both user and password in the same line
 				match = line.match(/^\/\/([^/]+)\/?:username=(.+)$/);
 				if (match) {
 					const [, host, user] = match;

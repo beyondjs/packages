@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { createWriteStream } from 'fs';
 import { dirname } from 'path';
-import type { IFileStorage } from '@beyond-js/packages/persistence/interfaces';
+import type { IFileStorage } from '@beyond-js/packages/persistence/types';
 
 export class LocalFileStorage implements IFileStorage {
 	async stream(path: string): Promise<NodeJS.WritableStream> {

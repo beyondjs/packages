@@ -1,0 +1,5 @@
+{
+	"name": "persistence/types/cdn",
+	"bundle": "ts",
+	"files": "*"
+}

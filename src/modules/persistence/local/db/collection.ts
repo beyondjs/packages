@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { ICollection } from '@beyond-js/packages/persistence/interfaces';
+import { ICollection } from '@beyond-js/packages/persistence/types';
 
 export class Collection<IItemData> implements ICollection<IItemData> {
 	#name: string;

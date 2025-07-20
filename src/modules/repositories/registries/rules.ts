@@ -10,12 +10,6 @@ export type Rule = {
 	build: (scope: string, name: string) => string;
 };
 
-const token = (auth: IRepositoryAuth) => ({ Authorization: `Bearer ${auth.token}` });
-const basic = (auth: IRepositoryAuth) => ({ Authorization: `Basic ${auth.token}` });
-const userpass = (auth: IRepositoryAuth) => ({
-	Authorization: `Basic ${Buffer.from(`${auth.user}:${auth.token}`).toString('base64')}`
-});
-
 /**
  * Known rules for repositories, including hostnames, headers, and download logic.
  */
