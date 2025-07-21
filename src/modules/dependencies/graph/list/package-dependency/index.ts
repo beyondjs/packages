@@ -1,9 +1,11 @@
 import type { DependenciesNode } from '../../node';
 import type { Registries } from '@beyond-js/packages/repositories/registries';
 import { Groups } from './groups';
-import { BusinessErrorManager } from '@beyond-js/packages/dependencies/errors';
+import { RepositoriesErrorManager } from '@beyond-js/packages/repositories/errors';
 
 export class PackageDependency {
+	#registries: Registries;
+
 	#pkg: string;
 	get pkg() {
 		return this.#pkg;
@@ -24,18 +26,19 @@ export class PackageDependency {
 		return this.#initialized;
 	}
 
-	#error: BusinessErrorManager;
+	#error: RepositoriesErrorManager;
 	get error() {
 		return this.#error;
 	}
 
-	constructor(pkg: string) {
+	constructor(registries: Registries, pkg: string) {
+		this.#registries = registries;
 		this.#pkg = pkg;
 	}
 
 	async initialize() {
 		if (this.#initialized) return;
-		const response = await NPM.versions(this.#pkg);
+		const response = await this.#registries.npm.versions(this.#pkg);
 		if (response.error) {
 			this.#initialized = true;
 			this.#error = response.error;

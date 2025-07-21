@@ -1,6 +1,6 @@
 import type { DependenciesSpecs } from './';
-import crc32 from '@beyond-js/crc32';
-import equal from '@beyond-js/equal';
+import { crc32 } from '@beyond-js/crc32/main';
+import { equal } from '@beyond-js/equal/main';
 
 export default class DependenciesHash {
 	#specs: DependenciesSpecs;
@@ -21,8 +21,8 @@ export default class DependenciesHash {
 	 */
 	update(): void {
 		const compute: Record<string, { version: string; kind: string }> = {};
-		this.#specs.forEach((value, key) => {
-			compute[key] = { version: value.version, kind: value.kind };
+		this.#specs.forEach(({ version, kind }, key) => {
+			compute[key] = { version, kind };
 		});
 		this.#value = crc32(equal.generate(compute));
 	}

@@ -1,4 +1,3 @@
-import { ErrorManager } from '@beyond-js/response/main';
 import type { DependenciesNode } from '../../../node';
 import { intersects, maxSatisfying } from 'semver';
 

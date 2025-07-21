@@ -20,14 +20,14 @@ const priority: Record<Kind, number> = {
 /**
  * Represents a structured list of dependencies from a `package.json`.
  * Maps each dependency name (key) to:
- * - an identifier (semver, git ref, URL, etc.)
+ * - a version (semver, git ref, URL, etc.)
  * - its kind: 'main', 'development', 'peer', or 'optional'
  *
  * Also stores:
  * - raw `overrides`
  * - a list of warnings if the input structure is invalid
  */
-export /*bundle*/ class DependenciesSpecs extends Map<string, { identifier: string; kind: Kind }> {
+export /*bundle*/ class DependenciesSpecs extends Map<string, { version: string; kind: Kind }> {
 	#hash?: Hash;
 	get hash(): number {
 		return this.#hash.value;
@@ -49,7 +49,7 @@ export /*bundle*/ class DependenciesSpecs extends Map<string, { identifier: stri
 		const add = (name: string, value: string, kind: Kind) => {
 			const current = this.get(name);
 			if (!current || priority[kind] > priority[current.kind]) {
-				this.set(name, { identifier: value, kind });
+				this.set(name, { version: value, kind });
 			}
 		};
 

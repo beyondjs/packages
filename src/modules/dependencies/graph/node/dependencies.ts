@@ -1,8 +1,10 @@
-import type { DependenciesSpecs } from '@beyond-js/cdn/business/dependencies/specs';
+import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
 import type { DependenciesList } from '../list';
 import type { DependenciesNode } from '.';
 
 export /*bundle*/ class NodeDependencies extends Map {
+	#registries: Registries;
 	#node: DependenciesNode;
 	#list: DependenciesList;
 
@@ -55,7 +57,7 @@ export /*bundle*/ class NodeDependencies extends Map {
 		const { DependenciesNode: Node } = await import('./');
 
 		for (const [name, { version }] of specs) {
-			const node = new Node(this.#list, name, version, this.#node);
+			const node = new Node(this.#registries, this.#list, name, version, this.#node);
 			await node.register();
 			this.set(name, node);
 		}

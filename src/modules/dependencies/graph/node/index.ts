@@ -1,11 +1,12 @@
 import type { ErrorManager } from '@beyond-js/response/main';
+import type { Registries } from '@beyond-js/packages/repositories/registries';
 import type { DependenciesList } from '../list';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
-import { NPM } from '@beyond-js/cdn/business/packages/registry';
 import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
 
 export class DependenciesNode {
+	#registries: Registries;
 	#list: DependenciesList;
 
 	#pkg: string;
@@ -43,7 +44,14 @@ export class DependenciesNode {
 		return this.#error;
 	}
 
-	constructor(list: DependenciesList, pkg: string, version: string, parent?: DependenciesNode) {
+	constructor(
+		registries: Registries,
+		list: DependenciesList,
+		pkg: string,
+		version: string,
+		parent?: DependenciesNode
+	) {
+		this.#registries = registries;
 		this.#list = list;
 		this.#pkg = pkg;
 		this.#parent = parent;
@@ -85,10 +93,10 @@ export class DependenciesNode {
 		const version = this.#version;
 		if (version.error) return done({ error: version.error });
 
-		const specs = await NPM.specs(this.#pkg, this.#version.resolved);
-		if (specs.error) return done({ error: specs.error });
+		const spec = await this.#registries.npm.spec(this.#pkg, this.#version.resolved);
+		if (spec.error) return done({ error: spec.error });
 
-		const dependencies = new DependenciesSpecs(specs.value);
+		const dependencies = new DependenciesSpecs(spec.data.value);
 		await this.#dependencies.process(dependencies);
 		return done({});
 	}

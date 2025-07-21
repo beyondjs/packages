@@ -1,4 +1,5 @@
 import type { Registries } from '@beyond-js/packages/repositories/registries';
+import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
 import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
@@ -22,7 +23,6 @@ export /*bundle*/ interface IDependenciesGraphConstructorParams {
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
-	#registries: Registries;
 	#specs: IDependenciesSpecs;
 
 	#workspace: { name: string; version: string }[];
@@ -42,11 +42,10 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 	}
 
 	constructor({ registries, specs, workspace }: IDependenciesGraphConstructorParams) {
-		const list = new DependenciesList();
+		const list = new DependenciesList(registries);
 		const { name, version } = specs;
-		super(list, name, version);
+		super(registries, list, name, version);
 
-		this.#registries = registries;
 		this.#specs = specs;
 		this.#workspace = workspace;
 		this.#list = list;
@@ -55,9 +54,6 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 
 	async process() {
 		this.#logger.info('Process has been started');
-
-		console.log('done!');
-		return;
 
 		// The root node version is the version of the package for which dependencies are being processed
 		// This version value can be treated as arbitrary, as it will not have impact
