@@ -1,7 +1,7 @@
 import type { IRegistry, IPackageSpecResponse } from './types';
 import type { RepositoryType, IRepositoryAuth } from '@beyond-js/packages/repositories/types';
 import type { Logger } from '@beyond-js/packages/logs';
-import { RepositoriesSettings } from '@beyond-js/packages/repositories/settings';
+import type { RepositoriesSettings } from '@beyond-js/packages/repositories/settings';
 import { ErrorGettingPackageVersions } from '@beyond-js/packages/repositories/errors';
 import { RepositoriesResponse } from '@beyond-js/packages/repositories/response';
 import { exec } from 'child_process';
@@ -11,7 +11,7 @@ import { AuthHeaders } from './tools';
 
 const nullDevice = platform() === 'win32' ? 'NUL' : '/dev/null';
 
-export /*bundle*/ class NPM implements IRegistry {
+export class NpmRegistry implements IRegistry {
 	#settings: RepositoriesSettings;
 
 	readonly #name = 'npm';
@@ -78,7 +78,9 @@ export /*bundle*/ class NPM implements IRegistry {
 	}
 
 	async spec(name: string, version: string, logger?: Logger): Promise<RepositoriesResponse<IPackageSpecResponse>> {
-		const response = await PackageRegistryFetcher.spec(this.url, name, version, logger);
+		const headers = this.headers();
+		const rq = { url: this.url, host: this.host, headers, logger };
+		const response = await PackageRegistryFetcher.spec(rq, name, version);
 
 		if (response.error) {
 			return new RepositoriesResponse({ error: response.error });

@@ -1,3 +1,4 @@
+import type { Registries } from '@beyond-js/packages/repositories/registries';
 import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
@@ -15,11 +16,13 @@ export /*bundle*/ interface IPackageSpecs extends IDependenciesSpecs {
 }
 
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
+	registries: Registries;
 	specs: IPackageSpecs;
 	workspace?: { name: string; version: string }[];
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
+	#registries: Registries;
 	#specs: IDependenciesSpecs;
 
 	#workspace: { name: string; version: string }[];
@@ -38,11 +41,12 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		return this.dependencies.completed;
 	}
 
-	constructor({ specs, workspace }: IDependenciesGraphConstructorParams) {
+	constructor({ registries, specs, workspace }: IDependenciesGraphConstructorParams) {
 		const list = new DependenciesList();
 		const { name, version } = specs;
 		super(list, name, version);
 
+		this.#registries = registries;
 		this.#specs = specs;
 		this.#workspace = workspace;
 		this.#list = list;

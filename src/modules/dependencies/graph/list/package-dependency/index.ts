@@ -1,7 +1,7 @@
 import type { DependenciesNode } from '../../node';
+import type { Registries } from '@beyond-js/packages/repositories/registries';
 import { Groups } from './groups';
-import { NPM } from '@beyond-js/cdn/business/packages/registry';
-import { BusinessErrorManager } from '@beyond-js/cdn/business/errors';
+import { BusinessErrorManager } from '@beyond-js/packages/dependencies/errors';
 
 export class PackageDependency {
 	#pkg: string;
