@@ -1,29 +1,18 @@
 import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { IPackageSpec, IDependenciesSpec } from '@beyond-js/packages/repositories/types';
 import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
 import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
 
-export /*bundle*/ interface IDependenciesSpecs {
-	dependencies: Record<string, string>;
-	devDependencies: Record<string, string>;
-	optionalDependencies: Record<string, string>;
-	peerDependencies: Record<string, string>;
-}
-
-export /*bundle*/ interface IPackageSpecs extends IDependenciesSpecs {
-	name: string;
-	version: string;
-}
-
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
 	registries: Registries;
-	specs: IPackageSpecs;
+	specs: IPackageSpec;
 	workspace?: { name: string; version: string }[];
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
-	#specs: IDependenciesSpecs;
+	#specs: IDependenciesSpec;
 
 	#workspace: { name: string; version: string }[];
 	get workspace() {
@@ -36,6 +25,9 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 	}
 
 	#logger: Logger;
+	get logger(): Logger {
+		return this.#logger;
+	}
 
 	get completed(): boolean {
 		return this.dependencies.completed;

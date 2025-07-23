@@ -16,6 +16,11 @@ export /*bundle*/ interface IRepositoriesSettingsOptions {
 }
 
 export /*bundle*/ class RepositoriesSettings implements IRepositoriesSettings {
+	#options: IRepositoriesSettingsOptions;
+	get options() {
+		return this.#options;
+	}
+
 	// Scopes to registry mapping: the key is the scope and the value is the repository host
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
@@ -32,6 +37,10 @@ export /*bundle*/ class RepositoriesSettings implements IRepositoriesSettings {
 	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
+	}
+
+	constructor(options: IRepositoriesSettingsOptions = {}) {
+		this.#options = options;
 	}
 
 	#merge(settings: IRepositoriesSettings) {
@@ -57,11 +66,9 @@ export /*bundle*/ class RepositoriesSettings implements IRepositoriesSettings {
 
 	/**
 	 * Load registry data from local, CI, and CDN sources.
-	 *
-	 * @param options Optional context path or workspace
 	 */
-	async load(options: IRepositoriesSettingsOptions = {}): Promise<void> {
-		const { path, workspace, cdn } = options;
+	async load(): Promise<void> {
+		const { path, workspace, cdn } = this.#options;
 
 		const local = new LocalLoader();
 		path && (await local.load(path, workspace));

@@ -1,7 +1,4 @@
 {
-	"dependencies": {
-		"18": "^0.0.0"
-	},
 	"devDependencies": {
 		"@beyond-js/bee": "~0.0.6"
 	}
