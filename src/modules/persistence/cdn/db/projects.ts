@@ -1,4 +1,4 @@
 import { Collection } from '@beyond-js/firestore-collection/collection';
-import type { IProjectData } from '@beyond-js/packages/persistence/interfaces';
+import type { IProjectData } from '@beyond-js/packages/persistence/types/cdn';
 
 export /*bundle*/ const projects: Collection<IProjectData> = new Collection('Projects');

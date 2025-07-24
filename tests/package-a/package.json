@@ -3,6 +3,6 @@
 	"version": "0.0.1",
 	"description": "A test package",
 	"dependencies": {
-		"package-a": "~0.0.0"
+		"package-b": "~0.0.0"
 	}
 }

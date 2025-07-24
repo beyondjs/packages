@@ -1,5 +1,5 @@
 import { Collection, SubCollection } from '@beyond-js/firestore-collection/collection';
-import type { IAccountData, IProjectData } from '@beyond-js/packages/persistence/interfaces';
+import type { IAccountData, IProjectData } from '@beyond-js/packages/persistence/types/cdn';
 
 class Accounts extends Collection<IAccountData> {
 	#projects: SubCollection<IProjectData>;

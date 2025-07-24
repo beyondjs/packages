@@ -1,9 +1,7 @@
-import type { Packages } from '@beyond-js/packages/persistence/interfaces';
+import type { packages } from '@beyond-js/packages/persistence/local/db';
 import { PackageInstaller } from './installer';
 
 export /*bundle*/ class Package {
-	#packages: Packages;
-
 	/**
 	 * A string identifier that indicates the exact source of the package.
 	 * It will be passed to the Locator to resolve the package's download location.

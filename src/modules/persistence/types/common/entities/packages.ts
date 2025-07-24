@@ -1,4 +1,4 @@
-import type { ICollection } from '../db/collection';
+import type { ICollection } from './collection';
 
 export /*bundle*/ type PackageSource = 'npm' | 'github' | 'github-pkg' | 'gitlab' | 'artifactory' | 'url';
 

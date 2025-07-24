@@ -1,0 +1,5 @@
+{
+	"name": "persistence/db",
+	"bundle": "ts",
+	"files": "*"
+}

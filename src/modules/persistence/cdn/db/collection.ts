@@ -1,5 +1,5 @@
 import { Collection as CollectionBase } from '@beyond-js/firestore-collection/collection';
-import type { ICollection } from '@beyond-js/packages/persistence/interfaces';
+import type { ICollection } from '@beyond-js/packages/persistence/types';
 
 export /*bundle*/ class Collection<DATA> implements ICollection<DATA> {
 	#collection: CollectionBase<DATA>;

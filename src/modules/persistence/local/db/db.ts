@@ -1,4 +1,4 @@
-import sqlite from 'sqlite3';
+import * as sqlite from 'sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { promisify } from 'util';
