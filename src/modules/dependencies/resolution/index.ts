@@ -64,7 +64,7 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 
 		// Tarball resolution (e.g., "https://.../mypackage.tgz")
 		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
-			this.#resolution = PackageResolutionType.Tarball;
+			this.#resolution = PackageResolutionType.Url;
 			return;
 		}
 

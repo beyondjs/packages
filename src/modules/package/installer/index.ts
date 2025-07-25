@@ -2,6 +2,8 @@ import type { Info, LocatorError } from './locator';
 import Downloader from './downloader';
 
 export /*bundle*/ class PackageInstaller {
+	constructor() {}
+
 	/**
 	 * Installs a package by its specifier.
 	 * @param identifier The package identifier to install, which can be a name, version, or URL.

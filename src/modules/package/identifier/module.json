@@ -1,0 +1,5 @@
+{
+	"subpath": "package/identifier",
+	"bundle": "ts",
+	"files": "*"
+}
