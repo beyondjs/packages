@@ -1,9 +1,9 @@
 {
 	"compilerOptions": {
-		"target": "es6",
 		"noImplicitAny": true,
+		"module": "es2020",
+		"target": "es2018",
 		"moduleResolution": "node",
-		"module": "esnext",
-		"types": ["node"]
+		"types": []
 	}
 }
