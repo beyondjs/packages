@@ -7,7 +7,7 @@ import { GitParser } from './git';
  * Resolves and interprets a dependency version specifier declared in a package.json.
  * Determines the resolution type (semver, tarball, git, etc.) and extracts relevant metadata.
  */
-export class PackageResolution implements IPackageResolution {
+export /*bundle*/ class PackageResolution implements IPackageResolution {
 	#name: string;
 	get name() {
 		return this.#name;
