@@ -4,3 +4,4 @@ node_modules
 !src/modules/node_modules
 credentials
 .env
+.DS_Store
