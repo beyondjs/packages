@@ -6,6 +6,25 @@ declare const bimport: (module: string) => Promise<any>;
 let ready: PendingPromise<void>;
 let Provider: new (root: string, path: string) => IFileStorage;
 
+export /*bundle*/ class Storage {
+	/**
+	 * Initializes the underlying storage system depending on the environment.
+	 *
+	 * @param cdn - Whether the app is running in a CDN/cloud environment (true) or local (false).
+	 */
+	static async init(cdn: boolean = false): Promise<void> {
+		if (ready) return await ready;
+		ready = new PendingPromise<void>();
+
+		const env = cdn ? 'cdn' : 'local';
+		const { File } = await bimport(`@beyond-js/packages/persistence/${env}/storage`);
+		Provider = File;
+
+		console.log(`Storage initialized with "${env}" 'provider`, Provider);
+		ready.resolve();
+	}
+}
+
 /**
  * Unified wrapper for file storage (local or cloud).
  * Automatically delegates to the correct storage backend (local filesystem or Google Cloud Storage).
@@ -32,22 +51,6 @@ export /*bundle*/ class File implements IFileStorage {
 	constructor(root: string, path: string) {
 		if (!Provider) throw new Error('File storage not initialized. Call File.init() before using File.');
 		this.#file = new Provider(root, path);
-	}
-
-	/**
-	 * Initializes the underlying storage system depending on the environment.
-	 *
-	 * @param cdn - Whether the app is running in a CDN/cloud environment (true) or local (false).
-	 */
-	static async init(cdn: boolean): Promise<void> {
-		if (ready) return await ready;
-		ready = new PendingPromise<void>();
-
-		const env = cdn ? 'cdn' : 'local';
-		const { File } = await bimport(`@beyond-js/packages/persistence/${env}/storage`);
-		Provider = File;
-
-		ready.resolve();
 	}
 
 	/** Returns a writable stream to store the file. */

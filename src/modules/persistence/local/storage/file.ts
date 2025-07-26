@@ -1,12 +1,14 @@
 import type { IFileStorage } from '@beyond-js/packages/persistence/types';
-import { createWriteStream, promises as fs } from 'fs';
+import * as fs from 'fs';
 import { dirname, join } from 'path';
-import { mkdir } from 'fs/promises';
+
+const { createWriteStream } = fs;
+const { readFile, access, rm, mkdir } = fs.promises;
 
 /**
  * File implementation for local filesystem storage.
  */
-export class File implements IFileStorage {
+export /*bundle*/ class File implements IFileStorage {
 	readonly #root: string;
 	get root(): string {
 		return this.#root;
@@ -34,12 +36,12 @@ export class File implements IFileStorage {
 	}
 
 	async load(): Promise<Buffer> {
-		return fs.readFile(this.#fullpath);
+		return readFile(this.#fullpath);
 	}
 
 	async exists(): Promise<boolean> {
 		try {
-			await fs.access(this.#fullpath);
+			await access(this.#fullpath);
 			return true;
 		} catch {
 			return false;
@@ -47,6 +49,6 @@ export class File implements IFileStorage {
 	}
 
 	async delete(): Promise<void> {
-		await fs.rm(this.#fullpath, { force: true });
+		await rm(this.#fullpath, { force: true });
 	}
 }

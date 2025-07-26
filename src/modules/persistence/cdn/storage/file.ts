@@ -4,7 +4,7 @@ import { Storage } from '@google-cloud/storage';
 /**
  * File implementation for Google Cloud Storage.
  */
-export class File implements IFileStorage {
+export /*bundle*/ class File implements IFileStorage {
 	readonly #root: string;
 	get root(): string {
 		return this.#root;
