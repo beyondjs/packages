@@ -1,33 +1,47 @@
-import { Storage, Bucket } from '@google-cloud/storage';
-import type { IFileStorage } from '@beyond-js/packages/persistence/interfaces';
+import type { IFileStorage } from '@beyond-js/packages/persistence/types';
+import { Storage } from '@google-cloud/storage';
 
-export class GCloudFileStorage implements IFileStorage {
-	#bucket: Bucket;
+/**
+ * File implementation for Google Cloud Storage.
+ */
+export class File implements IFileStorage {
+	readonly #root: string;
+	get root(): string {
+		return this.#root;
+	}
 
-	constructor(bucketName: string) {
+	readonly #path: string;
+	get path(): string {
+		return this.#path;
+	}
+
+	readonly #bucket: ReturnType<Storage['bucket']>;
+	readonly #file: ReturnType<ReturnType<Storage['bucket']>['file']>;
+
+	constructor(root: string, path: string) {
+		this.#root = root;
+		this.#path = path;
+
 		const storage = new Storage();
-		this.#bucket = storage.bucket(bucketName);
+		this.#bucket = storage.bucket(this.root);
+		this.#file = this.#bucket.file(this.path);
 	}
 
-	async stream(path: string): Promise<NodeJS.WritableStream> {
-		const file = this.#bucket.file(path);
-		return file.createWriteStream();
+	async stream(): Promise<NodeJS.WritableStream> {
+		return this.#file.createWriteStream();
 	}
 
-	async load(path: string): Promise<Buffer> {
-		const file = this.#bucket.file(path);
-		const [contents] = await file.download();
-		return contents;
+	async load(): Promise<Buffer> {
+		const [buffer] = await this.#file.download();
+		return buffer;
 	}
 
-	async exists(path: string): Promise<boolean> {
-		const file = this.#bucket.file(path);
-		const [exists] = await file.exists();
+	async exists(): Promise<boolean> {
+		const [exists] = await this.#file.exists();
 		return exists;
 	}
 
-	async delete(path: string): Promise<void> {
-		const file = this.#bucket.file(path);
-		await file.delete();
+	async delete(): Promise<void> {
+		await this.#file.delete({ ignoreNotFound: true });
 	}
 }

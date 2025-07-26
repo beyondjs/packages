@@ -1,6 +1,6 @@
 import type { IGitIdentifier, INpmIdentifier, PackageIdentifierType } from '@beyond-js/packages/repositories/types';
 
-export class PackageIdentifier {
+export /*bundle*/ class PackageIdentifier {
 	readonly #id: string;
 	get id() {
 		return this.#id;
@@ -37,27 +37,18 @@ export class PackageIdentifier {
 				};
 			}
 
-			const { version, repository } = npm;
-			const { name, scope, error } = (() => {
-				const parts = npm.name.split('/');
-
-				// Check for invalid scope format
-				if (npm.name.startsWith('@') && parts.length !== 2) {
-					const code = 'INVALID_SCOPE';
-					const text = `Invalid scope in package name "${npm.name}"`;
-					return { error: { code, text } };
-				}
-
-				if (parts.length === 2) {
-					return { scope: parts[0], name: parts[1] };
-				}
-				return { name: parts[0] };
-			})();
-
-			if (error) {
-				this.#error = error;
+			// Check for invalid scope format
+			const parts = npm.name.split('/');
+			if (npm.name.startsWith('@') && parts.length !== 2) {
+				const code = 'INVALID_SCOPE';
+				const text = `Invalid scope in package name "${npm.name}"`;
+				this.#error = { code, text };
 				return;
 			}
+			const scope = parts.length === 2 ? parts[0] : undefined;
+			const name = scope ? parts[1] : parts[0];
+
+			const { version, repository } = npm;
 
 			this.#id = scope ? `${repository}:${scope}/${name}@${version}` : `${repository}/${name}@${version}`;
 			this.#path = scope ? `${repository}/${scope}/${name}/${version}` : `${repository}/${name}/${version}`;

@@ -3,14 +3,6 @@ import type { Packages } from '@beyond-js/packages/persistence/types';
 
 declare const bimport: (module: string) => Promise<any>;
 
-interface IOptions {
-	cdn?: {
-		account: string;
-		project: string;
-		token: string;
-	};
-}
-
 export class DB {
 	#ready: PendingPromise<void>;
 
@@ -19,11 +11,10 @@ export class DB {
 		return this.#packages;
 	}
 
-	async init(options: IOptions = {}): Promise<void> {
+	async init(cdn?: boolean): Promise<void> {
 		if (this.#ready) return await this.#ready;
 		this.#ready = new PendingPromise<void>();
 
-		const { cdn } = options;
 		const env = cdn ? 'cdn' : 'local';
 		const { packages } = await bimport(`@beyond-js/packages/persistence/${env}/db`);
 

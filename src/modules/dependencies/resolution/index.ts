@@ -23,9 +23,11 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 		return this.#version;
 	}
 
-	#resolution?: PackageResolutionType;
-	get resolution() {
-		return this.#resolution;
+	// Options are 'semver', 'git', 'url', 'file', 'unknown', 'error'
+	// Indicates if the version is a valid semver, git URL, or tarball URL
+	#is?: PackageResolutionType;
+	get is() {
+		return this.#is;
 	}
 
 	#semver?: string;
@@ -56,7 +58,7 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 		if (version.startsWith('npm:')) {
 			const [, target] = version.split(':');
 			const [, aliasVersion] = target.split('@');
-			this.#resolution = PackageResolutionType.Semver;
+			this.#is = PackageResolutionType.Semver;
 			this.#repository = 'default';
 			this.#semver = aliasVersion || '*';
 			return;
@@ -64,14 +66,14 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 
 		// Tarball resolution (e.g., "https://.../mypackage.tgz")
 		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
-			this.#resolution = PackageResolutionType.Url;
+			this.#is = PackageResolutionType.Url;
 			return;
 		}
 
 		// Git resolution (shorthand or git+ protocol)
 		const parsed = GitParser.parse(version);
 		if (parsed) {
-			this.#resolution = PackageResolutionType.Git;
+			this.#is = PackageResolutionType.Git;
 			this.#git = {
 				host: parsed.host,
 				owner: parsed.owner,
@@ -84,7 +86,7 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 
 		// Semver resolution (e.g., "^1.0.0", "~2.3.4")
 		if (Semver.is(version)) {
-			this.#resolution = PackageResolutionType.Semver;
+			this.#is = PackageResolutionType.Semver;
 			this.#semver = version;
 			this.#repository = 'default';
 
@@ -97,7 +99,7 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 		}
 
 		// Fallback: invalid or unsupported version specifier
-		this.#resolution = PackageResolutionType.Unknown;
+		this.#is = PackageResolutionType.Unknown;
 		this.#error = {
 			code: 'INVALID_SPECIFIER',
 			text: `The version specifier '${version}' is not recognized.`
