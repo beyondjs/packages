@@ -1,8 +1,10 @@
-import BundlerSpecs from './bundler-specs';
-import {DynamicProcessor} from '@beyond-js/dynamic-processor');
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { FileData } from '@beyond-js/file/data';
+import type { IModuleJSON } from '@beyond-js/packages/types';
+import BundlerSpec from './bundler-spec';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
-import {equal} from '@beyond-js/equal/main';
-import {crc32 }from '@beyond-js/crc32/main';
+import { equal } from '@beyond-js/equal/main';
 import * as path from 'path';
 
 const { sep } = path;
@@ -17,13 +19,13 @@ export default class extends DynamicProcessor(Map) {
 		return this.#package;
 	}
 
-	#file;
+	#file: FileData;
 	get file() {
 		return this.#file;
 	}
 
 	get path() {
-		this.#file.dirname;
+		return this.#file.dirname;
 	}
 
 	/**
@@ -40,12 +42,12 @@ export default class extends DynamicProcessor(Map) {
 		return this.#config;
 	}
 
-	#errors = [];
+	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;
 	}
 
-	#warnings = [];
+	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
@@ -93,7 +95,7 @@ export default class extends DynamicProcessor(Map) {
 		}
 
 		// Process the bundlers configuration
-		const config = this.#config.value;
+		const config: IModuleJSON = this.#config.value;
 
 		// Just for backward compatibility ('name' as subpath synonimous)
 		config.subpath = config.subpath ? config.subpath : config.name;
@@ -161,11 +163,11 @@ export default class extends DynamicProcessor(Map) {
 
 		const updated = new Map();
 		bundlers.forEach((values, name) => {
-			const specs = this.has(name) ? this.get(name) : new BundlerSpecs();
+			const specs = this.has(name) ? this.get(name) : new BundlerSpec();
 			updated.set(name, specs);
 			specs.values = values;
 		});
 
 		return done({ updated, warnings: this.#warnings });
 	}
-};
+}

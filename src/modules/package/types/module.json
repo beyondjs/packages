@@ -1,5 +1,5 @@
 {
-	"name": "package/identifier",
+	"name": "types",
 	"bundle": "ts",
 	"files": "*"
 }

@@ -5,7 +5,7 @@ import Entry from './entry';
 /**
  * Collection of modules of the package
  */
-export default class extends FinderCollection {
+export default class ModulesEntries extends FinderCollection {
 	#package: Package;
 	get package() {
 		return this.#package;

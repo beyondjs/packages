@@ -1,8 +1,8 @@
-const ipc = require('@beyond-js/ipc/main');
-const { ConfigurableFinder } = require('@beyond-js/finder');
-const Modules = require('./modules');
+import ipc from '@beyond-js/ipc/main';
+import { ConfigurableFinder } from '@beyond-js/finder';
+import ModuleStaticFiles from './modules';
 
-module.exports = class extends ConfigurableFinder {
+export default class extends ConfigurableFinder {
 	#package;
 
 	#config;
@@ -81,4 +81,4 @@ module.exports = class extends ConfigurableFinder {
 			filter: { package: this.#package.id }
 		});
 	}
-};
+}

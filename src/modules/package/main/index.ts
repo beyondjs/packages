@@ -1,19 +1,11 @@
-import { BackgroundWatcher } from '@beyond-js/watchers/client';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import { WatcherClient } from '@beyond-js/watchers/client';
+import { Config } from '@beyond-js/config/main';
 import Bundlers from './bundlers';
 import Modules from './modules';
 import Static from './static';
 import Attributes from './attributes';
 
-interface IError {
-	code: string;
-	message: string;
-	stack?: string;
-}
-interface IWarning {
-	code: string;
-	message: string;
-	stack?: string;
-}
 interface IOptions {
 	watcher?: boolean;
 }
@@ -21,17 +13,17 @@ interface IOptions {
 export /*bundle*/ class Package extends Attributes {
 	#options: IOptions;
 
-	#watcher: BackgroundWatcher;
+	#watcher: WatcherClient;
 	get watcher() {
 		return this.#watcher;
 	}
 
-	#errors: IError[] = [];
+	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;
 	}
 
-	#warnings: IWarning[] = [];
+	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
@@ -60,7 +52,7 @@ export /*bundle*/ class Package extends Attributes {
 
 		// Create the files watcher of the package
 		const { config } = this;
-		this.#watcher = this.#options.watcher && new BackgroundWatcher({ is: 'package', path: config.path });
+		this.#watcher = this.#options.watcher && new WatcherClient('watchers', { is: 'package', path: config.path });
 		this.#watcher?.start().catch((exc: Error) => console.error(exc.stack));
 
 		const cfg = {
@@ -75,14 +67,16 @@ export /*bundle*/ class Package extends Attributes {
 	}
 
 	constructor(path: string, options: IOptions = {}) {
-		const config = new Config(path);
+		const config = new Config(path, { '/bundlers': 'object', '/modules': 'object', '/static': 'object' });
+		config.data = 'package.json';
+
 		super(config);
 
 		this.#options = options;
 
 		// As the modules are subscribed to the events of the package, then
 		// it is required to increase the number of listeners
-		this._events.setMaxListeners(500);
+		this.setMaxListeners(500);
 	}
 
 	_process() {

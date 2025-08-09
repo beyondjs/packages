@@ -1,19 +1,20 @@
-const ipc = require('@beyond-js/ipc/main');
-const DynamicProcessor = require('@beyond-js/dynamic-processor')(Map);
-const ModulesResolvers = require('./resolvers');
-const { relative } = require('path');
+import type { RequireType } from '@beyond-js/dynamic-processor/main';
+import type { Package } from '..';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import ModuleResolvers from './resolvers';
+import { relative } from 'path';
 
-module.exports = class extends DynamicProcessor {
+export default class PackageModules extends DynamicProcessor(Map<string, {}>) {
 	get dp() {
 		return 'package.modules';
 	}
 
-	#package;
+	#package: Package;
 	get package() {
 		return this.#package;
 	}
 
-	#resolvers;
+	#resolvers: ModuleResolvers;
 	get resolvers() {
 		return this.#resolvers;
 	}
@@ -53,15 +54,7 @@ module.exports = class extends DynamicProcessor {
 		this.#propagator = new (require('./propagator'))(this._events);
 	}
 
-	_notify() {
-		ipc.notify('data-notification', {
-			type: 'list/update',
-			table: 'packages-modules',
-			filter: { package: this.#package.id }
-		});
-	}
-
-	_prepared(require) {
+	_prepared(require: RequireType) {
 		// Be sure that the modules are ready before the entries are processed
 		const resolvers = this.#resolvers;
 		resolvers.forEach(resolver => require(resolver, resolver.id));
@@ -102,4 +95,4 @@ module.exports = class extends DynamicProcessor {
 		super.destroy();
 		this.clear();
 	}
-};
+}

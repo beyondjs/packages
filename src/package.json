@@ -4,13 +4,15 @@
 	"name": "@beyond-js/packages",
 	"repository": "https://github.com/beyondjs/packages",
 	"dependencies": {
-		"@beyond-js/firestore-collection": "~0.0.6",
-		"@beyond-js/logs": "~0.0.2",
+		"@beyond-js/dynamic-processor": "~1.0.7",
+		"@beyond-js/watchers": "~1.0.5",
+		"@beyond-js/config": "~1.0.0",
 		"@beyond-js/pending-promise": "~0.0.5",
-		"@beyond-js/specifier-parser": "^0.0.3",
+		"@beyond-js/specifier-parser": "~0.0.4",
+		"@beyond-js/firestore-collection": "~0.1.0",
+		"@beyond-js/logs": "~0.0.2",
 		"@google-cloud/storage": "^6.8.0",
 		"@beyond-js/equal": "~1.0.2",
-		"@beyond-js/crc32": "~1.0.2",
 		"dotenv": "~16.3.1",
 		"semver": "~7.5.4",
 		"sqlite3": "~5.1.7",
@@ -34,7 +36,7 @@
 				"name": "node",
 				"platform": "node",
 				"ports": {
-					"bundles": "3000"
+					"bundles": 1110
 				}
 			},
 			{
@@ -44,7 +46,7 @@
 					"compiler": "tsc"
 				},
 				"ports": {
-					"bundles": "3001"
+					"bundles": 1111
 				}
 			}
 		]

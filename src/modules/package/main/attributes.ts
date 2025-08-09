@@ -1,5 +1,5 @@
+import type { IPackageJSON } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
-import { crc32 } from '@beyond-js/crc32/main';
 import { equal } from '@beyond-js/equal/main';
 
 export default class extends DynamicProcessor() {
@@ -21,7 +21,7 @@ export default class extends DynamicProcessor() {
 		return this.#config.path;
 	}
 
-	#values = {};
+	#values: IPackageJSON = {};
 
 	get name() {
 		return this.#values.name;

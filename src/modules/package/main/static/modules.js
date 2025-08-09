@@ -1,6 +1,6 @@
-const DynamicProcessor = require('@beyond-js/dynamic-processor')(Map);
+import { DynamicProcessor } from '@beyond-js/dynamic-processor';
 
-module.exports = class extends DynamicProcessor {
+export default class ModuleStaticFiles extends DynamicProcessor(Map < string, {}) {
 	#modules;
 
 	constructor(modules) {
@@ -11,6 +11,6 @@ module.exports = class extends DynamicProcessor {
 	}
 
 	_process() {
-		// Process the list of modules entries
+		// Process the list of static files from the module entries
 	}
-};
+}

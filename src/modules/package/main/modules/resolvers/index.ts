@@ -1,19 +1,17 @@
-import DynamicProcessor from '@beyond-js/dynamic-processor';
+import type { Package } from '../..';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import ModulesEntries from './entries';
 import Resolver from './resolver';
-import * as path from 'path';
-
-const { relative } = path;
 
 /**
  * Collection of package modules
  */
-export default class extends DynamicProcessor(Map) {
+export default class ModuleResolvers extends DynamicProcessor(Map<string, Resolver>) {
 	get dp() {
 		return 'package.modules.resolvers';
 	}
 
-	#package;
+	#package: Package;
 	get package() {
 		return this.#package;
 	}
@@ -22,10 +20,7 @@ export default class extends DynamicProcessor(Map) {
 	 * The collection of module.json entries. As they can specify more than one bundler, it means that
 	 * one entry can have more than one module
 	 */
-	#entries;
-	get entries() {
-		return this.#entries;
-	}
+	#entries: ModulesEntries;
 
 	get path() {
 		return this.#entries.path;
@@ -37,7 +32,7 @@ export default class extends DynamicProcessor(Map) {
 	 * @param package {object} The package object
 	 * @param config {object} The modules configuration
 	 */
-	constructor(pkg, config) {
+	constructor(pkg: Package, config) {
 		super();
 
 		this.#package = pkg;

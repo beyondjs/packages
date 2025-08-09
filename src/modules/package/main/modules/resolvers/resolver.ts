@@ -1,4 +1,6 @@
-import { DynamicProcessor } from '@beyond-js/dynamic-processor';
+import type Package from '..';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
 export default class extends DynamicProcessor() {
@@ -6,7 +8,7 @@ export default class extends DynamicProcessor() {
 		return 'module.resolver';
 	}
 
-	#package;
+	#package: Package;
 	get package() {
 		return this.#package;
 	}
@@ -23,12 +25,12 @@ export default class extends DynamicProcessor() {
 		return this.#module;
 	}
 
-	#errors = [];
+	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;
 	}
 
-	#warnings = [];
+	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
@@ -37,7 +39,7 @@ export default class extends DynamicProcessor() {
 		return !this.#errors?.length;
 	}
 
-	constructor(pkg, file, specs) {
+	constructor(pkg: Package, file, specs) {
 		super();
 		this.#package = pkg;
 		this.#file = file;

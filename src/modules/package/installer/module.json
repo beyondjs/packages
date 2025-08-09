@@ -1,5 +1,5 @@
 {
-	"subpath": "package/installer",
+	"name": "package/installer",
 	"bundle": "ts",
 	"files": "*"
 }

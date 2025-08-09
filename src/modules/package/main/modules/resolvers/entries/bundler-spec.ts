@@ -1,4 +1,5 @@
-import { DynamicProcessor } from '@beyond-js/dynamic-processor';
+import { IModuleSpec } from '@beyond-js/packages/types';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
 export default class extends DynamicProcessor() {
@@ -6,7 +7,7 @@ export default class extends DynamicProcessor() {
 		return 'module.specs';
 	}
 
-	#values = {};
+	#values: IModuleSpec | {} = {};
 	get values() {
 		return this.#values;
 	}

@@ -1,19 +1,26 @@
+import type { IDiagnostic } from '@beyond-js/packages/types';
 import type Package from './';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import BundlerSettings from './settings';
 import { equal } from '@beyond-js/equal/main';
 
-export default class Bundlers extends DynamicProcessor(Map) {
+export interface IBundlerInfo {
+	path: string;
+	meta: {};
+	settings: BundlerSettings;
+}
+
+export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>) {
 	get dp() {
 		return 'package.bundlers';
 	}
 
-	#errors = [];
+	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;
 	}
 
-	#warnings = [];
+	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
