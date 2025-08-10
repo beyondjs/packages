@@ -1,5 +1,4 @@
-import ipc from '@beyond-js/ipc/main';
-import { ConfigurableFinder } from '@beyond-js/finder';
+import { ConfigurableFinder } from '@beyond-js/finder/configurable';
 import ModuleStaticFiles from './modules';
 
 export default class extends ConfigurableFinder {
@@ -74,11 +73,11 @@ export default class extends ConfigurableFinder {
 		this.#config.off('change', this.#configure);
 	}
 
-	_notify() {
-		ipc.notify('data-notification', {
-			type: 'list/update',
-			table: 'packages-static',
-			filter: { package: this.#package.id }
-		});
-	}
+	// _notify() {
+	// 	ipc.notify('data-notification', {
+	// 		type: 'list/update',
+	// 		table: 'packages-static',
+	// 		filter: { package: this.#package.id }
+	// 	});
+	// }
 }

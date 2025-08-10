@@ -1,5 +1,6 @@
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import type { Package } from '..';
+import type { Config } from '@beyond-js/config/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import ModuleResolvers from './resolvers';
 import { relative } from 'path';
@@ -41,7 +42,7 @@ export default class PackageModules extends DynamicProcessor(Map<string, {}>) {
 	 * @param package {object} The package object
 	 * @param config {object} The modules configuration
 	 */
-	constructor(pkg, config) {
+	constructor(pkg: Package, config: Config) {
 		super();
 		this.setMaxListeners(500); // One listener per seekers is require
 

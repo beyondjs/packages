@@ -1,4 +1,4 @@
-import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { IDiagnostic, IPackageJSON } from '@beyond-js/packages/types';
 import { WatcherClient } from '@beyond-js/watchers/client';
 import { Config } from '@beyond-js/config/main';
 import Bundlers from './bundlers';
@@ -84,8 +84,8 @@ export /*bundle*/ class Package extends Attributes {
 		this.#warnings = warnings;
 		this.#errors = errors;
 
-		const config = !valid || !value ? {} : value;
-		super._process(config);
+		const config: IPackageJSON | {} = !valid || !value ? {} : value;
+		super.process(config);
 	}
 
 	destroy() {

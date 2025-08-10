@@ -1,4 +1,6 @@
+import { createHash } from 'crypto';
 import type { IPackageJSON } from '@beyond-js/packages/types';
+import type { Config } from '@beyond-js/config/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
@@ -7,12 +9,12 @@ export default class extends DynamicProcessor() {
 		return 'package';
 	}
 
-	#id;
-	get id() {
+	#id: string;
+	get id(): string {
 		return this.#id;
 	}
 
-	#config;
+	#config: Config;
 	get config() {
 		return this.#config;
 	}
@@ -22,35 +24,27 @@ export default class extends DynamicProcessor() {
 	}
 
 	#values: IPackageJSON = {};
-
 	get name() {
 		return this.#values.name;
 	}
-
 	get version() {
 		return this.#values.version;
 	}
-
 	get vname() {
 		return `${this.#values.name}@${this.#values.version}`;
 	}
-
 	get description() {
 		return this.#values.description;
 	}
-
 	get keywords() {
 		return this.#values.keywords;
 	}
-
 	get author() {
 		return this.#values.author;
 	}
-
 	get license() {
 		return this.#values.license;
 	}
-
 	get repository() {
 		return this.#values.repository;
 	}
@@ -62,15 +56,15 @@ export default class extends DynamicProcessor() {
 		await config.initialise();
 	}
 
-	constructor(config) {
+	constructor(config: Config) {
 		super();
 		super.setup(new Map([['config', { child: config }]]));
 
 		this.#config = config;
-		this.#id = crc32(this.path);
+		this.#id = createHash('md5').update(this.path).digest('hex').toString();
 	}
 
-	_process(config) {
+	process(config: IPackageJSON): boolean | void {
 		const { name, version, description, keywords, author, license, repository } = config;
 		const values = { name, version, description, keywords, author, license, repository };
 

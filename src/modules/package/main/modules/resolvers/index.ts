@@ -1,4 +1,6 @@
 import type { Package } from '../..';
+import type { Config } from '@beyond-js/config/main';
+import { RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import ModulesEntries from './entries';
 import Resolver from './resolver';
@@ -22,7 +24,7 @@ export default class ModuleResolvers extends DynamicProcessor(Map<string, Resolv
 	 */
 	#entries: ModulesEntries;
 
-	get path() {
+	get path(): string {
 		return this.#entries.path;
 	}
 
@@ -32,7 +34,7 @@ export default class ModuleResolvers extends DynamicProcessor(Map<string, Resolv
 	 * @param package {object} The package object
 	 * @param config {object} The modules configuration
 	 */
-	constructor(pkg: Package, config) {
+	constructor(pkg: Package, config: Config) {
 		super();
 
 		this.#package = pkg;
@@ -41,7 +43,7 @@ export default class ModuleResolvers extends DynamicProcessor(Map<string, Resolv
 		super.setup(new Map([['entries', { child: entries }]]));
 	}
 
-	_prepared(require) {
+	_prepared(require: RequireType) {
 		// Be sure that the modules are ready before the entries are processed
 		const entries = this.#entries;
 		entries.forEach(entry => require(entry, entry.id));

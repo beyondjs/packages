@@ -1,11 +1,12 @@
+import type { Config } from '@beyond-js/config/main';
 import { Package } from '../../..';
-import { FinderCollection } from '@beyond-js/finder/main';
+import { FinderCollection } from '@beyond-js/finder/collection';
 import Entry from './entry';
 
 /**
  * Collection of modules of the package
  */
-export default class ModulesEntries extends FinderCollection {
+export default class ModulesEntries extends FinderCollection<Entry> {
 	#package: Package;
 	get package() {
 		return this.#package;
@@ -20,7 +21,7 @@ export default class ModulesEntries extends FinderCollection {
 		return this.#config.path;
 	}
 
-	constructor(pkg: Package, config) {
+	constructor(pkg: Package, config: Config) {
 		super(pkg.watcher, Entry, { items: { subscriptions: ['change'] } });
 		this.#config = config;
 

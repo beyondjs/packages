@@ -1,15 +1,22 @@
-import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { IDiagnostic, IModuleBundlerSpec } from '@beyond-js/packages/types';
 import type { FileData } from '@beyond-js/file/data';
-import type { IModuleJSON } from '@beyond-js/packages/types';
+import type { IModuleSpec } from '@beyond-js/packages/types';
+import type ModulesEntries from './';
 import BundlerSpec from './bundler-spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
 import { equal } from '@beyond-js/equal/main';
 import * as path from 'path';
-
+import { createHash } from 'crypto';
 const { sep } = path;
 
-export default class extends DynamicProcessor(Map) {
+interface IDone {
+	updated?: Map<string, BundlerSpec>;
+	errors?: IDiagnostic[];
+	warnings?: IDiagnostic[];
+}
+
+export default class extends DynamicProcessor(Map<string, Record<string, any>>) {
 	get dp() {
 		return 'package.entry';
 	}
@@ -56,7 +63,7 @@ export default class extends DynamicProcessor(Map) {
 		return !this.#errors.length;
 	}
 
-	constructor(finder, file) {
+	constructor(modules: ModulesEntries, file: FileData) {
 		super();
 
 		const config = new Config(file.dirname, { '/static': 'object' });
@@ -64,12 +71,12 @@ export default class extends DynamicProcessor(Map) {
 		super.setup(new Map([['config', { child: config }]]));
 
 		this.#config = config;
-		this.#package = finder.package;
+		this.#package = modules.package;
 		this.#file = file;
 	}
 
 	_process() {
-		const done = ({ updated, errors, warnings }) => {
+		const done = ({ updated, errors, warnings }: IDone) => {
 			const changed = !equal(
 				{ bundlers: [...updated.keys()], errors, warnings },
 				{ bundlers: [...this.keys()], errors: this.#errors, warnings: this.#warnings }
@@ -78,11 +85,11 @@ export default class extends DynamicProcessor(Map) {
 			this.#errors = errors ? errors : [];
 			this.#warnings = warnings ? warnings : [];
 
-			// Destroy unused bundlers specs
-			this.forEach((specs, name) => !updated?.has(name) && specs.destroy());
+			// Destroy unused bundlers spec
+			this.forEach((spec, name) => !updated?.has(name) && spec.destroy());
 
 			this.clear();
-			updated?.forEach((specs, name) => this.set(name, specs));
+			updated?.forEach((spec, name) => this.set(name, spec));
 
 			return changed;
 		};
@@ -95,7 +102,7 @@ export default class extends DynamicProcessor(Map) {
 		}
 
 		// Process the bundlers configuration
-		const config: IModuleJSON = this.#config.value;
+		const config: IModuleSpec = <IModuleSpec>this.#config.value;
 
 		// Just for backward compatibility ('name' as subpath synonimous)
 		config.subpath = config.subpath ? config.subpath : config.name;
@@ -105,22 +112,21 @@ export default class extends DynamicProcessor(Map) {
 		// Validate subpath
 		const validate = /^\.\/[a-zA-Z0-9-_./]*$/;
 		if (!subpath || (subpath !== '.' && !subpath.startsWith('./')) || !validate.test(subpath)) {
-			const error =
+			const code = 'INVALID_SUBPATH';
+			const message =
 				`Invalid subpath: "${subpath}". ` +
 				`Subpath must be a non-empty string starting with './' and contain only valid characters.`;
-			const errors = [error];
-			return done({ errors });
+			return done({ errors: [{ code, message }] });
 		}
 
 		delete config.name;
 		delete config.subpath;
-		delete config.title; // This property is not longer be used, avoid to detect it as a bundler
 
 		// For backward compatibility, the bundler property is used to define it, instead of the `bundle` property
 		config.bundler = config.bundle ? config.bundle : config.bundler;
 		delete config.bundle; // Avoid to detect it as a bundler
 
-		const bundlers = new Map();
+		const bundlers: Map<string, Record<string, any>> = new Map();
 
 		// At this point, all the common properties are removed from the config object
 		if (config.bundler) {
@@ -128,16 +134,16 @@ export default class extends DynamicProcessor(Map) {
 			 * When the bundler is specified, then only one bundler is specified in the entry,
 			 * so convert the entry to {bundler: ...}
 			 */
-			const specs = { bundler: config.bundler, subpath };
+			const spec: Record<string, any> = { bundler: config.bundler, subpath };
 			for (const property of Object.keys(config)) {
 				if (property === 'bundler') continue;
-				if (property === 'subpath') continue; // It is invalid to define a subpath in the bundler specs
+				if (property === 'subpath') continue; // It is invalid to define a subpath in the bundler spec
 
-				// Move the property to the bundler specs
-				specs[property] = config[property];
+				// Move the property to the bundler spec
+				spec[property] = config[<'bundler' | 'subpath'>property];
 			}
 
-			bundlers.set(config.bundler, specs);
+			bundlers.set(config.bundler, spec);
 		} else {
 			const entries = Object.entries(config);
 
@@ -147,25 +153,27 @@ export default class extends DynamicProcessor(Map) {
 			// At this point, all the properties of the config object should be the bundlers configuration
 			for (const [name, config] of entries) {
 				if (typeof config !== 'object') {
-					const warning = `Invalid bundler "${name}" configuration. The configuration must be an object.`;
-					this.#warnings.push(warning);
+					const code = 'INVALID_BUNDLER_CONFIG';
+					const message = `Invalid bundler "${name}" configuration. The configuration must be an object.`;
+					this.#warnings.push({ code, message });
 					continue;
 				}
 
-				const specs = Object.assign({ bundler: name }, config, common);
-				specs.subpath = entries.length > 1 ? `${subpath}.${name}` : subpath;
-				bundlers.set(name, specs);
+				const spec = Object.assign({ bundler: name }, config, common);
+				spec.subpath = entries.length > 1 ? `${subpath}.${name}` : subpath;
+				bundlers.set(name, spec);
 			}
 		}
 
 		// To uniquely identify the bundler over all the entries in the wordspace
-		bundlers.forEach((specs, name) => Object.assign(specs, { id: crc32(`${this.path}:${name}`) }));
+		const id = createHash('md5').update(`${this.path}:${subpath}`).digest('hex').toString();
+		bundlers.forEach((spec, name) => Object.assign(spec, { id }));
 
 		const updated = new Map();
 		bundlers.forEach((values, name) => {
-			const specs = this.has(name) ? this.get(name) : new BundlerSpec();
-			updated.set(name, specs);
-			specs.values = values;
+			const spec = this.has(name) ? this.get(name) : new BundlerSpec();
+			updated.set(name, spec);
+			spec.values = values;
 		});
 
 		return done({ updated, warnings: this.#warnings });

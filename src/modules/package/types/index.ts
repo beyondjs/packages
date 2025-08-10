@@ -4,12 +4,6 @@ export /*bundle*/ interface IDiagnostic {
 	stack?: string;
 }
 
-export /*bundle*/ interface IBundleSpec {
-	id: string;
-	subpath: string;
-	description: string;
-}
-
 interface IModule {
 	new (): () => void;
 }

@@ -1,13 +1,13 @@
-import { IModuleSpec } from '@beyond-js/packages/types';
+import { IModuleSpec, IModuleBundlerSpec } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
-export default class extends DynamicProcessor() {
+export default class BundlerSpec extends DynamicProcessor() implements IModuleBundlerSpec {
 	get dp() {
 		return 'module.specs';
 	}
 
-	#values: IModuleSpec | {} = {};
+	#values: Record<string, any> = {};
 	get values() {
 		return this.#values;
 	}
