@@ -1,6 +1,63 @@
 {
+	"name": "@beyond-js/packages",
+	"version": "0.0.1",
+	"author": {
+		"name": "BeyondJS",
+		"email": "hello@beyondjs.com"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/beyondjs/packages.git"
+	},
+	"homepage": "https://github.com/beyondjs/packages#readme",
+	"modules": {
+		"path": "modules"
+	},
+	"description": "BeyondJS Packages",
+	"deployment": {
+		"distributions": [
+			{
+				"name": "node",
+				"platform": "node",
+				"ports": {
+					"bundles": 1110
+				}
+			},
+			{
+				"name": "node-ts",
+				"platform": "node",
+				"ts": {
+					"compiler": "tsc"
+				},
+				"ports": {
+					"bundles": 1111
+				}
+			}
+		]
+	},
+	"dependencies": {
+		"@beyond-js/dynamic-processor": "~1.0.8",
+		"@beyond-js/finder": "~1.0.2",
+		"@beyond-js/watchers": "~1.0.7",
+		"@beyond-js/config": "~1.0.2",
+		"@beyond-js/pending-promise": "~0.0.5",
+		"@beyond-js/specifier-parser": "~0.0.4",
+		"@beyond-js/firestore-collection": "~0.1.0",
+		"@google-cloud/storage": "^6.8.0",
+		"@beyond-js/equal": "~1.0.2",
+		"dotenv": "~16.3.1",
+		"semver": "~7.5.4",
+		"sqlite3": "~5.1.7",
+		"tar-stream": "~3.1.7"
+	},
 	"devDependencies": {
-		"@beyond-js/bee": "~0.0.6",
+		"colors": "~1.4.0",
+		"@types/node": "~20.11.0",
+		"@beyond-js/bee": "^0.0.6",
+		"@beyond-js/local": "~0.1.3",
+		"@types/semver": "~7.5.1",
+		"@types/tar-stream": "~3.1.4",
 		"@types/jest": "^30.0.0",
 		"jest": "^30.0.5",
 		"ts-jest": "^29.4.0"
