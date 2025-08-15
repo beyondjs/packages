@@ -64,11 +64,12 @@ export default class extends DynamicProcessor() {
 		this.#id = createHash('md5').update(this.path).digest('hex').toString();
 	}
 
-	process(config: IPackageJSON): boolean | void {
+	process(config: IPackageJSON): boolean {
 		const { name, version, description, keywords, author, license, repository } = config;
 		const values = { name, version, description, keywords, author, license, repository };
 
 		if (equal(values, this.#values)) return false;
 		this.#values = values;
+		return true;
 	}
 }

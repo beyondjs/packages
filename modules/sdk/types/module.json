@@ -1,0 +1,5 @@
+{
+	"name": "sdk/types",
+	"bundle": "ts",
+	"files": "*"
+}

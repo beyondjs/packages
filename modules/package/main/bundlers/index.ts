@@ -1,16 +1,22 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type Package from './';
+import type { Config } from '@beyond-js/config/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import BundlerSettings from './settings';
 import { equal } from '@beyond-js/equal/main';
 
-export interface IBundlerInfo {
+export interface IBundler {
 	path: string;
 	meta: {};
 	settings: BundlerSettings;
 }
 
-export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>) {
+interface IDone {
+	updated?: Map<string, IBundler>;
+	errors?: IDiagnostic[];
+	warnings?: IDiagnostic[];
+}
+
+export default class Bundlers extends DynamicProcessor(Map<string, IBundler>) {
 	get dp() {
 		return 'package.bundlers';
 	}
@@ -29,24 +35,20 @@ export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>)
 		return !this.#errors.length;
 	}
 
-	#package: Package;
-	#config;
+	#config: Config;
 
-	constructor(pkg: Package, config) {
+	constructor(config: Config) {
 		super();
 
-		this.setMaxListeners(1000);
-		this.#package = pkg;
-		this.#config = config;
-
-		super.setup(new Map([['config', { child: config }]]));
+		this.#config = <Config>config.get('bundlers');
+		super.setup(new Map([['config', { child: this.#config }]]));
 	}
 
 	_process() {
-		const done = ({ updated, errors, warnings }) => {
+		const done = ({ updated, errors, warnings }: IDone) => {
 			errors = errors ? errors : [];
 			warnings = warnings ? warnings : [];
-			updated = updated ? updated : [];
+			updated = updated ? updated : new Map();
 
 			const changed = equal(
 				{ updated: [...updated.keys()], errors, warnings },
@@ -61,17 +63,26 @@ export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>)
 			return changed;
 		};
 
-		const config = this.#config.value;
-		if (typeof config !== 'object' || config instanceof Array) {
-			return done({ errors: [`Invalid bundlers configuration, configuration must be an object`] });
+		if (!this.#config.valid) {
+			const { errors, warnings } = this.#config;
+			return done({ errors, warnings });
 		}
 
-		const warnings = [];
-		const updated = new Map();
+		const config = this.#config.value;
+		if (typeof config !== 'object' || config instanceof Array) {
+			const code = 'BUNDLERS_CONFIG_INVALID';
+			const message = `Invalid bundlers configuration, configuration must be an object`;
+			return done({ errors: [{ code, message }] });
+		}
+
+		const warnings: IDiagnostic[] = [];
+		const updated: Map<string, IBundler> = new Map();
 		for (let [name, settings] of Object.entries(config)) {
 			settings = typeof settings === 'string' ? { specifier: settings } : settings;
 			if (typeof settings !== 'object') {
-				warnings.push(`Settings of bundler "${name}" is invalid. An object or string is expected`);
+				const code = 'BUNDLER_SETTINGS_INVALID';
+				const message = `Bundler "${name}" settings must be an object or string`;
+				warnings.push({ code, message });
 				continue;
 			}
 
@@ -83,14 +94,20 @@ export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>)
 
 			const { specifier } = settings;
 			if (typeof specifier !== 'string' || !specifier) {
-				throw new Error(`Bundler "${name}" does not have a valid specifier`);
+				const code = 'BUNDLER_SPECIFIER_INVALID';
+				const message = `Bundler "${name}" does not have a valid specifier`;
+				warnings.push({ code, message });
+				continue;
 			}
 
 			let path = null;
 			try {
-				path = require.resolve(specifier, { paths: [this.#package.path] });
+				path = require.resolve(specifier, { paths: [this.#config.path] });
 			} catch (exc) {
-				warnings.push(`Error resolving bundler "${specifier}": ${exc.message}`);
+				const code = 'BUNDLER_NOT_FOUND';
+				const message = `Bundler "${specifier}" not found`;
+				warnings.push({ code, message });
+				console.error(exc);
 				continue;
 			}
 
@@ -98,8 +115,10 @@ export default class Bundlers extends DynamicProcessor(Map<string, BundlerType>)
 				const meta = require(path);
 				updated.set(name, { meta, path, settings: new BundlerSettings(settings) });
 			} catch (exc) {
+				const code = 'BUNDLER_REQUIRE_ERROR';
+				const message = `Error requiring bundler "${specifier}": ${exc.message}`;
+				warnings.push({ code, message });
 				console.error(exc);
-				warnings.push(`Error requiring bundler "${specifier}": ${exc.message}`);
 			}
 		}
 

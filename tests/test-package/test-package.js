@@ -10,6 +10,7 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const path = join(__dirname, 'my-package');
 	const pkg = new Package(path);
 	await pkg.ready;
+	await pkg.modules.ready;
 
 	console.log(`Package "${pkg.name}" is ready.`);
 })().catch(exc => console.error(exc.stack));

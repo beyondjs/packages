@@ -6,7 +6,7 @@ export default class BunddlerSettings extends DynamicProcessor() {
 		return 'bundler.settings';
 	}
 
-	#values;
+	#values: Record<string, any>;
 	get values() {
 		return this.#values;
 	}
@@ -17,7 +17,7 @@ export default class BunddlerSettings extends DynamicProcessor() {
 		this._invalidate();
 	}
 
-	constructor(values) {
+	constructor(values: Record<string, any> = {}) {
 		super();
 		this.#values = values;
 	}
