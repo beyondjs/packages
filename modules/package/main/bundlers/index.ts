@@ -10,7 +10,7 @@ interface IDone {
 	warnings?: IDiagnostic[];
 }
 
-export default class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
+export class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
 	get dp() {
 		return 'package.bundlers';
 	}

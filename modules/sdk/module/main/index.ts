@@ -115,7 +115,7 @@ export class Module extends DynamicProcessor() {
 		return ['default'];
 	}
 
-	constructor({ package: pkg, path, bundler, specs, language }) {
+	constructor({ package: { name: string, version: string }, path, bundler, specs, language }) {
 		super();
 		this.#package = pkg;
 		this.#id = crc32(`${path.dirname}//${bundler.name}` + (language ? `//${language}` : ''));

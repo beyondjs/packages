@@ -13,14 +13,20 @@ export class ModuleSpec extends DynamicProcessor() {
 		return this.#id;
 	}
 
+	#bundler: string;
+	get bundler() {
+		return this.#bundler;
+	}
+
 	#value: ExportsEntry | IManifestModuleSpec;
 	get value() {
 		return this.#value;
 	}
 
-	constructor(id: string) {
+	constructor(id: string, bundler: string) {
 		super();
 		this.#id = id;
+		this.#bundler = bundler;
 	}
 
 	update(value: string | Record<string, any>) {

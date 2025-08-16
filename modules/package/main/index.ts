@@ -2,7 +2,7 @@ import type { IDiagnostic, IPackageJSON } from '@beyond-js/packages/types';
 import { WatcherClient } from '@beyond-js/watchers/client';
 import { Config } from '@beyond-js/config/main';
 import Attributes from './attributes';
-import Bundlers from './bundlers';
+import { Bundlers } from './bundlers';
 import { Modules } from './modules';
 // import Static from './static';
 import { equal } from '@beyond-js/equal/main';

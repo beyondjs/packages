@@ -2,9 +2,9 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
-export default class BunddlerSettings extends DynamicProcessor() {
+export default class Bunddler extends DynamicProcessor() {
 	get dp() {
-		return 'bundler.settings';
+		return 'package.bundler';
 	}
 
 	#path: string;
@@ -27,9 +27,9 @@ export default class BunddlerSettings extends DynamicProcessor() {
 	}
 
 	// Other package level configuration set in the package.json for the bundler
-	#values: { specifier: string };
-	get values() {
-		return this.#values;
+	#settings: { specifier: string; [key: string]: any };
+	get settings() {
+		return this.#settings;
 	}
 
 	// The bundler class that implements its logic
@@ -43,18 +43,18 @@ export default class BunddlerSettings extends DynamicProcessor() {
 		this.#path = path;
 	}
 
-	config(values: Record<string, any>): void {
+	config(settings: Record<string, any>): void {
 		const errors = [];
 		const done = ({ updated, errors }: { updated?: Record<string, any>; errors?: IDiagnostic[] }) => {
 			updated = updated ? updated : {};
 			errors = errors ? errors : [];
 
-			const previous = { errors: this.#errors, values: this.#values };
-			if (equal(values, this.#values)) return;
+			const previous = { errors: this.#errors, settings: this.#settings };
+			if (equal(settings, this.#settings)) return;
 			this._invalidate();
 		};
 
-		const updated = typeof values === 'string' ? { specifier: values } : values;
+		const updated = typeof settings === 'string' ? { specifier: settings } : settings;
 
 		if (typeof updated !== 'object') {
 			const code = 'BUNDLER_SETTINGS_INVALID';

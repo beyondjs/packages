@@ -66,7 +66,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 			// Update the modules
 			updated?.forEach((spec, bundler) => {
-				const module = this.has(bundler) ? this.get(bundler) : new ModuleSpec(this.#manifest.id);
+				const module = this.has(bundler) ? this.get(bundler) : new ModuleSpec(this.#manifest.id, bundler);
 				module.update(spec);
 				this.set(bundler, module);
 			});

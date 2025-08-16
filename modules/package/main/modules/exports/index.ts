@@ -67,7 +67,7 @@ export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 			// Update the modules
 			updated?.forEach((spec, subpath) => {
-				const module = this.has(subpath) ? this.get(subpath) : new ModuleSpec(subpath);
+				const module = this.has(subpath) ? this.get(subpath) : new ModuleSpec(subpath, 'exports');
 				module.update(spec);
 				this.set(subpath, module);
 			});

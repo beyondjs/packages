@@ -19,7 +19,8 @@ export class Modules extends DynamicProcessor(Map) {
 	}
 
 	_prepared(require: RequireType): void {
-		require(this.#exports, 'module-exports');
+		require(this.#exports, 'package-exports');
+		require(this.#manifests, 'package-manifests');
 	}
 
 	_process() {
