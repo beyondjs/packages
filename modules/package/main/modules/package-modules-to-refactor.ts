@@ -1,57 +1,38 @@
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
-import type { Package } from '..';
 import type { Config } from '@beyond-js/config/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import ModulesResolvers from './resolvers';
-import { relative } from 'path';
 
 export default class PackageModules extends DynamicProcessor(Map<string, {}>) {
 	get dp() {
 		return 'package.modules';
 	}
 
-	#package: Package;
+	#package: { name: string; version: string };
 	get package() {
 		return this.#package;
 	}
+
+	#config: Config;
 
 	#resolvers: ModulesResolvers;
 	get resolvers() {
 		return this.#resolvers;
 	}
 
-	get path() {
-		return this.#resolvers.path;
-	}
-
-	get rpath() {
-		if (!this.path) return;
-		return relative(this.#package.path, this.path);
-	}
-
-	#seekers;
-	get seekers() {
-		return this.#seekers;
+	get path(): { dirname: string; relative: string } {
+		const relative = this.#config.value.path;
 	}
 
 	#propagator;
 
-	/**
-	 * Application modules constructor
-	 *
-	 * @param package {object} The package object
-	 * @param config {object} The modules configuration
-	 */
-	constructor(pkg: Package, config: Config) {
+	constructor(pkg: { name: string; version: string }, config: Config) {
 		super();
-		this.setMaxListeners(500); // One listener per seekers is require
 
 		this.#package = pkg;
-
 		const resolvers = (this.#resolvers = new ModulesResolvers(pkg, config));
 		super.setup(new Map([['resolvers', { child: resolvers }]]));
 
-		this.#seekers = new (require('./seekers'))(pkg);
 		this.#propagator = new (require('./propagator'))(this._events);
 	}
 

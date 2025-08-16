@@ -13,4 +13,8 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await pkg.modules.ready;
 
 	console.log(`Package "${pkg.name}" is ready.`);
+
+	console.log('Process package bundlers');
+	await pkg.bundlers.ready;
+	console.log([...pkg.bundlers.keys()]);
 })().catch(exc => console.error(exc.stack));

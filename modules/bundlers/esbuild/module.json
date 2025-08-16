@@ -1,0 +1,5 @@
+{
+	"name": "bundlers/esbuild",
+	"bundle": "ts",
+	"files": "*"
+}

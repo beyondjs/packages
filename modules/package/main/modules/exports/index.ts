@@ -3,15 +3,16 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ExportsEntry } from '@beyond-js/packages/sdk/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
+import { ModuleSpec } from '../spec';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {
+	updated?: Map<string, ExportsEntry>;
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
-	values?: [string, ExportsEntry][]; // Object entries
 }
 
-export class ModuleExports extends DynamicProcessor(Map<string, ExportsEntry>) {
+export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 	get dp() {
 		return 'package.modules.exports';
 	}
@@ -45,23 +46,41 @@ export class ModuleExports extends DynamicProcessor(Map<string, ExportsEntry>) {
 	}
 
 	_process() {
-		const done = ({ errors, warnings, values }: IDone) => {
+		const done = ({ errors, warnings, updated }: IDone) => {
 			errors = errors ? errors : [];
 			warnings = warnings ? warnings : [];
-			values = values ? values : [];
+			updated = updated ? updated : new Map();
 
-			const previous = { errors: this.#errors, warnings: this.#warnings, values: [...this.entries()] };
-			const changed = !equal(previous, { errors, warnings, values });
-			if (!changed) return false;
+			const previous = { errors: this.#errors, warnings: this.#warnings, entries: [...this.keys()] };
+			const changed = !equal(previous, { errors, warnings, entries: updated });
 
-			this.clear();
-			values.forEach(([key, value]) => this.set(key, value));
+			// Destroy unused modules spec
+			this.forEach((module, bundler) => {
+				if (updated?.has(bundler)) return;
+				module.destroy();
+				this.delete(bundler);
+			});
+
+			// Update the errors and warnings
+			this.#errors = errors;
+			this.#warnings = warnings;
+
+			// Update the modules
+			updated?.forEach((spec, subpath) => {
+				const module = this.has(subpath) ? this.get(subpath) : new ModuleSpec(subpath);
+				module.update(spec);
+				this.set(subpath, module);
+			});
+
+			// Even if there are no changes of the keys of the modules, it is required to update their values,
+			// so don't move it before updating the modules
+			return changed;
 		};
 
 		const exports = this.#config.get('exports');
 		if (!exports.valid) return done({ errors: exports.errors, warnings: exports.warnings });
 
-		const values = Object.entries(exports.value);
-		return done({ values, warnings: exports.warnings });
+		const updated = new Map(Object.entries(exports.value));
+		return done({ updated, warnings: exports.warnings });
 	}
 }

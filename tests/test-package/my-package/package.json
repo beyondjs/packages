@@ -6,6 +6,9 @@
 	"module": "./dist/main.mjs",
 	"browser": "./dist/browser.js",
 	"type": "module",
+	"bundlers": {
+		"exports": "@beyond-js/packages/bundlers/esbuild"
+	},
 	"exports": {
 		".": {
 			"import": "./dist/main.mjs",

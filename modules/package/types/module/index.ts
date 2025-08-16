@@ -1,15 +1,17 @@
-export /*bundle*/ interface IModuleSpec {
-	id: string;
-	bundle?: string; // Deprecated, use 'bundler' instead
-	bundler?: string;
-	name?: string; // Deprecated, use 'subpath' instead
+import type { FilterSpec } from '@beyond-js/finder/types';
+
+export /*bundle*/ interface IManifestModuleSpec {
 	subpath?: string;
 	description?: string;
 }
 
-export /*bundle*/ interface IModuleBundlerSpec {
-	id: string;
+export /*bundle*/ interface IManifestSpec extends IManifestModuleSpec {
+	bundle?: string; // Deprecated, use 'bundler' instead
 	bundler?: string;
-	subpath?: string;
-	description?: string;
+	name?: string; // Deprecated, use 'subpath' instead
+
+	static: string | FilterSpec; // Path to the static resources
+
+	// Any other property is considered a bundler configuration
+	[bundler: string]: IManifestModuleSpec | FilterSpec | string;
 }

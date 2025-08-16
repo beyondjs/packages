@@ -76,7 +76,6 @@ export /*bundle*/ class Package extends Attributes {
 		const config = new Config(path, {
 			'/bundlers': 'object',
 			'/exports': 'object',
-			'/modules': 'object',
 			'/static': 'object'
 		});
 		config.data = 'package.json';
