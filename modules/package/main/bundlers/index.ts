@@ -1,16 +1,16 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
+import { Bundler } from './bundler';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
-import BundlerSettings from './settings';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {
-	updated?: Map<string, BundlerSettings>;
+	updated?: Map<string, Bundler>;
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
 }
 
-export class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
+export class Bundlers extends DynamicProcessor(Map<string, Bundler>) {
 	get dp() {
 		return 'package.bundlers';
 	}
@@ -44,7 +44,7 @@ export class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
 			warnings = warnings ? warnings : [];
 			updated = updated ? updated : new Map();
 
-			const changed = equal(
+			const changed = !equal(
 				{ updated: [...updated.keys()], errors, warnings },
 				{ updated: [...this.keys()], errors: this.#errors, warnings: this.#warnings }
 			);
@@ -76,7 +76,7 @@ export class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
 		}
 
 		const warnings: IDiagnostic[] = [];
-		const updated: Map<string, BundlerSettings> = new Map();
+		const updated: Map<string, Bundler> = new Map();
 		for (let [name, values] of Object.entries(config)) {
 			if (this.has(name)) {
 				updated.set(name, this.get(name));
@@ -84,7 +84,7 @@ export class Bundlers extends DynamicProcessor(Map<string, BundlerSettings>) {
 				continue;
 			}
 
-			const bs = new BundlerSettings(this.#config.path);
+			const bs = new Bundler(name, this.#config.path);
 			bs.config(values);
 			updated.set(name, bs);
 		}

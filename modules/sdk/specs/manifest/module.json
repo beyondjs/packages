@@ -1,6 +1,0 @@
-{
-	"name": "sdk/specs/manifest",
-	"bundle": "ts",
-	"files": "*",
-	"types": []
-}

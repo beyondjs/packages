@@ -10,11 +10,14 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const path = join(__dirname, 'my-package');
 	const pkg = new Package(path);
 	await pkg.ready;
-	await pkg.modules.ready;
+	console.log(`Package "${pkg.name}" is ready.\n`);
 
-	console.log(`Package "${pkg.name}" is ready.`);
+	await pkg.modules.ready;
+	console.log('Modules is valid:', pkg.modules.valid, !pkg.modules.valid ? pkg.modules.errors : '');
 
 	console.log('Process package bundlers');
 	await pkg.bundlers.ready;
-	console.log([...pkg.bundlers.keys()]);
+	console.log('Bundlers is valid:', pkg.bundlers.valid, !pkg.bundlers.valid ? pkg.bundlers.errors : '');
+	console.log('Bundlers:', [...pkg.bundlers.keys()]);
+	console.log('Default bundler:', pkg.bundlers.get('exports').valid);
 })().catch(exc => console.error(exc.stack));

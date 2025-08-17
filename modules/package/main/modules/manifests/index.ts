@@ -4,6 +4,10 @@ import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { ModuleManifestsFinder } from './finder';
 
 export class ModuleManifests extends DynamicProcessor(Map<string, any>) {
+	get dp() {
+		return 'package.module.manifests';
+	}
+
 	#finder: ModuleManifestsFinder;
 
 	constructor(config: Config) {

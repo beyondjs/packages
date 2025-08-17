@@ -1,5 +1,5 @@
 {
-	"name": "sdk/specs/exports",
+	"name": "module/spec",
 	"bundle": "ts",
 	"files": "*",
 	"types": []

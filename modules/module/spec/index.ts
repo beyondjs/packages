@@ -1,4 +1,4 @@
-import type { ExportsEntry } from '@beyond-js/packages/sdk/types';
+import type { IExportsEntry } from '@beyond-js/packages/sdk/types';
 import type { IManifestModuleSpec } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -18,7 +18,7 @@ export class ModuleSpec extends DynamicProcessor() {
 		return this.#bundler;
 	}
 
-	#value: ExportsEntry | IManifestModuleSpec;
+	#value: IExportsEntry | IManifestModuleSpec;
 	get value() {
 		return this.#value;
 	}

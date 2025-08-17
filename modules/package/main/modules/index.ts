@@ -9,23 +9,25 @@ export class Modules extends DynamicProcessor(Map) {
 		return 'package.modules';
 	}
 
-	#exports: ModuleExports;
+	// #exports: ModuleExports;
 	#manifests: ModuleManifests;
 
 	constructor(config: Config) {
 		super();
-		this.#exports = new ModuleExports(config);
+		// this.#exports = new ModuleExports(config);
 		this.#manifests = new ModuleManifests(config);
 	}
 
 	_prepared(require: RequireType): void {
-		require(this.#exports, 'package-exports');
+		// require(this.#exports, 'package-exports');
 		require(this.#manifests, 'package-manifests');
 	}
 
 	_process() {
-		const exports = this.#exports;
-		console.log('Module exports:', exports.valid, [...this.#exports.values()]);
+		// const exports = this.#exports;
+		// console.log('Module exports:', exports.valid, [...this.#exports.values()]);
+
+		void 0;
 
 		// Validate subpath
 		// const validate = /^\.\/[a-zA-Z0-9-_./]*$/;

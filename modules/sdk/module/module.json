@@ -1,0 +1,5 @@
+{
+	"name": "sdk/module/extensible",
+	"bundle": "ts",
+	"files": "*"
+}
