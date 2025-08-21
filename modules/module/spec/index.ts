@@ -1,9 +1,10 @@
-import type { IExportsEntry } from '@beyond-js/packages/sdk/types';
-import type { IManifestModuleSpec } from '@beyond-js/packages/types';
+import type { ExportsTargetType, IManifestModuleSpec } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
-export class ModuleSpec extends DynamicProcessor() {
+export /*bundle*/ type ModuleSpecType = ExportsTargetType | IManifestModuleSpec;
+
+export /*bundle*/ class ModuleSpec extends DynamicProcessor() {
 	get dp() {
 		return 'module-manifest.module-spec';
 	}
@@ -18,9 +19,9 @@ export class ModuleSpec extends DynamicProcessor() {
 		return this.#bundler;
 	}
 
-	#value: IExportsEntry | IManifestModuleSpec;
-	get value() {
-		return this.#value;
+	#values: ModuleSpecType;
+	get values() {
+		return this.#values;
 	}
 
 	constructor(id: string, bundler: string) {
@@ -29,13 +30,13 @@ export class ModuleSpec extends DynamicProcessor() {
 		this.#bundler = bundler;
 	}
 
-	update(value: string | Record<string, any>) {
-		value = value || {};
+	update(values: ModuleSpecType) {
+		values = values || {};
 
-		const changed = !equal(value, this.#value);
+		const changed = !equal(values, this.#values);
 		if (!changed) return;
 
-		this.#value = value;
+		this.#values = values;
 		this._invalidate();
 	}
 }

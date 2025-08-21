@@ -1,4 +1,12 @@
-export /*bundle*/ interface IPackageJSON {
+import { IPackageExports } from './exports';
+
+export /*bundle*/ interface IPackagePerson {
+	name: string;
+	email?: string;
+	url?: string;
+}
+
+export /*bundle*/ interface IPackageJSON extends IPackageExports {
 	// Metadata
 	name?: string;
 	version?: string;
@@ -8,22 +16,12 @@ export /*bundle*/ interface IPackageJSON {
 	homepage?: string;
 	bugs?: string | { url?: string; email?: string };
 	license?: string;
-	author?: Person | string;
-	contributors?: (Person | string)[];
+	author?: IPackagePerson | string;
+	contributors?: (IPackagePerson | string)[];
 	funding?: string | { type?: string; url?: string };
 
 	// Repository
 	repository?: string | { type?: string; url?: string; directory?: string };
-
-	// Entry points / module system
-	type?: 'commonjs' | 'module';
-	main?: string;
-	module?: string; // legacy ESM entry used by some bundlers
-	browser?: string | Record<string, string | false>;
-	types?: string; // TS types entry
-	typings?: string; // legacy alias for types
-	exports?: Exports; // modern export map
-	sideEffects?: boolean | string[];
 
 	// Files & publishing
 	files?: string[];
@@ -83,26 +81,3 @@ export /*bundle*/ interface IPackageJSON {
 	// Allow other custom fields
 	[key: string]: unknown;
 }
-
-export interface Person {
-	name: string;
-	email?: string;
-	url?: string;
-}
-
-export type Exports =
-	| string
-	| Record<
-			string,
-			| string
-			| {
-					types?: string;
-					import?: string;
-					require?: string;
-					default?: string;
-					node?: string | Record<string, string>;
-					browser?: string | Record<string, string>;
-					development?: string | Record<string, string>;
-					production?: string | Record<string, string>;
-			  }
-	  >;

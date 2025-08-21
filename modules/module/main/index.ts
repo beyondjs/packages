@@ -1,14 +1,34 @@
+import type { ModuleSpec } from '@beyond-js/packages/module/spec';
+import type { IConditions } from '@beyond-js/packages/types';
+import type { Conditional } from './conditionals/conditional';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Conditionals } from './conditionals';
+import { relative } from 'path';
+
+interface IBundler {
+	path: string;
+	settings: Record<string, any>;
+}
+
+interface IModulePackage {
+	id: string;
+	name: string;
+	version: string;
+	path: string;
+}
 
 interface IModuleConstructorParams {
-	bundler: { path: string };
-	spec: Record<string, any>;
+	package: IModulePackage;
+	id: string;
+	path: string;
+	language: string;
+	bundler: IBundler;
+	spec: ModuleSpec;
 }
 
 export class Module extends DynamicProcessor() {
 	get dp() {
-		return 'bundler-sdk.module';
+		return 'module';
 	}
 
 	#package: IModulePackage;
@@ -16,27 +36,37 @@ export class Module extends DynamicProcessor() {
 		return this.#package;
 	}
 
+	#id: string;
+	get id(): string {
+		return this.#id;
+	}
+
+	#path: { dirname: string; relative: string };
+	get path() {
+		return this.#path;
+	}
+
+	#language: string;
+	get language() {
+		return this.#language;
+	}
+
 	/**
 	 * Bundler
 	 * .path {string} The path where the bundler was located when required
 	 * .settings {object} as they are defined in the package.json file
 	 */
-	#bundler;
+	#bundler: IBundler;
 	get bundler() {
 		return this.#bundler;
 	}
 
-	#spec: Record<string, any>;
-	get spec() {
+	#spec: ModuleSpec;
+	get spec(): ModuleSpec {
 		return this.#spec;
 	}
 
-	#id;
-	get id() {
-		return this.#id;
-	}
-
-	#conditionals;
+	#conditionals: Conditionals;
 	get conditionals() {
 		return this.#conditionals;
 	}
@@ -51,8 +81,8 @@ export class Module extends DynamicProcessor() {
 		return { values: {} };
 	}
 
-	_conditionals(): string[] {
-		return ['default'];
+	_conditionals(): IConditions[] {
+		return [{ platform: 'default' }];
 	}
 
 	_conditional({ key }: { key: string }): Conditional {
@@ -60,13 +90,14 @@ export class Module extends DynamicProcessor() {
 		throw new Error(`Private method '_conditional' must be overriden`);
 	}
 
-	constructor({ package, path, bundler, specs, language }: IModuleConstructorParams) {
+	constructor({ package: pkg, id, path, bundler, spec, language }: IModuleConstructorParams) {
 		super();
 		this.#package = pkg;
-		this.#id = crc32(`${path.dirname}//${bundler.name}` + (language ? `//${language}` : ''));
+		this.#id = id;
 
-		this.#path = { dirname: path.dirname, relative: path.relative };
+		this.#path = { dirname: path, relative: relative(path, pkg.path) };
 		this.#bundler = bundler;
+		this.#spec = spec;
 		this.#language = language;
 
 		this.#conditionals = new Conditionals(this);

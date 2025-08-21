@@ -3,7 +3,7 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ExportsEntry } from '@beyond-js/packages/sdk/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
-import { ModuleSpec } from '../spec';
+import { ModuleSpec } from '@beyond-js/packages/module/spec';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {

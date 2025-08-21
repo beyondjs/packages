@@ -1,5 +1,5 @@
 {
-	"name": "sdk/module/extensible",
+	"name": "sdk/module",
 	"bundle": "ts",
 	"files": "*"
 }

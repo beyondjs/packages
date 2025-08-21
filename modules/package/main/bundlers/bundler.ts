@@ -1,5 +1,5 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { Module } from '@beyond-js/packages/sdk/module';
+import type { Module } from '@beyond-js/packages/module';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
