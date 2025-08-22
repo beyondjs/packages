@@ -6,6 +6,7 @@ import { relative } from 'path';
 
 interface IBundler {
 	path: string;
+	specifier: string;
 	settings: Record<string, any>;
 }
 

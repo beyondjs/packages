@@ -5,10 +5,13 @@ import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 import { importer } from './importer';
 
+type BaseModuleArgs = ConstructorParameters<typeof BaseModule>;
+export type ModuleConstructor<T extends BaseModule> = new (...args: BaseModuleArgs) => T;
+
 interface IDone {
 	specifier?: string;
 	path?: string;
-	Module?: typeof BaseModule;
+	Module?: ModuleConstructor<BaseModule>;
 	settings?: Record<string, unknown>;
 	errors?: IDiagnostic[];
 }
@@ -57,8 +60,8 @@ export class Bundler extends DynamicProcessor() {
 	 * The bundler class that implements its logic.
 	 * This is the class that will be instantiated when the bundler is used.
 	 */
-	#Module: typeof BaseModule;
-	get Module(): typeof BaseModule {
+	#Module: ModuleConstructor<BaseModule>;
+	get Module(): ModuleConstructor<BaseModule> {
 		return this.#Module;
 	}
 
@@ -122,7 +125,7 @@ export class Bundler extends DynamicProcessor() {
 			return done({ errors: [{ code, message }] });
 		}
 
-		let Module: typeof BaseModule, path: string;
+		let Module: ModuleConstructor<BaseModule>, path: string;
 		({ errors, Module, path } = await importer(specifier, this.#path));
 		if (request !== this._request) return;
 

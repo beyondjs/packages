@@ -1,5 +1,6 @@
-import type { IDiagnostic, BundlerSettingsType } from '@beyond-js/packages/types';
+import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { BaseModule } from '@beyond-js/packages/module';
+import type { ModuleConstructor } from './bundler';
 import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
@@ -8,7 +9,7 @@ const DEV = true;
 
 interface IResponse {
 	errors?: IDiagnostic[];
-	Module?: typeof BaseModule;
+	Module?: ModuleConstructor<BaseModule>;
 	path?: string;
 }
 

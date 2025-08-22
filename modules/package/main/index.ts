@@ -68,7 +68,7 @@ export /*bundle*/ class Package extends Attributes {
 		};
 
 		this.#bundlers = new Bundlers(config);
-		this.#modules = new Modules(config);
+		this.#modules = new Modules(this, config);
 		// this.#static = new Static(this, cfg.static, this.#modules);
 	}
 

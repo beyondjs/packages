@@ -1,26 +1,26 @@
 import type { Package } from '../';
-import type { Bundlers } from '../bundlers';
+import type { ModuleConstructor } from '../bundlers/bundler';
+import type { BaseModule } from '@beyond-js/packages/module';
+import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { ModuleSpec } from './spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {
-	module?: {};
+	module?: BaseModule;
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
 }
 
-export default class extends DynamicProcessor() {
+export class ModuleResolver extends DynamicProcessor() {
 	get dp() {
 		return 'module.resolver';
 	}
 
 	#package: Package;
-	#bundlers: Bundlers;
 	#spec: ModuleSpec;
 
-	#module;
+	#module: BaseModule;
 	get module() {
 		return this.#module;
 	}
@@ -39,16 +39,15 @@ export default class extends DynamicProcessor() {
 		return !this.#errors?.length;
 	}
 
-	constructor(pkg: Package, bundlers: Bundlers, spec: ModuleSpec) {
+	constructor(pkg: Package, spec: ModuleSpec) {
 		super();
 
 		this.#package = pkg;
-		this.#bundlers = bundlers;
 		this.#spec = spec;
 
 		super.setup(
 			new Map([
-				['bundlers', { child: bundlers }],
+				['bundlers', { child: pkg.bundlers }],
 				['spec', { child: spec }]
 			])
 		);
@@ -65,7 +64,8 @@ export default class extends DynamicProcessor() {
 			return changed;
 		};
 
-		const bundlers = this.#bundlers;
+		const pkg = this.#package;
+		const bundlers = pkg.bundlers;
 		if (!bundlers.valid) return done({ errors: bundlers.errors, warnings: bundlers.warnings });
 
 		const spec = this.#spec;
@@ -79,17 +79,20 @@ export default class extends DynamicProcessor() {
 		if (this.#module) return done({ module: this.#module });
 
 		const bundler = bundlers.get(spec.bundler);
-		const { Bundler } = bundler;
+		const { Module } = bundler;
 
-		if (typeof Bundler !== 'function') {
+		if (typeof Module !== 'function') {
 			const code = 'INVALID_MODULE_CLASS';
 			const message = `Module package didn't return a Module class`;
 			return done({ errors: [{ code, message }] });
 		}
 
-		const module = new Bundler({
-			package: { name: this.#package.name, version: this.#package.version },
-			bundler: { path: bundler.path, settings: bundler.settings, specifier: bundler.specifier },
+		const module = new Module({
+			package: { path: pkg.path, id: pkg.id, name: pkg.name, version: pkg.version },
+			id: spec.id,
+			path: spec.path,
+			language: spec.language,
+			bundler: { path: bundler.path, specifier: bundler.specifier, settings: bundler.settings },
 			spec: this.#spec
 		});
 		return done({ module });
