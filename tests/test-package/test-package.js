@@ -12,12 +12,17 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await pkg.ready;
 	console.log(`Package "${pkg.name}" is ready.\n`);
 
+	// Process package modules
+	console.log('Process package modules');
 	await pkg.modules.ready;
-	console.log('Modules is valid:', pkg.modules.valid, !pkg.modules.valid ? pkg.modules.errors : '');
 
 	console.log('Process package bundlers');
 	await pkg.bundlers.ready;
 	console.log('Bundlers is valid:', pkg.bundlers.valid, !pkg.bundlers.valid ? pkg.bundlers.errors : '');
 	console.log('Bundlers:', [...pkg.bundlers.keys()]);
-	console.log('Default bundler:', pkg.bundlers.get('exports').valid);
+
+	const bundler = pkg.bundlers.get('exports');
+	console.log(`Process "exports" bundler`);
+	await bundler.ready;
+	console.log('Module class from Bundler:', bundler.Module);
 })().catch(exc => console.error(exc.stack));

@@ -1,4 +1,4 @@
-import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { IDiagnostic, BundlersSettingsType } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
 import { Bundler } from './bundler';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
@@ -68,7 +68,7 @@ export class Bundlers extends DynamicProcessor(Map<string, Bundler>) {
 			return done({ errors, warnings });
 		}
 
-		const config = this.#config.value;
+		const config = <BundlersSettingsType>this.#config.value;
 		if (typeof config !== 'object' || config instanceof Array) {
 			const code = 'BUNDLERS_CONFIG_INVALID';
 			const message = `Invalid bundlers configuration, configuration must be an object`;

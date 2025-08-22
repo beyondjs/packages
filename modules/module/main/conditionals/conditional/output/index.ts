@@ -1,6 +1,6 @@
 import type { Conditional } from '../';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-const DynamicProcessor = require('@beyond-js/dynamic-processor');
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 export type OutputStrategyType = { Output: typeof Output };
 

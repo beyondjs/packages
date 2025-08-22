@@ -1,3 +1,4 @@
+import type { IBeyondPackageJSON } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
 import type { WatcherClient } from '@beyond-js/watchers/client';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
@@ -36,23 +37,23 @@ export class ModuleManifestsFinder extends FinderCollection<Manifest> {
 
 		this.#errors = [];
 
-		const config = this.#config;
-		if (!require(config, 'package-config')) return false;
+		if (!require(this.#config, 'package-config')) return false;
 
-		if (!config.valid || !config.value?.modules) {
+		const config = <IBeyondPackageJSON>this.#config.value;
+		if (!this.#config.valid || !config.modules) {
 			this.configure();
 			return;
 		}
 
 		const path = (() => {
-			if (typeof config.value.modules === 'string') {
+			if (typeof config.modules === 'string') {
 				// config.path is the path of the package.json file
-				// When config.value.modules is a string, it is relative to the package.json file
-				return join(config.path, config.value.modules);
-			} else if (typeof config.value.modules === 'object' && config.value.modules.path) {
-				// config.value.modules is an object with a path property
+				// When config.modules is a string, it is relative to the package.json file
+				return join(this.#config.path, config.modules);
+			} else if (typeof config.modules === 'object' && config.modules.path) {
+				// config.modules is an object with a path property
 				// The path is relative to the package.json file
-				return join(config.path, config.value.modules.path);
+				return join(this.#config.path, config.modules.path);
 			} else {
 				const code = 'INVALID_TYPE';
 				const message =

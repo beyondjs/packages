@@ -1,9 +1,15 @@
-import { IPackageExports } from './exports';
+import type { BundlersSettingsType } from './bundlers';
+import type { IPackageExports } from './exports';
 
 export /*bundle*/ interface IPackagePerson {
 	name: string;
 	email?: string;
 	url?: string;
+}
+
+export /*bundle*/ interface IBeyondPackageJSON extends IPackageJSON {
+	bundlers: BundlersSettingsType;
+	modules: string | { path: string };
 }
 
 export /*bundle*/ interface IPackageJSON extends IPackageExports {

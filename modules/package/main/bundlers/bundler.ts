@@ -1,13 +1,15 @@
-import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { Module } from '@beyond-js/packages/module';
+import type { IDiagnostic, BundlerSettingsType } from '@beyond-js/packages/types';
+import type { BaseModule } from '@beyond-js/packages/module';
+import type { IRequest } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
+import { importer } from './importer';
 
 interface IDone {
 	specifier?: string;
 	path?: string;
-	Module?: typeof Module;
-	settings?: Record<string, any>;
+	Module?: typeof BaseModule;
+	settings?: Record<string, unknown>;
 	errors?: IDiagnostic[];
 }
 
@@ -24,12 +26,23 @@ export class Bundler extends DynamicProcessor() {
 		return this.#name;
 	}
 
+	#config: BundlerSettingsType;
+
 	/**
 	 * The specifier of the bundler as it is defined in the configuration.
 	 */
 	#specifier: string;
 	get specifier() {
 		return this.#specifier;
+	}
+
+	/**
+	 * Package level configuration set in the package.json for the bundler,
+	 * excluding the specifier that is treated separately.
+	 */
+	#settings: Record<string, unknown>;
+	get settings() {
+		return this.#settings;
 	}
 
 	/**
@@ -44,18 +57,9 @@ export class Bundler extends DynamicProcessor() {
 	 * The bundler class that implements its logic.
 	 * This is the class that will be instantiated when the bundler is used.
 	 */
-	#Module: typeof Module;
-	get Module(): typeof Module {
+	#Module: typeof BaseModule;
+	get Module(): typeof BaseModule {
 		return this.#Module;
-	}
-
-	/**
-	 * Package level configuration set in the package.json for the bundler,
-	 * excluding the specifier that is treated separately.
-	 */
-	#settings: Record<string, any>;
-	get settings() {
-		return this.#settings;
 	}
 
 	#errors: IDiagnostic[] = [];
@@ -74,19 +78,34 @@ export class Bundler extends DynamicProcessor() {
 		this.#path = path;
 	}
 
-	config(settings: Record<string, any>): void {
-		const done = (updated: IDone) => {
+	config(config: BundlerSettingsType): void {
+		this.#config = config;
+		this._invalidate();
+	}
+
+	async _process(request: IRequest): Promise<void | boolean> {
+		const done = (updated: IDone): void | boolean => {
 			updated = updated ? updated : {};
 			const errors = updated.errors ? updated.errors : [];
-			const { path, specifier, Module } = updated;
+			const { path, specifier, settings, Module } = updated;
 
-			const previous = { errors: this.#errors, path: this.#path, settings: this.#settings };
-			if (equal(previous, { errors, path, settings })) return;
-			this._invalidate();
+			const previous = {
+				errors: this.#errors,
+				path: this.#path,
+				specifier: this.#specifier,
+				settings: this.#settings
+			};
+			if (equal(previous, { errors, path, specifier, settings })) return false;
+
+			this.#errors = errors;
+			this.#specifier = specifier;
+			this.#Module = Module;
+			this.#settings = settings;
 		};
 
-		const errors = [];
-		settings = typeof settings === 'string' ? { specifier: settings } : settings;
+		let errors = [];
+		const settings: Record<string, unknown> =
+			typeof this.#config === 'string' ? { specifier: this.#config } : this.#config;
 
 		if (typeof settings !== 'object') {
 			const code = 'BUNDLER_SETTINGS_INVALID';
@@ -103,26 +122,11 @@ export class Bundler extends DynamicProcessor() {
 			return done({ errors: [{ code, message }] });
 		}
 
-		let path = null;
-		try {
-			path = require.resolve(specifier, { paths: [this.#path] });
-		} catch (exc) {
-			const code = 'BUNDLER_NOT_FOUND';
-			const message = `Bundler "${specifier}" not found`;
-			console.log(code, message);
-			return done({ errors: [{ code, message }] });
-		}
+		let Module: typeof BaseModule, path: string;
+		({ errors, Module, path } = await importer(specifier, this.#path));
+		if (request !== this._request) return;
 
-		let ResolvedModule: typeof Module;
-		try {
-			ResolvedModule = require(path);
-		} catch (exc) {
-			const code = 'BUNDLER_REQUIRE_ERROR';
-			const message = `Error requiring bundler "${specifier}": ${exc.message}`;
-			return done({ errors: [{ code, message }] });
-		}
-
-		const updated: IDone = { specifier, path, Module: ResolvedModule, settings };
+		const updated: IDone = { Module, specifier, path, settings };
 
 		return done(updated);
 	}

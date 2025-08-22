@@ -1,17 +1,22 @@
-import type { Module } from '../';
+import type { BaseModule } from '../';
 import type { Conditional } from './conditional';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+
+interface IDone {
+	updated: Map<string, Conditional>;
+}
 
 export class Conditionals extends DynamicProcessor(Map<string, Conditional>) {
 	get dp() {
 		return 'module.conditionals';
 	}
 
-	#module: Module;
+	#module: BaseModule;
 
-	constructor(module: Module) {
+	constructor(module: BaseModule) {
 		super();
 		this.#module = module;
+
 		super.setup(new Map([['module-specs', { child: module.spec }]]));
 	}
 
@@ -21,24 +26,34 @@ export class Conditionals extends DynamicProcessor(Map<string, Conditional>) {
 			throw new Error(`Module conditionals must be an array.`);
 		}
 
-		const updated = new Map();
+		const done = ({ updated }: IDone): void | boolean => {
+			const changed = this.size !== updated.size && Array.from(this.keys()).some(key => !updated.has(key));
+			if (!changed) return false;
+
+			// Destroy unused conditionals
+			this.forEach((conditional, key) => !updated.has(key) && conditional.destroy());
+
+			super.clear(); // Do not use this.clear() as it would destroy all conditionals
+			updated.forEach((conditional, key) => this.set(key, conditional));
+		};
+
+		const updated: Map<string, Conditional> = new Map();
 		conditionals.forEach(conditions => {
-			const { platform } = conditions;
-			if (typeof platform !== 'string') {
-				throw new Error(`Module conditionals platform must be a string.`);
+			if (typeof conditions.platform !== 'string') {
+				throw new Error(`Module platform condition must be a string.`);
+			}
+			if (conditions.environment && typeof conditions.environment !== 'string') {
+				throw new Error(`Module environment condition must be a string.`);
 			}
 
+			const { platform } = conditions;
 			const environment = conditions.environment ? `:${conditions.environment}` : '';
 			const key = `${platform}:${environment}`;
 			const conditional = this.has(key) ? this.get(key) : this.#module._conditional({ key });
 			updated.set(key, conditional);
 		});
 
-		// Destroy unused conditionals
-		this.forEach((conditional, key) => !updated.has(key) && conditional.destroy());
-
-		this.#clear();
-		updated.forEach((conditional, key) => this.set(key, conditional));
+		return done({ updated });
 	}
 
 	#clear = () => {

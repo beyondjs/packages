@@ -1,5 +1,5 @@
 {
-	"name": "sdk/types",
+	"name": "sdk",
 	"bundle": "ts",
 	"files": "*"
 }

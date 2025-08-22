@@ -1,13 +1,13 @@
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { ExportsEntry } from '@beyond-js/packages/sdk/types';
+import type { ExportsType } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {
-	updated?: Map<string, ExportsEntry>;
+	updated?: Map<string, ExportsType>;
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
 }

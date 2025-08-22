@@ -1,8 +1,8 @@
-import type { ExportsTargetType, IManifestModuleSpec } from '@beyond-js/packages/types';
+import type { ExportsType, IManifestModuleSpec } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
-export /*bundle*/ type ModuleSpecType = ExportsTargetType | IManifestModuleSpec;
+export /*bundle*/ type ModuleSpecType = ExportsType | IManifestModuleSpec;
 
 export /*bundle*/ class ModuleSpec extends DynamicProcessor() {
 	get dp() {

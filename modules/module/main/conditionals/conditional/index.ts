@@ -1,4 +1,4 @@
-import type { Module } from '../../';
+import type { BaseModule } from '../../';
 import type { Output, OutputStrategyType } from './output';
 import type { ModuleSpecType } from '@beyond-js/packages/module/spec';
 import { Outputs } from './outputs';
@@ -8,8 +8,8 @@ export /*bundle*/ interface IStrategy {
 	outputs: Map<string, OutputStrategyType>;
 }
 
-export class Conditional {
-	#module: Module;
+export /*bundle*/ class Conditional {
+	#module: BaseModule;
 	get module() {
 		return this.#module;
 	}
@@ -61,18 +61,7 @@ export class Conditional {
 		throw new Error(`Private method '_output' must be overriden`);
 	}
 
-	/**
-	 * Technically the processors are of the conditional,
-	 * but they can be the same for all conditionals of the module.
-	 * If the specifier is not provided, it will be resolved by the _resolve method of the processors collection.
-	 *
-	 * @returns {Map<string, {spec: object, specifier?: string}>} - The processors of the conditional
-	 */
-	_processors() {
-		return this.#module._processors();
-	}
-
-	constructor(module: Module, conditions: { platform: string; environment?: string }) {
+	constructor(module: BaseModule, conditions: { platform: string; environment?: string }) {
 		this.#module = module;
 		this.#spec = new ConditionalSpec(this);
 

@@ -1,7 +1,6 @@
 import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IConditions } from '@beyond-js/packages/types';
 import type { Conditional } from './conditionals/conditional';
-import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Conditionals } from './conditionals';
 import { relative } from 'path';
 
@@ -26,7 +25,7 @@ interface IModuleConstructorParams {
 	spec: ModuleSpec;
 }
 
-export class Module extends DynamicProcessor() {
+export /*bundle*/ abstract class BaseModule {
 	get dp() {
 		return 'module';
 	}
@@ -81,17 +80,11 @@ export class Module extends DynamicProcessor() {
 		return { values: {} };
 	}
 
-	_conditionals(): IConditions[] {
-		return [{ platform: 'default' }];
-	}
+	abstract _conditionals(): IConditions[];
 
-	_conditional({ key }: { key: string }): Conditional {
-		void key;
-		throw new Error(`Private method '_conditional' must be overriden`);
-	}
+	abstract _conditional({ key }: { key: string }): Conditional;
 
 	constructor({ package: pkg, id, path, bundler, spec, language }: IModuleConstructorParams) {
-		super();
 		this.#package = pkg;
 		this.#id = id;
 
@@ -101,10 +94,5 @@ export class Module extends DynamicProcessor() {
 		this.#language = language;
 
 		this.#conditionals = new Conditionals(this);
-	}
-
-	destroy() {
-		this.#spec.destroy();
-		this.#conditionals.destroy();
 	}
 }

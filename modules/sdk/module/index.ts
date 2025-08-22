@@ -1,6 +1,6 @@
-import { Module as ModuleBase } from '';
+import { BaseModule } from '@beyond-js/packages/module';
 
-export /*bundle*/ class Module extends ModuleBase {
+export /*bundle*/ abstract class Module extends BaseModule {
 	#language: string;
 	get language() {
 		return this.#language;
