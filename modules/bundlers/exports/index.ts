@@ -4,12 +4,12 @@ import { Conditional } from './conditional';
 
 export /*bundle*/ class Module extends BaseModule {
 	_conditionals(): IConditions[] {
-		console.log(this.spec.values);
 		return [{ platform: 'node' }];
 	}
 
 	_conditional({ key }: { key: string }): Conditional {
-		console.log(`Creating conditional for key "${key}"`);
-		return;
+		if (key !== 'node') throw new Error(`Conditional ${key} not implemented`);
+
+		return new Conditional(this, { platform: 'node' });
 	}
 }

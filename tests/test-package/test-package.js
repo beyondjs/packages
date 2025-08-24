@@ -35,4 +35,11 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const module = pkg.modules.get('./utils');
 	await module.conditionals.ready;
 	console.log(`  • Module "./utils" conditionals`, [...module.conditionals.keys()]);
+
+	// Process specific conditional (node) of the module (./utils)
+	console.log('');
+	console.log('4. Process specific conditional (node) of the module (./utils):'.green.bold);
+	const conditional = module.conditionals.get('node');
+	await conditional.outputs.ready;
+	console.log('  • Conditional "node" outputs:', [...conditional.outputs.keys()]);
 })().catch(exc => console.error(exc.stack));

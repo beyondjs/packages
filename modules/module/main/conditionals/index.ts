@@ -27,13 +27,13 @@ export class Conditionals extends DynamicProcessor(Map<string, BaseConditional>)
 		}
 
 		const done = ({ updated }: IDone): void | boolean => {
-			const changed = this.size !== updated.size && Array.from(this.keys()).some(key => !updated.has(key));
+			const changed = this.size !== updated.size || Array.from(this.keys()).some(key => !updated.has(key));
 			if (!changed) return false;
 
 			// Destroy unused conditionals
 			this.forEach((conditional, key) => !updated.has(key) && conditional.destroy());
 
-			super.clear(); // Do not use this.clear() as it would destroy all conditionals
+			super.clear();
 			updated.forEach((conditional, key) => this.set(key, conditional));
 		};
 
@@ -47,8 +47,8 @@ export class Conditionals extends DynamicProcessor(Map<string, BaseConditional>)
 			}
 
 			const { platform } = conditions;
-			const environment = conditions.environment ? `:${conditions.environment}` : '';
-			const key = `${platform}:${environment}`;
+			const environment = conditions.environment ? `/${conditions.environment}` : '';
+			const key = `${platform}${environment}`;
 			const conditional = this.has(key) ? this.get(key) : this.#module._conditional({ key });
 			updated.set(key, conditional);
 		});
