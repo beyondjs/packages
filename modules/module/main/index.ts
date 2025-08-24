@@ -1,8 +1,8 @@
 import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IConditions } from '@beyond-js/packages/types';
 import type { Conditional } from './conditionals/conditional';
+import type { Package } from './package';
 import { Conditionals } from './conditionals';
-import { relative } from 'path';
 
 interface IBundler {
 	path: string;
@@ -10,20 +10,10 @@ interface IBundler {
 	settings: Record<string, any>;
 }
 
-interface IModulePackage {
-	id: string;
-	name: string;
-	version: string;
-	path: string;
-}
-
 interface IModuleConstructorParams {
-	package: IModulePackage;
-	id: string;
-	path: string;
-	language: string;
-	bundler: IBundler;
+	package: Package;
 	spec: ModuleSpec;
+	bundler: IBundler;
 }
 
 export /*bundle*/ abstract class BaseModule {
@@ -31,24 +21,14 @@ export /*bundle*/ abstract class BaseModule {
 		return 'module';
 	}
 
-	#package: IModulePackage;
-	get package(): IModulePackage {
+	#package: Package;
+	get package(): Package {
 		return this.#package;
 	}
 
-	#id: string;
-	get id(): string {
-		return this.#id;
-	}
-
-	#path: { dirname: string; relative: string };
-	get path() {
-		return this.#path;
-	}
-
-	#language: string;
-	get language() {
-		return this.#language;
+	#spec: ModuleSpec;
+	get spec(): ModuleSpec {
+		return this.#spec;
 	}
 
 	/**
@@ -59,11 +39,6 @@ export /*bundle*/ abstract class BaseModule {
 	#bundler: IBundler;
 	get bundler() {
 		return this.#bundler;
-	}
-
-	#spec: ModuleSpec;
-	get spec(): ModuleSpec {
-		return this.#spec;
 	}
 
 	#conditionals: Conditionals;
@@ -85,15 +60,15 @@ export /*bundle*/ abstract class BaseModule {
 
 	abstract _conditional({ key }: { key: string }): Conditional;
 
-	constructor({ package: pkg, id, path, bundler, spec, language }: IModuleConstructorParams) {
+	constructor({ package: pkg, bundler, spec }: IModuleConstructorParams) {
 		this.#package = pkg;
-		this.#id = id;
-
-		this.#path = { dirname: path, relative: relative(path, pkg.path) };
 		this.#bundler = bundler;
 		this.#spec = spec;
-		this.#language = language;
 
 		this.#conditionals = new Conditionals(this);
+	}
+
+	destroy() {
+		this.#conditionals.destroy();
 	}
 }

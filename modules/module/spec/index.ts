@@ -4,14 +4,42 @@ import { equal } from '@beyond-js/equal/main';
 
 export /*bundle*/ type ModuleSpecType = ExportsType | IManifestModuleSpec;
 
+export /*bundle*/ interface IExportInfo {
+	type: 'export';
+	subpath: string;
+}
+
+export /*bundle*/ interface IModuleManifestInfo {
+	type: 'manifest';
+	path: string;
+	language?: string;
+}
+
+type IModuleInfo = IExportInfo | IModuleManifestInfo;
+
 export /*bundle*/ class ModuleSpec extends DynamicProcessor() {
 	get dp() {
 		return 'module-manifest.module-spec';
 	}
 
-	#id: string;
-	get id() {
-		return this.#id;
+	#type: 'export' | 'manifest';
+	get type() {
+		return this.#type;
+	}
+
+	#subpath?: string;
+	get subpath() {
+		return this.#subpath;
+	}
+
+	#path?: string;
+	get path() {
+		return this.#path;
+	}
+
+	#language?: string;
+	get language() {
+		return this.#language;
 	}
 
 	#bundler: string;
@@ -24,9 +52,29 @@ export /*bundle*/ class ModuleSpec extends DynamicProcessor() {
 		return this.#values;
 	}
 
-	constructor(id: string, bundler: string) {
+	/**
+	 * Creates a module specification instance
+	 *
+	 * @param info The module specification information
+	 * @param bundler The bundler name (for exports it's always 'exports', for manifests it's the bundler name)
+	 */
+	constructor(info: IModuleInfo, bundler: string) {
 		super();
-		this.#id = id;
+
+		const { type } = info;
+		this.#type = type;
+
+		if (type === 'export') {
+			const { subpath } = info;
+			this.#subpath = subpath;
+		} else if (type === 'manifest') {
+			const { path, language } = info;
+			this.#path = path;
+			this.#language = language;
+		} else {
+			throw new Error(`Unknown module spec type: ${type}`);
+		}
+
 		this.#bundler = bundler;
 	}
 

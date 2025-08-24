@@ -20,6 +20,9 @@ export class ModuleManifests extends DynamicProcessor(Map<string, any>) {
 	}
 
 	_process() {
-		this.#finder.forEach(manifest => this.set(manifest.id, manifest));
+		this.#finder.forEach(manifest => {
+			const key = manifest.file.relative.dirname;
+			this.set(key, manifest);
+		});
 	}
 }

@@ -29,11 +29,6 @@ export /*bundle*/ class Conditional {
 		return this.#spec;
 	}
 
-	#id;
-	get id() {
-		return this.#id;
-	}
-
 	#outputs: Outputs;
 	get outputs(): Outputs {
 		return this.#outputs;
@@ -66,7 +61,6 @@ export /*bundle*/ class Conditional {
 		this.#spec = new ConditionalSpec(this);
 
 		const { platform, environment } = conditions;
-		this.#id = `${this.#module.id}//${platform}` + environment ? `:${environment}` : '';
 		this.#platform = platform;
 		this.#environment = environment;
 	}

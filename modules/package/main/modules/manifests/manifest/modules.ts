@@ -1,6 +1,7 @@
 import type { Manifest } from './';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { IManifestModuleSpec, IManifestSpec } from '@beyond-js/packages/types';
+import type { IModuleManifestInfo } from '@beyond-js/packages/module/spec';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
@@ -66,7 +67,14 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 			// Update the modules
 			updated?.forEach((spec, bundler) => {
-				const module = this.has(bundler) ? this.get(bundler) : new ModuleSpec(this.#manifest.id, bundler);
+				const module = (() => {
+					if (this.has(bundler)) return this.get(bundler);
+
+					const path = this.#manifest.file.relative.dirname;
+					const info: IModuleManifestInfo = { type: 'manifest', path };
+					return new ModuleSpec(info, bundler);
+				})();
+
 				module.update(spec);
 				this.set(bundler, module);
 			});

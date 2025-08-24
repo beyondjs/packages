@@ -41,8 +41,8 @@ export /*bundle*/ interface IExportsSubpaths {
 export /*bundle*/ type ExportsTargetType = ExportPathType | null | IExportsConditionMap | readonly ExportsTargetType[];
 
 /** A relative subpath and file path target, must start with "./". */
-export type ExportSubpathType = `./${string}`;
-export type ExportPathType = `./${string}`;
+export /*bundle*/ type ExportSubpathType = `./${string}`;
+export /*bundle*/ type ExportPathType = `./${string}`;
 
 /**
  * Condition map. Key order matters at runtime.

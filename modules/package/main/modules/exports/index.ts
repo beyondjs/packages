@@ -1,6 +1,7 @@
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ExportsType } from '@beyond-js/packages/types';
+import type { IExportInfo } from '@beyond-js/packages/module/spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
@@ -67,7 +68,8 @@ export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 			// Update the modules
 			updated?.forEach((spec, subpath) => {
-				const module = this.has(subpath) ? this.get(subpath) : new ModuleSpec(subpath, 'exports');
+				const info: IExportInfo = { type: 'export', subpath };
+				const module = this.has(subpath) ? this.get(subpath) : new ModuleSpec(info, 'exports');
 				module.update(spec);
 				this.set(subpath, module);
 			});

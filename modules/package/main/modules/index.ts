@@ -9,6 +9,7 @@ import { ModuleManifests } from './manifests';
 import { ModuleResolver } from './resolver';
 
 interface IPreparedDone {
+	updated: Map<string, ModuleResolver>;
 	warnings?: IDiagnostic[];
 }
 
@@ -47,14 +48,24 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 		if (!require(this.#exports, 'package-exports')) return false;
 		// require(this.#manifests, 'package-manifests');
 
-		const exports = this.#exports;
-		const warnings: IDiagnostic[] = (this.#warnings = []);
-		const resolvers = (this.#resolvers = new Map<string, ModuleResolver>());
-
-		const done = ({ warnings }: IPreparedDone) => {
+		const done = ({ updated, warnings }: IPreparedDone) => {
 			warnings = warnings ? warnings : [];
 			this.#warnings = warnings;
+
+			// Destroy unused resolvers
+			this.#resolvers.forEach((resolver, subpath) => !updated.has(subpath) && resolver.destroy());
+			this.#resolvers.clear();
+
+			// Add the updated resolvers collection
+			updated.forEach((resolver, subpath) => this.#resolvers.set(subpath, resolver));
+
+			// The resolvers must be all processed before processing the modules collection
+			this.#resolvers.forEach((resolver, key) => require(resolver, `module-resolver:${key}`));
 		};
+
+		const exports = this.#exports;
+		const warnings: IDiagnostic[] = (this.#warnings = []);
+		const updated = new Map<string, ModuleResolver>();
 
 		for (const [subpath, specs] of exports) {
 			// Validate subpath
@@ -68,15 +79,18 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 				continue;
 			}
 
-			const resolver = new ModuleResolver(this.#package, specs);
-			resolvers.set(subpath, resolver);
+			const resolver = (() => {
+				if (this.#resolvers.has(subpath)) return this.#resolvers.get(subpath);
+				return new ModuleResolver(this.#package, specs);
+			})();
+			updated.set(subpath, resolver);
 		}
 
-		// All resolvers must be processed
-		resolvers.forEach(resolver => require(resolver, 'module-resolver'));
+		return done({ updated, warnings });
 	}
 
 	_process() {
-		const resolvers = this.#resolvers;
+		this.clear();
+		this.#resolvers.forEach((resolver, key) => this.set(key, resolver.module));
 	}
 }

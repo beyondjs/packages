@@ -1,5 +1,4 @@
 import type { Package } from '../';
-import type { ModuleConstructor } from '../bundlers/bundler';
 import type { BaseModule } from '@beyond-js/packages/module';
 import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IDiagnostic } from '@beyond-js/packages/types';
@@ -88,12 +87,9 @@ export class ModuleResolver extends DynamicProcessor() {
 		}
 
 		const module = new Module({
-			package: { path: pkg.path, id: pkg.id, name: pkg.name, version: pkg.version },
-			id: spec.id,
-			path: spec.path,
-			language: spec.language,
-			bundler: { path: bundler.path, specifier: bundler.specifier, settings: bundler.settings },
-			spec: this.#spec
+			package: pkg,
+			spec: this.#spec,
+			bundler: { path: bundler.path, specifier: bundler.specifier, settings: bundler.settings }
 		});
 		return done({ module });
 	}

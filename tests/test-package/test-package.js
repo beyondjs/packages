@@ -10,19 +10,29 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const path = join(__dirname, 'my-package');
 	const pkg = new Package(path);
 	await pkg.ready;
-	console.log(`Package "${pkg.name}" is ready.\n`);
+	console.log(`Package "${pkg.name}" is ready.\n`.green.bold);
 
-	// Process package modules
-	console.log('Process package modules');
-	await pkg.modules.ready;
-
-	console.log('Process package bundlers');
+	console.log('1. Process package bundler:'.green.bold);
 	await pkg.bundlers.ready;
-	console.log('Bundlers is valid:', pkg.bundlers.valid, !pkg.bundlers.valid ? pkg.bundlers.errors : '');
-	console.log('Bundlers:', [...pkg.bundlers.keys()]);
+	console.log('  • Bundlers are valid:', pkg.bundlers.valid, !pkg.bundlers.valid ? pkg.bundlers.errors : '');
+	console.log('  • Bundlers:', [...pkg.bundlers.keys()]);
 
 	const bundler = pkg.bundlers.get('exports');
-	console.log(`Process "exports" bundler`);
+	console.log(`  • Process "exports" bundler`);
 	await bundler.ready;
-	console.log('Module class from Bundler:', bundler.Module);
+	console.log('  • Module class from Bundler:', bundler.Module);
+
+	console.log('');
+	// Process package modules
+	console.log('2. Process package modules:'.green.bold);
+	await pkg.modules.ready;
+	console.log('  • Modules warnings:', pkg.modules.warnings);
+	console.log('  • Modules:', [...pkg.modules.keys()]);
+
+	// Process specific module (./utils)
+	console.log('');
+	console.log('3. Process specific module (./utils):'.green.bold);
+	const module = pkg.modules.get('./utils');
+	await module.conditionals.ready;
+	console.log(`  • Module "./utils" conditionals`, [...module.conditionals.keys()]);
 })().catch(exc => console.error(exc.stack));
