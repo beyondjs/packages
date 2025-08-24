@@ -1,15 +1,15 @@
-import type { Conditional } from './';
+import type { BaseConditional } from './';
 import type { Output } from './output';
 
 export /*bundle*/ type OutputsStrategyType = Map<string, { Output: typeof Output }>;
 
 export class Outputs extends Map<string, Output> {
-	#conditional: Conditional;
-	get conditional(): Conditional {
+	#conditional: BaseConditional;
+	get conditional(): BaseConditional {
 		return this.#conditional;
 	}
 
-	constructor(conditional: Conditional, strategy: OutputsStrategyType) {
+	constructor(conditional: BaseConditional, strategy: OutputsStrategyType) {
 		super();
 		this.#conditional = conditional;
 

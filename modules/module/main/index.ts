@@ -1,6 +1,6 @@
 import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IConditions } from '@beyond-js/packages/types';
-import type { Conditional } from './conditionals/conditional';
+import type { BaseConditional } from './conditionals/conditional';
 import type { Package } from './package';
 import { Conditionals } from './conditionals';
 
@@ -58,7 +58,7 @@ export /*bundle*/ abstract class BaseModule {
 
 	abstract _conditionals(): IConditions[];
 
-	abstract _conditional({ key }: { key: string }): Conditional;
+	abstract _conditional({ key }: { key: string }): BaseConditional;
 
 	constructor({ package: pkg, bundler, spec }: IModuleConstructorParams) {
 		this.#package = pkg;

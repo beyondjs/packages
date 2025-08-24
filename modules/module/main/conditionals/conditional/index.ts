@@ -8,7 +8,7 @@ export /*bundle*/ interface IStrategy {
 	outputs: Map<string, OutputStrategyType>;
 }
 
-export /*bundle*/ class Conditional {
+export /*bundle*/ abstract class BaseConditional {
 	#module: BaseModule;
 	get module() {
 		return this.#module;
@@ -47,14 +47,8 @@ export /*bundle*/ class Conditional {
 		return { values: {} };
 	}
 
-	_outputs() {
-		throw new Error(`Private method '_outputs' must be overriden`);
-	}
-
-	_output(key: string): Output {
-		void key;
-		throw new Error(`Private method '_output' must be overriden`);
-	}
+	abstract _outputs(): Outputs;
+	abstract _output(key: string): Output;
 
 	constructor(module: BaseModule, conditions: { platform: string; environment?: string }) {
 		this.#module = module;

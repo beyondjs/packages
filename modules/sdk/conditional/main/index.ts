@@ -1,6 +1,6 @@
 import type { Module } from '../../module';
 import type { IConditions } from '@beyond-js/packages/types';
-import { Conditional } from '@beyond-js/packages/module';
+import { BaseConditional } from '@beyond-js/packages/module';
 import { Processors } from '@beyond-js/bundlers-sdk/bundler/processors';
 import { BundlerStore } from './store';
 import { ESMOutput } from './outputs/esm';
@@ -8,9 +8,9 @@ import { LocalOutput } from './outputs/local';
 import { TypesOutput } from './outputs/types';
 import { CSSOutput } from './outputs/css';
 
-export /*bundler*/ class Bundler extends Conditional {
+export /*bundler*/ class Bundler extends BaseConditional {
 	get module(): Module {
-		return super.module;
+		return <Module>super.module;
 	}
 
 	#processors: Processors;

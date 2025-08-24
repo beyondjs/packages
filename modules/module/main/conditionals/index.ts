@@ -1,12 +1,12 @@
 import type { BaseModule } from '../';
-import type { Conditional } from './conditional';
+import type { BaseConditional } from './conditional';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 interface IDone {
-	updated: Map<string, Conditional>;
+	updated: Map<string, BaseConditional>;
 }
 
-export class Conditionals extends DynamicProcessor(Map<string, Conditional>) {
+export class Conditionals extends DynamicProcessor(Map<string, BaseConditional>) {
 	get dp() {
 		return 'module.conditionals';
 	}
@@ -37,7 +37,7 @@ export class Conditionals extends DynamicProcessor(Map<string, Conditional>) {
 			updated.forEach((conditional, key) => this.set(key, conditional));
 		};
 
-		const updated: Map<string, Conditional> = new Map();
+		const updated: Map<string, BaseConditional> = new Map();
 		conditionals.forEach(conditions => {
 			if (typeof conditions.platform !== 'string') {
 				throw new Error(`Module platform condition must be a string.`);

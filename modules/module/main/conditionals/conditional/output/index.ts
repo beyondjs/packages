@@ -1,12 +1,12 @@
-import type { Conditional } from '../';
+import type { BaseConditional } from '../';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 export type OutputStrategyType = { Output: typeof Output };
 
-export class Output extends DynamicProcessor() {
-	#conditional: Conditional;
-	get conditional(): Conditional {
+export /*bundle*/ class Output extends DynamicProcessor() {
+	#conditional: BaseConditional;
+	get conditional(): BaseConditional {
 		return this.#conditional;
 	}
 
@@ -34,7 +34,7 @@ export class Output extends DynamicProcessor() {
 		return this.#map;
 	}
 
-	constructor(conditional: Conditional, strategy: OutputStrategyType) {
+	constructor(conditional: BaseConditional, strategy: OutputStrategyType) {
 		super();
 
 		void strategy; // eslint-disable-line no-unused-vars

@@ -1,4 +1,4 @@
-import type { Conditional } from './';
+import type { BaseConditional } from './';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
@@ -7,14 +7,14 @@ export class ConditionalSpec extends DynamicProcessor() {
 		return 'module.conditional.spec';
 	}
 
-	#conditional: Conditional;
+	#conditional: BaseConditional;
 
 	#values = {};
 	get values() {
 		return this.#values;
 	}
 
-	constructor(conditional: Conditional) {
+	constructor(conditional: BaseConditional) {
 		super();
 
 		this.#conditional = conditional;

@@ -70,7 +70,7 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 		for (const [subpath, specs] of exports) {
 			// Validate subpath
 			const validate = /^\.\/[a-zA-Z0-9-_./]*$/;
-			if (!subpath || (subpath !== '.' && !subpath.startsWith('./')) || !validate.test(subpath)) {
+			if (!subpath || (subpath !== '.' && (!subpath.startsWith('./') || !validate.test(subpath)))) {
 				const code = 'INVALID_SUBPATH';
 				const message =
 					`Invalid subpath: "${subpath}". ` +
