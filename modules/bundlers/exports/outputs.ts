@@ -1,7 +1,11 @@
 import type { Conditional } from './conditional';
 import type { OutputsType, IOutput } from '@beyond-js/packages/module';
 import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { BuildResult } from 'esbuild';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { build } from 'esbuild';
+import { Plugin } from './esbuild-plugin';
+import { sep } from 'path';
 
 interface IDone {
 	errors?: IDiagnostic[];
@@ -31,7 +35,7 @@ export class Outputs extends DynamicProcessor(Map<string, IOutput>) implements O
 		super.setup(new Map([['conditional', { child: conditional.spec }]]));
 	}
 
-	_process() {
+	async _process(): Promise<void> {
 		const errors: IDiagnostic[] = [];
 		const updated: Map<string, IOutput> = new Map();
 
@@ -40,8 +44,6 @@ export class Outputs extends DynamicProcessor(Map<string, IOutput>) implements O
 			updated = updated || new Map();
 		};
 
-		console.log('Processing outputs for conditional', this.#conditional.spec.values);
-
 		const { valid } = this.#conditional.spec;
 		if (!valid) {
 			const code = 'INVALID_CONDITIONAL_SPEC';
@@ -49,6 +51,54 @@ export class Outputs extends DynamicProcessor(Map<string, IOutput>) implements O
 			return done({ errors, updated });
 		}
 
-		return done({ updated });
+		const entry = <string>this.#conditional.spec.values;
+		console.log('Building exports with entry:', entry);
+
+		const plugin = new Plugin();
+
+		let result: BuildResult;
+		try {
+			result = await build({
+				entryPoints: [entry],
+				sourcemap: 'external',
+				logLevel: 'silent',
+				platform: 'browser',
+				format: 'esm',
+				bundle: true,
+				write: false,
+				outfile: 'out.js',
+				plugins: [plugin]
+			});
+		} catch (exc) {
+			console.log('Build exception', exc);
+			const code = 'BUNDLER_EXCEPTION';
+			const message = `Exception caught: ${exc.message}`;
+			return done({ errors: [{ code, message }] });
+		}
+
+		const { warnings, outputFiles: outputs } = result;
+		if (result.errors?.length) {
+			const code = 'BUNDLER_ERRORS';
+			const message = 'Errors found during the bundling process';
+			return done({ errors: [{ code, message }] });
+		}
+
+		const { code, map } = (() => {
+			const output = { code: '', map: '' };
+			output.code = outputs?.find(({ path }) => path.endsWith(`${sep}out.js`))?.text;
+			output.map = outputs?.find(({ path }) => path.endsWith(`${sep}out.js.map`))?.text;
+			return output;
+
+			// const requires = resolveRequireCalls(plugin);
+			// if (!requires) return output;
+
+			// const sourcemap = new SourceMap();
+			// sourcemap.concat(requires.imports);
+			// sourcemap.concat(requires.resolver);
+			// sourcemap.concat(output.code, void 0, output.map);
+			// return sourcemap;
+		})();
+
+		console.log('Build finished', { code, map });
 	}
 }
