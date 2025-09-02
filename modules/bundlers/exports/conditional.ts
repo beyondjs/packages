@@ -15,7 +15,7 @@ export /*bundle*/ class Conditional extends BaseConditional {
 	}
 
 	_spec(spec: ExportsType): IProcessedSpec {
-		const values = (<any>spec).node.import;
+		const values = (<any>spec).node.require;
 		return { values };
 	}
 }

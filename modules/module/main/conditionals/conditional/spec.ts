@@ -42,7 +42,6 @@ export class ConditionalSpec extends DynamicProcessor() {
 		let { errors, warnings, values } = conditional._spec(conditional.module.spec.values);
 		errors = errors || [];
 		warnings = warnings || [];
-		values = values || {};
 
 		const previous = { errors: this.#errors, warnings: this.#warnings, values: this.#values };
 		const changed = !equal(previous, { errors, warnings, values });
