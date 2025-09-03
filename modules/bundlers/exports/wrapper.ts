@@ -31,14 +31,14 @@ export class Wrapper {
 		const sourcemap = new SourceMap(true, 'out.js', '\n');
 
 		// Segments without maps
-		sourcemap.add('head.js', head);
-		sourcemap.add('shim.js', shim);
+		sourcemap.add(void 0, head);
+		sourcemap.add(void 0, shim);
 
 		// Main cjs body with its original map
-		sourcemap.add('cjs.js', code, map);
+		sourcemap.add(void 0, code, map);
 
 		// Footer without map
-		sourcemap.add('foot.js', foot);
+		sourcemap.add(void 0, foot);
 
 		return {
 			code: sourcemap.content.toString('utf8'),
@@ -48,25 +48,23 @@ export class Wrapper {
 
 	/** Emit static externals for each bare specifier */
 	#head(externals: string[]): string {
-		const out: string[] = [];
+		let output = '\n';
 		for (const id of externals) {
 			const alias = this.#alias(id);
-			out.push(`import * as __ns_${alias} from '${id}';`);
-			out.push(`const __${alias} = ('default' in __ns_${alias} ? __ns_${alias}.default : __ns_${alias});`);
+			output += `import __ns_${alias} from '${id}';\n`;
 		}
-		return out.join('\n');
+		return output;
 	}
 
 	/** Emit the cjs compatibility shim: module, exports and require */
 	#shim(externals: string[]): string {
-		const lines: string[] = [];
-		lines.push('const module = { exports: {} };');
-		lines.push('const exports = module.exports;');
-		lines.push('');
-		lines.push('function require(id) {');
-		lines.push(this.#switch(externals));
-		lines.push('}');
-		return lines.join('\n');
+		let output = '';
+		output += 'function require(id) {\n';
+		output += this.#switch(externals) + '\n';
+		output += '}\n\n';
+		output += 'const module = { exports: {} };\n';
+		output += 'const exports = module.exports;\n';
+		return output;
 	}
 
 	/** Emit final exports: default + named snapshot */
@@ -82,14 +80,14 @@ export class Wrapper {
 	#switch(externals: string[]): string {
 		if (!externals.length) return '  throw new Error("require: no externals");';
 
-		const output: string[] = [];
-		output.push('  switch (id) {');
+		let output = '';
+		output += '  switch (id) {\n';
 		for (const id of externals) {
-			output.push(`    case '${id}': return __${this.#alias(id)};`);
+			output += `    case '${id}': return __ns_${this.#alias(id)};\n`;
 		}
-		output.push('    default: throw new Error("require: " + id + " not supported");');
-		output.push('  }');
-		return output.join('\n');
+		output += '    default: throw new Error("require: " + id + " not supported");\n';
+		output += '  }';
+		return output;
 	}
 
 	/** Normalize bare specifier into a safe alias */

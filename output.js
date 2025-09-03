@@ -1,14 +1,16 @@
-import * as __ns_react from 'react';
-const __react = ('default' in __ns_react ? __ns_react.default : __ns_react);
-const module = { exports: {} };
-const exports = module.exports;
+
+import __ns_react from 'react';
 
 function require(id) {
   switch (id) {
-    case 'react': return __react;
+    case 'react': return __ns_react;
     default: throw new Error("require: " + id + " not supported");
   }
 }
+
+const module = { exports: {} };
+const exports = module.exports;
+
 // beyondjs-bundler:/Users/henry/Documents/@beyond-js/packages/tests/test-package/my-package/dist/node/utils.cjs
 var react = require("react");
 var name = "henry";
