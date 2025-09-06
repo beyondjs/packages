@@ -1,0 +1,5 @@
+{
+	"name": "bundlers/ts/module",
+	"bundle": "ts",
+	"files": "*"
+}

@@ -14,16 +14,15 @@ const exports = module.exports;
 // beyondjs-bundler:/Users/henry/Documents/@beyond-js/packages/tests/test-package/my-package/dist/node/utils.cjs
 var react = require("react");
 var name = "henry";
-function hello() {
+exports.hello = async function() {
   return `hello ${name}`;
-}
+};
 function bye() {
   return `goodbye ${name}`;
 }
 function message() {
   return hello() + " and " + bye();
 }
-exports.hello = hello;
 exports.bye = bye;
 exports.message = message;
 var element = react.createElement("div", null, "This is a react element");

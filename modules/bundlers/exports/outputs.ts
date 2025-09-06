@@ -81,8 +81,7 @@ export class Outputs extends DynamicProcessor(Map<string, IOutput>) implements O
 				bundle: true,
 				write: false,
 				outfile: 'out.js',
-				plugins: [plugin],
-				external: ['react']
+				plugins: [plugin]
 			});
 		} catch (exc) {
 			console.log('Build exception', exc);

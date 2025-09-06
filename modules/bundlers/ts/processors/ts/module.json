@@ -1,0 +1,5 @@
+{
+	"name": "bundlers/ts/processors/ts",
+	"bundle": "ts",
+	"files": "*"
+}

@@ -1,0 +1,60 @@
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { Processor } from './';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { equal } from '@beyond-js/equal/main';
+
+export class ProcessorSettings extends DynamicProcessor() {
+	get dp() {
+		return 'processor.settings';
+	}
+
+	#processor: Processor;
+	get processor(): Processor {
+		return this.#processor;
+	}
+
+	#values = {};
+	get values() {
+		return this.#values;
+	}
+
+	#errors: IDiagnostic[] = [];
+	get errors(): IDiagnostic[] {
+		return this.#errors;
+	}
+
+	#warnings: IDiagnostic[] = [];
+	get warnings(): IDiagnostic[] {
+		return this.#warnings;
+	}
+
+	get valid() {
+		return !this.#errors?.length;
+	}
+
+	constructor(processor: Processor) {
+		super();
+		this.#processor = processor;
+		const bundler = processor.conditional.module.bundler;
+
+		super.setup(new Map([['bundler', { child: bundler }]]));
+	}
+
+	_process() {
+		const { bundler } = this.#processor.conditional.module;
+		const { processors } = bundler.settings.values;
+		let values = processors[this.#processor.name];
+		values = values || {};
+
+		let errors, warnings;
+		({ values, errors, warnings } = this.#processor._settings(values));
+
+		const previous = { errors: this.#errors, warnings: this.#warnings, values: this.#values };
+		const changed = !equal({ values, errors, warnings }, previous);
+		if (!changed) return false;
+
+		this.#errors = errors || [];
+		this.#warnings = warnings || [];
+		this.#values = values;
+	}
+}

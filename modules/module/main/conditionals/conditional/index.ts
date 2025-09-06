@@ -11,8 +11,12 @@ export /*bundle*/ interface IProcessedSpec {
 export /*bundle*/ interface IOutput {
 	code: string;
 	map?: string;
+	destroy(): void;
 }
-export /*bundle*/ type OutputsType = Map<string, IOutput> & { destroy: () => void };
+
+export /*bundle*/ type OutputType = 'esm' | 'types' | 'css' | 'local';
+
+export /*bundle*/ type OutputsType = Map<OutputType, IOutput> & { destroy: () => void };
 
 export /*bundle*/ abstract class BaseConditional {
 	#module: BaseModule;
