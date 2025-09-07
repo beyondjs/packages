@@ -2,9 +2,9 @@ import type { ProcessorSourcesExtensions } from '.';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
-export class ProcessorSourcesExtensionsHashes extends DynamicProcessor() {
+export class DelegatorsHashes extends DynamicProcessor() {
 	get dp() {
-		return 'processor.sources.extensions.hashes';
+		return 'processor.sources.delegators.hashes';
 	}
 
 	// The root hashes of each extension

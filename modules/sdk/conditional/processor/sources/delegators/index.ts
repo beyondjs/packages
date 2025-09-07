@@ -2,7 +2,7 @@ import type { Processor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
-import { ProcessorSourcesExtensionsHashes } from './hashes';
+import { DelegatorsHashes } from './hashes';
 
 /**
  * The files collected from the extensions of the current processor
@@ -17,8 +17,8 @@ export class ProcessorDelegators extends DynamicProcessor(Map) {
 		return this.#processor;
 	}
 
-	#hashes: ProcessorSourcesExtensionsHashes;
-	get hashes(): ProcessorSourcesExtensionsHashes {
+	#hashes: DelegatorsHashes;
+	get hashes(): DelegatorsHashes {
 		return this.#hashes;
 	}
 
