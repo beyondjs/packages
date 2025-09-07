@@ -28,7 +28,7 @@ export class ModuleManifestsFinder extends FinderCollection<Manifest> {
 
 	constructor(config: Config, watcher?: WatcherClient) {
 		console.log('Change the order of the parameters in the constructor of ModuleManifestsFinder');
-		super(watcher, Manifest);
+		super(Manifest);
 		this.#config = config;
 	}
 

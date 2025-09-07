@@ -1,6 +1,6 @@
+import type { ProcessorSourcesExtensions } from '.';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
-import { crc32 } from '@beyond-js/crc32';
 
 export class ProcessorSourcesExtensionsHashes extends DynamicProcessor() {
 	get dp() {
@@ -24,21 +24,21 @@ export class ProcessorSourcesExtensionsHashes extends DynamicProcessor() {
 		);
 	}
 
-	constructor(extensions) {
+	constructor(extensions: ProcessorSourcesExtensions) {
 		super();
 		super.setup(new Map([['extensions.sources', { child: extensions }]]));
 	}
 
 	// The calculated hash of the extensions sources
-	#sources;
+	#sources: string;
 	get sources() {
 		if (this.#sources !== void 0) return this.#sources;
 
 		// Extensions is a list of sources populated from the preprocessed sources of all extensions
 		const extensions = this.children.get('extensions.sources').child;
-		if (!extensions.size) return (this.#sources = 0);
+		if (!extensions.size) return (this.#sources = void 0);
 
-		const compute = {};
+		const compute: Record<string, string> = {};
 		const esh = extensions.children.get('extensions.hashes').child;
 		esh.forEach((eh, processor) => (compute[processor] = eh.sources));
 		return (this.#sources = crc32(equal.generate(compute)));

@@ -1,4 +1,4 @@
-import type { Processor } from '../../..';
+import type { Processor } from '../../';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 /**
@@ -10,17 +10,14 @@ export class ProcessorSourcesExtensionsProcessors extends DynamicProcessor(Map) 
 		return 'processor.sources.extensions.processors';
 	}
 
-	#processor;
+	#processor: Processor;
 	get processor() {
 		return this.#processor;
 	}
 
-	#propagator;
-
 	constructor(processor: Processor) {
 		super();
 		this.#processor = processor;
-		this.#propagator = new (require('./propagator'))(this._events);
 
 		const { processors } = processor.spec.packager;
 		super.setup(new Map([['bundle.processors', { child: processors }]]));

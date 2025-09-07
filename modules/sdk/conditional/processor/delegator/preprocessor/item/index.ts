@@ -1,21 +1,23 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import { Extensions } from './extensions';
+import type { DynamicFile } from '@beyond-js/file/dynamic';
+import { Delegates } from './delegates';
 
 export class PreprocessorItem {
-	#source;
-	get source() {
-		return this.#source;
+	#file: DynamicFile;
+	get file() {
+		return this.#file;
 	}
 
-	#extensions: Extensions;
-	get extensions() {
-		return this.#extensions;
+	#delegates: Delegates;
+	get delegates() {
+		return this.#delegates;
 	}
 
 	/**
-	 * The source content and hash can change, so keep track of the value of the source when the item was created.
+	 * The file content and hash can change, so keep track of the value of the file when the item was created.
 	 * This allows us to determine if the item has changed since it was created.
 	 */
+	// @TODO: WIP
 	#hash: string;
 	get hash() {
 		return this.#hash;
@@ -31,16 +33,16 @@ export class PreprocessorItem {
 		return this.#warnings;
 	}
 
-	get valid() {
+	get valid(): boolean {
 		return !this.#errors.length;
 	}
 
-	constructor(source, extensions: string[]) {
-		this.#source = source;
-		this.#extensions = new Extensions(source, extensions);
+	constructor(file: DynamicFile, delegates: string[]) {
+		this.#file = file;
+		this.#delegates = new Delegates(file, delegates);
 	}
 
-	set(values: { errors?: IDiagnostic[]; warnings?: IDiagnostic[] }) {
+	update(values: { errors?: IDiagnostic[]; warnings?: IDiagnostic[] }) {
 		if (typeof values !== 'object') throw new Error(`Invalid parameters, 'values' must be an object`);
 		const { errors, warnings } = values;
 

@@ -1,17 +1,19 @@
-import { DynamicProcessor } from '@beyond-js/dynamic-processor';
+import type { ProcessorSources } from '.';
+import type { RequireType } from '@beyond-js/dynamic-processor/main';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 export class ProcessorSourcesHash extends DynamicProcessor() {
 	get dp() {
 		return 'bundler.processor.sources.hash';
 	}
 
-	#sources;
+	#sources: ProcessorSources;
 
 	/**
 	 * The calculated hash only considering the "inputs" of the processor
 	 * @return {number}
 	 */
-	#inputs;
+	#inputs: number;
 	get inputs() {
 		return this.#inputs;
 	}
@@ -20,22 +22,22 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 	 * The calculated hash only considering the "files" of the processor
 	 * @return {number}
 	 */
-	#files;
+	#files: number;
 	get files() {
 		return this.#files;
 	}
 
-	#extensions;
+	#extensions: number;
 	get extensions() {
 		return this.#extensions;
 	}
 
-	#value;
+	#value: string;
 	get value() {
 		return this.#value;
 	}
 
-	constructor(sources) {
+	constructor(sources: ProcessorSources) {
 		super();
 		this.#sources = sources;
 
@@ -56,17 +58,18 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 		return 0;
 	}
 
-	_prepared(require) {
+	_prepared(require: RequireType) {
 		const { inputs, files } = this.#sources;
-		inputs?.forEach(source => require(source));
-		files?.forEach(source => require(source));
+		inputs?.forEach((source, key) => require(source, key));
+		files?.forEach((source, key) => require(source, key));
 	}
 
 	_process() {
 		const { inputs, files } = this.#sources;
 
 		let compute = 0;
-		this.#inputs = inputs?.forEach(source => (compute += source.hash));
+		// @TODO use reduce function
+		this.#inputs = inputs?.reduce(source => (compute += source.hash), 0);
 		this.#files = files?.forEach(source => (compute += source.hash));
 		compute += this._compute();
 

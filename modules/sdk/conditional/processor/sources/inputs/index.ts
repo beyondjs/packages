@@ -1,31 +1,24 @@
 import type { Processor } from '../..';
-import { ipc } from '@beyond-js/ipc/main';
+import type { IProcessorInputsStrategy } from '../../types';
 import { FinderCollection } from '@beyond-js/finder/collection';
-import { InputSource } from './source';
 import { ProcessorInputsSpec } from './spec';
 import { join } from 'path';
 
 export class ProcessorSourcesInputs extends FinderCollection {
-	#processor;
+	#processor: Processor;
 	get processor() {
 		return this.#processor;
 	}
 
-	get ready() {
-		return Promise.all([this.#spec.ready, super.ready]);
-	}
+	#extname: string[];
+	#spec: ProcessorInputsSpec;
 
-	#extname;
-	#spec;
-
-	constructor(processor: Processor, strategy) {
+	constructor(processor: Processor, strategy: IProcessorInputsStrategy) {
 		const { watcher } = processor.conditional.module.package;
-
-		const Source = strategy.Source || InputSource;
-		super(watcher, Source, { items: { subscriptions: ['change'] } });
+		super({ watcher });
 
 		this.#processor = processor;
-		this.#extname = strategy.extname;
+		this.#extname = typeof strategy.extname === 'string' ? [strategy.extname] : strategy.extname;
 
 		const spec = new ProcessorInputsSpec(this.#processor);
 		this.#spec = spec;
@@ -45,21 +38,5 @@ export class ProcessorSourcesInputs extends FinderCollection {
 		const { includes, excludes } = this.#spec.values;
 		const extname = this.#extname;
 		super.configure(path, { extname, includes, excludes });
-	}
-
-	_notify() {
-		let table = 'processors-sources';
-		let {
-			application,
-			bundle: { id }
-		} = this.#processor.spec;
-		id = id.split('//').pop();
-		id.includes('template.') && (table = `${id.replace('.', '-')}-sources`);
-
-		ipc.notify('data-notification', {
-			type: 'list/update',
-			table: table,
-			filter: { application: application.id }
-		});
 	}
 }

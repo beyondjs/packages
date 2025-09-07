@@ -1,14 +1,15 @@
 import type { Preprocessor } from '../preprocessor';
+import type { Delegated } from '../preprocessor/item/delegates/delegated';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
-export class Extension extends DynamicProcessor(Map) {
+export class Delegate extends DynamicProcessor(Map<string, Delegated>) {
 	get dp() {
-		return 'processor.extender.extension';
+		return 'processor.delegator.delegate';
 	}
 
-	#extending: string;
-	get extending() {
-		return this.#extending;
+	#name: string;
+	get name() {
+		return this.#name;
 	}
 
 	#preprocessor: Preprocessor;
@@ -16,9 +17,9 @@ export class Extension extends DynamicProcessor(Map) {
 		return this.#preprocessor;
 	}
 
-	constructor(extending: string, preprocessor: Preprocessor) {
+	constructor(name: string, preprocessor: Preprocessor) {
 		super();
-		this.#extending = extending;
+		this.#name = name;
 		this.#preprocessor = preprocessor;
 
 		super.setup(new Map([['preprocessor', { child: preprocessor }]]));
@@ -29,14 +30,14 @@ export class Extension extends DynamicProcessor(Map) {
 
 		const updated = new Map();
 		preprocessor.forEach((item, key) => {
-			if (!item.extensions.has(this.#extending)) return;
-			const extension = item.extensions.get(this.#extending);
-			updated.set(key, extension);
+			if (!item.delegates.has(this.#name)) return;
+			const delegate = item.delegates.get(this.#name);
+			updated.set(key, delegate);
 		});
 
 		const changed =
 			this.size !== preprocessor.size ||
-			![...updated.values()].every(([key, extension]) => this.has(key) && extension.hash === this.get(key).hash);
+			![...updated.values()].every(([key, delegate]) => this.has(key) && delegate.hash === this.get(key).hash);
 		if (!changed) return false;
 
 		this.clear();

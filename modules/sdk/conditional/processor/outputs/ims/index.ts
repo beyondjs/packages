@@ -1,7 +1,7 @@
 import type { Processor } from '../..';
 import { ProcessorOutputsBase } from '../base';
 
-export class InternalModulesBase extends ProcessorOutputsBase {
+export class ImsOutput extends ProcessorOutputsBase {
 	get dp() {
 		return 'processor.outputs.internal-modules';
 	}

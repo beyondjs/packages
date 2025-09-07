@@ -1,4 +1,4 @@
-import type { FilterSpec } from '@beyond-js/finder/types';
+import type { IFilterSpec } from '@beyond-js/finder/types';
 
 export /*bundle*/ interface IManifestModuleSpec {
 	subpath?: string;
@@ -10,8 +10,8 @@ export /*bundle*/ interface IManifestSpec extends IManifestModuleSpec {
 	bundler?: string;
 	name?: string; // Deprecated, use 'subpath' instead
 
-	static: string | FilterSpec; // Path to the static resources
+	static: string | IFilterSpec; // Path to the static resources
 
 	// Any other property is considered a bundler configuration
-	[bundler: string]: IManifestModuleSpec | FilterSpec | string;
+	[bundler: string]: IManifestModuleSpec | IFilterSpec | string;
 }
