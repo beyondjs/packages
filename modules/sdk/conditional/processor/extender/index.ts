@@ -19,6 +19,11 @@ export class ProcessorExtender {
 		return this.#extensions;
 	}
 
+	#destroyed = false;
+	get destroyed() {
+		return this.#destroyed;
+	}
+
 	constructor(processor: Processor, strategy: IProcessorExtenderStrategy) {
 		if (typeof strategy !== 'object' || !strategy.Preprocessor || !Array.isArray(strategy.extends)) {
 			const { name } = processor;
@@ -37,5 +42,11 @@ export class ProcessorExtender {
 		this.#preprocessor = new Preprocessor(processor, strategy.extends);
 
 		this.#extensions = new Extensions(this.#preprocessor, strategy.extends);
+	}
+
+	destroy() {
+		this.#preprocessor?.destroy();
+		this.#extensions?.destroy();
+		this.#destroyed = true;
 	}
 }

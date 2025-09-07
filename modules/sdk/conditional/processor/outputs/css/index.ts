@@ -1,11 +1,12 @@
-import OutputsBase from '@beyond-js/bundlers-sdk/bundler/processor/outputs/base';
+import type { Processor } from '../..';
+import { ProcessorOutputsBase } from '../base';
 
-export class CssOutputs extends OutputsBase {
+export class CssOutputs extends ProcessorOutputsBase {
 	get dp() {
 		return 'processor.outputs.css';
 	}
 
-	constructor(processor) {
+	constructor(processor: Processor) {
 		super(processor, 'css');
 	}
 }

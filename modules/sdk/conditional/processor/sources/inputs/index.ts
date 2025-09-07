@@ -2,7 +2,7 @@ import type { Processor } from '../..';
 import { ipc } from '@beyond-js/ipc/main';
 import { FinderCollection } from '@beyond-js/finder/collection';
 import { InputSource } from './source';
-import { Spec } from './spec';
+import { ProcessorInputsSpec } from './spec';
 import { join } from 'path';
 
 export class ProcessorSourcesInputs extends FinderCollection {
@@ -27,7 +27,7 @@ export class ProcessorSourcesInputs extends FinderCollection {
 		this.#processor = processor;
 		this.#extname = strategy.extname;
 
-		const spec = new Spec(this.#processor);
+		const spec = new ProcessorInputsSpec(this.#processor);
 		this.#spec = spec;
 		super.setup(new Map([['spec', { child: spec }]]));
 
@@ -41,7 +41,7 @@ export class ProcessorSourcesInputs extends FinderCollection {
 			return;
 		}
 
-		const path = join(this.#processor.conditional.module.path.dirname, this.#spec.values.path);
+		const path = join(this.#processor.conditional.module.spec.path, this.#spec.values.path);
 		const { includes, excludes } = this.#spec.values;
 		const extname = this.#extname;
 		super.configure(path, { extname, includes, excludes });

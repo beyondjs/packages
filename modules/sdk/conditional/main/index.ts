@@ -38,16 +38,13 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		if (typeof strategy !== 'object') {
 			throw new Error(`Invalid strategy. An object is expected`);
 		}
-		if (!strategy.Processors && !strategy.processors) {
-			throw new Error(`Invalid strategy. A Processors class is expected`);
-		}
 		if (typeof strategy.outputs !== 'object') {
-			throw new Error(`Invalid strategy. An outputs object is expected`);
+			throw new Error(`Invalid strategy. Property 'outputs' was expected as an object`);
 		}
 
 		super(module, conditions);
 
-		this.#processors = strategy.processors ? new Processors(this) : new strategy.Processors(this);
+		this.#processors = strategy.Processors ? new strategy.Processors(this) : new Processors(this);
 		this.#outputs = new Outputs(this, strategy.outputs);
 		this.#store = new ConditionalsStore(this);
 	}

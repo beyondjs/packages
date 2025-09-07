@@ -1,7 +1,7 @@
 import type { Conditional } from '../../main';
 import { Processors } from '../base';
 
-export class BundlerResolverProcessors extends Processors {
+export class ProcessorsResolver extends Processors {
 	get dp() {
 		return 'bundler.processors.resolver';
 	}
@@ -11,10 +11,10 @@ export class BundlerResolverProcessors extends Processors {
 
 		super.setup(
 			new Map([
-				// Derived from the module specs: specified in the module.json file
-				['conditional-specs', { child: conditional.specs }],
+				// Derived from the module spec: specified in the module.json file
+				['conditional-spec', { child: conditional.spec }],
 				// The module settings: specified in the package.json file (bundlers property)
-				['bundler-settings', { child: conditional.module.bundler.settings }]
+				['bundler-settings', { child: conditional.module.bundler }]
 			])
 		);
 	}

@@ -1,13 +1,20 @@
 import type { Conditional } from '../../main';
+import type { Processor } from '../../processor';
 import type { IProcessors } from '../../../module';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
+interface IDone {
+	errors?: IDiagnostic[];
+	warnings?: IDiagnostic[];
+	updated?: Map<string, Processor>;
+}
+
 /**
  * The processors of a bundler
  */
-export class Processors extends DynamicProcessor(Map) {
+export class Processors extends DynamicProcessor(Map<string, Processor>) {
 	get dp() {
 		return 'bundler.processors';
 	}
@@ -50,12 +57,12 @@ export class Processors extends DynamicProcessor(Map) {
 	}
 
 	_process() {
-		const done = ({ errors, warnings, updated }) => {
+		const done = ({ errors, warnings, updated }: IDone) => {
 			const previous = { errors: this.#errors, warnings: this.#warnings };
 			const changed =
 				!equal({ errors, warnings }, previous) ||
 				updated.size !== this.size ||
-				updated.forEach((value, key) => (changed = changed || !this.has(key)));
+				[...updated.entries()].some(([key]) => !this.has(key));
 			if (!changed) return false;
 
 			this.#errors = errors || [];
@@ -73,10 +80,9 @@ export class Processors extends DynamicProcessor(Map) {
 		warnings = warnings || [];
 		if (errors.length) return done({ errors, warnings });
 
-		const updated = new Map();
-		for (const [name, data] of processors.entries()) {
-			const { spec } = data;
-			let specifier = data.specifier;
+		const updated: Map<string, Processor> = new Map();
+		for (const [name, spec] of processors.entries()) {
+			let { specifier } = spec;
 			if (!specifier) {
 				const resolved = this._resolve(name);
 				if (resolved.error) {
@@ -99,7 +105,9 @@ export class Processors extends DynamicProcessor(Map) {
 				resolved = require.resolve(specifier, { paths: [module.package.path] });
 			} catch (exc) {
 				console.error(exc);
-				errors.push(`Error resolving processor "${specifier}": ${exc.message}`);
+				const code = 'PROCESSOR_NOT_FOUND';
+				const message = `Error resolving processor "${specifier}": ${exc.message}`;
+				errors.push({ code, message });
 				continue;
 			}
 
@@ -111,7 +119,9 @@ export class Processors extends DynamicProcessor(Map) {
 				updated.set(name, processor);
 			} catch (exc) {
 				console.error(exc);
-				errors.push(`Error requiring processor "${specifier}": ${exc.message}`);
+				const code = 'PROCESSOR_NOT_FOUND';
+				const message = `Error requiring processor "${specifier}": ${exc.message}`;
+				errors.push({ code, message });
 				continue;
 			}
 		}

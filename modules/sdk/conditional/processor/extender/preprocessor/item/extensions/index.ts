@@ -1,15 +1,15 @@
 import crc32 from '@beyond-js/crc32';
 import { Extension } from './extension';
 
-export class PreprocessorExtensions extends Map {
-	#extensions;
+export class Extensions extends Map {
+	#extensions: string[];
 
 	#source;
 	get source() {
 		return this.#source;
 	}
 
-	constructor(source, extensions) {
+	constructor(source, extensions: string[]) {
 		if (!Array.isArray(extensions) || !extensions.length)
 			throw new Error(`Invalid parameters, 'extensions' must be a non-empty array`);
 

@@ -1,7 +1,7 @@
 import type { Preprocessor } from '../preprocessor';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
-export class ExtenderExtension extends DynamicProcessor(Map) {
+export class Extension extends DynamicProcessor(Map) {
 	get dp() {
 		return 'processor.extender.extension';
 	}

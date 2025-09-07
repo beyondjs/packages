@@ -1,3 +1,12 @@
+import { IDiagnostic } from '@beyond-js/packages/types';
+
+interface IExtensionConstructor {
+	errors: IDiagnostic[];
+	warnings: IDiagnostic[];
+	content: string;
+	map: Map<string, string>;
+}
+
 export class PreprocessorExtension {
 	#source;
 	get source() {
@@ -13,12 +22,12 @@ export class PreprocessorExtension {
 		return this.#hash;
 	}
 
-	#errors = [];
+	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;
 	}
 
-	#warnings = [];
+	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
@@ -37,7 +46,7 @@ export class PreprocessorExtension {
 		return this.#map;
 	}
 
-	constructor(source, { errors, warnings, content, map }) {
+	constructor(source, { errors, warnings, content, map }: IExtensionConstructor) {
 		this.#source = source;
 		this.#hash = source.hash;
 

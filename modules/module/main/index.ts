@@ -1,10 +1,11 @@
 import type { ModuleSpec } from '@beyond-js/packages/module/spec';
 import type { IConditions } from '@beyond-js/packages/types';
 import type { BaseConditional } from './conditionals/conditional';
+import type { DynamicProcessorImplementation } from '@beyond-js/dynamic-processor/main';
 import type { Package } from './package';
 import { Conditionals } from './conditionals';
 
-interface IBundler {
+interface IBundler extends DynamicProcessorImplementation {
 	path: string;
 	specifier: string;
 	settings: Record<string, any>;

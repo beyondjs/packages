@@ -1,13 +1,27 @@
+import type { Processor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
+
+export interface IValues {
+	path: string;
+	includes: string[];
+	excludes: string[];
+	[key: string]: any;
+}
+
+interface IDone {
+	errors?: IDiagnostic[];
+	warnings?: IDiagnostic[];
+	values?: IValues;
+}
 
 export class ProcessorInputsSpec extends DynamicProcessor() {
 	get dp() {
 		return 'bundler.processor.sources.spec';
 	}
 
-	#processor;
+	#processor: Processor;
 
 	#errors: IDiagnostic[] = [];
 	get errors(): IDiagnostic[] {
@@ -23,21 +37,21 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 		return !this.#errors.length;
 	}
 
-	#values;
-	get values() {
+	#values: IValues;
+	get values(): IValues {
 		return this.#values;
 	}
 
-	constructor(processor) {
+	constructor(processor: Processor) {
 		super();
 		this.#processor = processor;
-		super.setup(new Map([['specs', { child: processor.specs }]]));
+		super.setup(new Map([['spec', { child: processor.spec }]]));
 	}
 
 	_process() {
-		const specs = this.#processor.specs.values;
+		const spec = this.#processor.spec.values;
 
-		const done = ({ errors, warnings, values }) => {
+		const done = ({ errors, warnings, values }: IDone) => {
 			errors = errors || [];
 			warnings = warnings || [];
 			const previous = { errors: this.#errors, warnings: this.#warnings, values: this.#values };
@@ -48,47 +62,52 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 			this.#values = values;
 		};
 
-		const warnings = [];
+		const warnings: IDiagnostic[] = [];
 
-		let path,
-			includes,
-			excludes,
+		let path: string,
+			includes: string[],
+			excludes: string[],
 			other = {};
 
-		if (typeof specs === 'string') {
-			includes = [specs];
-		} else if (specs instanceof Array) {
-			includes = specs;
-		} else if (typeof specs === 'object') {
-			path = specs.path;
-			includes = specs.files;
+		if (typeof spec === 'string') {
+			includes = [spec];
+		} else if (spec instanceof Array) {
+			includes = spec;
+		} else if (typeof spec === 'object') {
+			path = spec.path;
+			includes = spec.files;
 			includes = typeof includes === 'string' ? [includes] : includes;
-			excludes = specs.excludes;
+			excludes = spec.excludes;
 
-			delete specs.path;
-			delete specs.files;
-			delete specs.excludes;
-			other = specs;
-		} else if (specs === void 0) {
+			delete spec.path;
+			delete spec.files;
+			delete spec.excludes;
+			other = spec;
+		} else if (spec === void 0) {
 			includes = ['*'];
 		} else {
-			return done({ errors: ['Invalid configuration'] });
+			const code = 'INVALID_CONFIGURATION';
+			const message = 'Invalid configuration';
+			return done({ errors: [{ code, message }] });
 		}
 
 		if (!(includes instanceof Array)) {
-			return done({ errors: ['Files configuration not set'] });
+			const code = 'INVALID_INCLUDES_CONFIGURATION';
+			const message = `Includes configuration is invalid. An array of strings is expected, but got ${typeof includes}.`;
+			return done({ errors: [{ code, message }] });
 		}
 
 		excludes = excludes ? excludes : [];
 		if (!(excludes instanceof Array)) {
-			warnings.push(`Excludes configuration is invalid`);
-			excludes = [];
+			const code = 'INVALID_EXCLUDES_CONFIGURATION';
+			const message = `Excludes configuration is invalid. An array of strings is expected, but got ${typeof excludes}.`;
+			return done({ errors: [{ code, message }] });
 		}
 
 		!excludes.includes('module.json') && excludes.push('module.json');
 		path = path ? path : '';
 
-		const values = Object.assign({ path, includes, excludes }, other);
+		const values: IValues = Object.assign({ path, includes, excludes }, other);
 		return done({ warnings: warnings, values });
 	}
 }

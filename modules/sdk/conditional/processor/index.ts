@@ -22,7 +22,7 @@ export class Processor {
 	/**
 	 * The settings object for the processor as specified in the package.json file
 	 */
-	#settings;
+	#settings: ProcessorSettings;
 	get settings() {
 		return this.#settings;
 	}
@@ -36,31 +36,32 @@ export class Processor {
 	}
 
 	get path(): string {
-		const path = this.#conditional.module.path.dirname;
+		const { path } = this.#conditional.module.spec;
 		const spec = this.#spec.values;
 		return join(path, spec.path || '');
 	}
 
-	#sources;
+	#sources: ProcessorSources;
 	get sources() {
 		return this.#sources;
 	}
 
-	#extender;
+	#extender: ProcessorExtender;
 	get extender() {
 		return this.#extender;
 	}
 
-	#outputs;
+	#outputs: ProcessorOutputs;
 	get outputs() {
 		return this.#outputs;
 	}
 
 	/**
 	 * The bundler processor constructor
-	 * @param {object} conditional - The module conditional
-	 * @param {string} name - The name of the processor
-	 * @param {object} strategy
+	 *
+	 * @param conditional The module conditional
+	 * @param name The name of the processor
+	 * @param strategy The processor strategy
 	 */
 	constructor(conditional: Conditional, name: string, strategy: IProcessorStrategy) {
 		this.#conditional = conditional;
@@ -89,11 +90,12 @@ export class Processor {
 	 * This method can be overriden to provide the spec values required for its processing
 	 * The processor should return only the spec (as set in the module.json) it will require for its processing
 	 * Take into account that a change in the spec values will invalidate the processor
-	 * @param {*} values
+	 *
+	 * @param values
 	 * @returns
 	 */
-	_spec(values: any): { values: object; errors?: IDiagnostic[]; warnings?: IDiagnostic[] } {
-		const output = {};
+	_spec(values: any): { values: any; errors?: IDiagnostic[]; warnings?: IDiagnostic[] } {
+		const output: any = {};
 		if (this.#sources.inputs) {
 			values.path && (output.path = values.path);
 			values.files && (output.files = values.files);
@@ -107,11 +109,17 @@ export class Processor {
 	 * The processor should return only the settings it will require for its processing
 	 * Take into consideration that a change in the settings will invalidate the processor
 	 *
-	 * @param {*} values
+	 * @param values
 	 * @returns
 	 */
 	_settings(values: object): { values: object; errors?: IDiagnostic[]; warnings?: IDiagnostic[] } {
 		void values;
 		return { values: {} };
+	}
+
+	destroy() {
+		this.#sources?.destroy();
+		this.#extender?.destroy();
+		this.#outputs?.destroy();
 	}
 }

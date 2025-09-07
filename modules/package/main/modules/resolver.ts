@@ -89,7 +89,7 @@ export class ModuleResolver extends DynamicProcessor() {
 		const module = new Module({
 			package: pkg,
 			spec: this.#spec,
-			bundler: { path: bundler.path, specifier: bundler.specifier, settings: bundler.settings }
+			bundler
 		});
 		return done({ module });
 	}
