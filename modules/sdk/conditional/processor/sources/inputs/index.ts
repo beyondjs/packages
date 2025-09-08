@@ -4,7 +4,11 @@ import { FinderCollection } from '@beyond-js/finder/collection';
 import { ProcessorInputsSpec } from './spec';
 import { join } from 'path';
 
-export class ProcessorSourcesInputs extends FinderCollection {
+export class ProcessorInputs extends FinderCollection {
+	get dp() {
+		return 'processor.inputs';
+	}
+
 	#processor: Processor;
 	get processor() {
 		return this.#processor;

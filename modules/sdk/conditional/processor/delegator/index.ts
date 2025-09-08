@@ -1,7 +1,7 @@
 import type { Processor } from '..';
 import type { IProcessorDelegatorStrategy } from '../types';
 import { Preprocessor } from './preprocessor';
-import { Delegates } from './delegates';
+import { Delegators } from './delegators';
 
 export class ProcessorDelegator {
 	#processor: Processor;
@@ -14,9 +14,9 @@ export class ProcessorDelegator {
 		return this.#preprocessor;
 	}
 
-	#delegates: Delegates;
-	get delegates(): Delegates {
-		return this.#delegates;
+	#delegators: Delegators;
+	get delegators(): Delegators {
+		return this.#delegators;
 	}
 
 	#destroyed = false;
@@ -41,12 +41,12 @@ export class ProcessorDelegator {
 		const { Preprocessor } = strategy;
 		this.#preprocessor = new Preprocessor(processor, strategy.delegates);
 
-		this.#delegates = new Delegates(this.#preprocessor, strategy.delegates);
+		this.#delegators = new Delegators(this.#preprocessor, strategy.delegates);
 	}
 
 	destroy() {
 		this.#preprocessor?.destroy();
-		this.#delegates?.destroy();
+		this.#delegators?.destroy();
 		this.#destroyed = true;
 	}
 }

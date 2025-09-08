@@ -2,7 +2,7 @@ import type { Conditional } from '../main';
 import type { IProcessorStrategy } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { ProcessorSources } from './sources';
-import { ProcessorExtender } from './extender';
+import { ProcessorDelegator } from './delegator';
 import { ProcessorSettings } from './settings';
 import { ProcessorSpec } from './spec';
 import { ProcessorOutputs } from './outputs';
@@ -46,9 +46,9 @@ export class Processor {
 		return this.#sources;
 	}
 
-	#extender: ProcessorExtender;
-	get extender() {
-		return this.#extender;
+	#delegator: ProcessorDelegator;
+	get delegator() {
+		return this.#delegator;
 	}
 
 	#outputs: ProcessorOutputs;
@@ -80,8 +80,8 @@ export class Processor {
 		const Sources = strategy.sources && (strategy.sources.Sources || ProcessorSources);
 		this.#sources = Sources && new Sources(this, strategy.sources);
 
-		const Extender = strategy.extender && (strategy.extender?.Extender || ProcessorExtender);
-		this.#extender = Extender && new Extender(this, strategy.extender);
+		const Delegator = strategy.delegator && (strategy.delegator?.Delegator || ProcessorDelegator);
+		this.#delegator = Delegator && new Delegator(this, strategy.delegator);
 
 		this.#outputs = strategy.outputs && new ProcessorOutputs(this, strategy.outputs);
 	}
@@ -119,7 +119,7 @@ export class Processor {
 
 	destroy() {
 		this.#sources?.destroy();
-		this.#extender?.destroy();
+		this.#delegator?.destroy();
 		this.#outputs?.destroy();
 	}
 }

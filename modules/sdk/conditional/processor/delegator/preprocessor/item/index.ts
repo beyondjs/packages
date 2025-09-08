@@ -14,10 +14,9 @@ export class PreprocessorItem {
 	}
 
 	/**
-	 * The file content and hash can change, so keep track of the value of the file when the item was created.
+	 * The file content and hash can change, so keep track of the value of the file when the item is updated.
 	 * This allows us to determine if the item has changed since it was created.
 	 */
-	// @TODO: WIP
 	#hash: string;
 	get hash() {
 		return this.#hash;
@@ -45,6 +44,9 @@ export class PreprocessorItem {
 	update(values: { errors?: IDiagnostic[]; warnings?: IDiagnostic[] }) {
 		if (typeof values !== 'object') throw new Error(`Invalid parameters, 'values' must be an object`);
 		const { errors, warnings } = values;
+
+		// Update the hash of the item
+		this.#hash = this.#file.hash;
 
 		this.#errors = errors || [];
 		this.#warnings = warnings || [];

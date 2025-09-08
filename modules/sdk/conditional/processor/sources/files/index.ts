@@ -3,9 +3,9 @@ import type { IProcessorSourcesFileStrategy } from '../../types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { DynamicFile, DynamicFileObject } from '@beyond-js/file/dynamic';
 
-export class ProcessorSourcesFiles extends DynamicProcessor(Map<string, DynamicFile | DynamicFileObject>) {
+export class ProcessorFiles extends DynamicProcessor(Map<string, DynamicFile | DynamicFileObject>) {
 	get dp() {
-		return 'bundler.processor.sources.files';
+		return 'processor.files';
 	}
 
 	#processor;
@@ -27,10 +27,5 @@ export class ProcessorSourcesFiles extends DynamicProcessor(Map<string, DynamicF
 			File = File || (json ? DynamicFileObject : DynamicFile);
 			this.set(file, new File(file));
 		});
-	}
-
-	#hash;
-	get hash() {
-		return this.#hash;
 	}
 }

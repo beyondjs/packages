@@ -1,7 +1,7 @@
 import type { Preprocessor } from '../preprocessor';
-import { Delegate } from './delegate';
+import { Delegator } from './delegator';
 
-export class Delegates extends Map<string, Delegate> {
+export class Delegators extends Map<string, Delegator> {
 	constructor(preprocessor: Preprocessor, delegates: string[]) {
 		super();
 
@@ -9,7 +9,7 @@ export class Delegates extends Map<string, Delegate> {
 		 * Each name corresponds to a processor that is being delegated and added to this Map.
 		 */
 		delegates.forEach(name => {
-			const delegate = new Delegate(name, preprocessor);
+			const delegate = new Delegator(name, preprocessor);
 			this.set(name, delegate);
 		});
 	}

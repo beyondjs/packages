@@ -19,16 +19,22 @@ export class Delegates extends Map<string, Delegated> {
 		this.#delegates = delegates;
 	}
 
-	update(name: string, values: IDelegatedValues) {
+	update(name: string, values?: IDelegatedValues) {
 		if (!this.#delegates.includes(name)) {
 			throw new Error(`Invalid parameters, '${name}' is not defined in the delegates list`);
 		}
+
+		if (!values) {
+			this.delete(name);
+			return;
+		}
+
 		if (typeof values !== 'object') {
 			throw new Error(`Invalid parameters, 'values' must be an object`);
 		}
 
-		const { errors, warnings, content, map } = values;
-		const delegated = new Delegated(this.#file, { errors, warnings, content, map });
+		const { errors, warnings, code, map } = values;
+		const delegated = new Delegated(this.#file, { errors, warnings, code, map });
 		super.set(name, delegated);
 	}
 }
