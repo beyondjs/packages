@@ -1,0 +1,12 @@
+{
+	"name": "bundle-test-ts",
+	"version": "0.0.1",
+	"description": "BeyondJS `ts` Bundler test",
+	"license": "MIT",
+	"modules": {
+		"path": "."
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

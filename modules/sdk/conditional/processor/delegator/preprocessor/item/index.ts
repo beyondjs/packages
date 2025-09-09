@@ -2,7 +2,7 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { DynamicFile } from '@beyond-js/file/dynamic';
 import { Delegates } from './delegates';
 
-export class PreprocessorItem {
+export class PreprocessedFile {
 	#file: DynamicFile;
 	get file() {
 		return this.#file;

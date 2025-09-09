@@ -1,3 +1,4 @@
+require('colors');
 const BEE = require('@beyond-js/bee');
 const { join } = require('path');
 
@@ -7,8 +8,7 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const { WatcherClient } = await bimport('@beyond-js/watchers/client');
 	const { Package } = await bimport('@beyond-js/packages/package');
 
-	const path = join(__dirname, 'my-package');
-	const pkg = new Package(path);
+	const pkg = new Package(join(__dirname, 'package'));
 	await pkg.ready;
 	console.log(`Package "${pkg.name}" is ready.\n`.green.bold);
 

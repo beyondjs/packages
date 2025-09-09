@@ -1,0 +1,6 @@
+{
+	"name": "module/output",
+	"bundle": "ts",
+	"files": "*",
+	"types": []
+}

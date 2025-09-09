@@ -1,11 +1,11 @@
 import type { Conditional } from '..';
-import type { OutputType, OutputsType, IOutput } from '@beyond-js/packages/module';
+import type { OutputNameType, OutputsType, IOutput } from '@beyond-js/packages/module';
 import { ESMOutput } from './esm';
 import { LocalOutput } from './local';
 import { TypesOutput } from './types';
 import { CSSOutput } from './css';
 
-export class Outputs extends Map<OutputType, IOutput> implements OutputsType {
+export class Outputs extends Map<OutputNameType, IOutput> implements OutputsType {
 	#conditional: Conditional;
 
 	constructor(conditional: Conditional, strategy) {

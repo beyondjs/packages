@@ -4,9 +4,9 @@ export type CodeOutputType = 'raw-code' | 'sourcemap-inline';
 
 export type MapType = 'string' | 'object' | 'base64';
 
-export class Code {
+export /*bundle*/ class ConditionalOutput {
 	#code: Map<'sourcemap-inline' | 'raw-code', any>;
-	code(output: CodeOutputType) {
+	code(output?: CodeOutputType) {
 		if (!this.#code) return;
 
 		if (output === 'sourcemap-inline') {
@@ -23,10 +23,8 @@ export class Code {
 	}
 
 	#map: Map<MapType, string | Buffer | object>;
-	map(format: MapType) {
+	map(format: MapType = 'string') {
 		if (!this.#map) return;
-
-		format = format || 'string';
 
 		const decode64 = () => {
 			if (!this.#map.has('base64')) throw new Error(`Map format 'base64' not found.`);
@@ -94,11 +92,6 @@ export class Code {
 		}
 	}
 
-	#exports: Set<string>;
-	get exports() {
-		return this.#exports;
-	}
-
 	#hash: string | undefined;
 	get hash() {
 		if (this.#hash !== void 0) return this.#hash;
@@ -108,14 +101,10 @@ export class Code {
 		return this.#hash;
 	}
 
-	set(values: { code: string; map: string | object; exports?: Set<string> }) {
+	set(values: { code: string; map: string | object }) {
 		if (typeof values !== 'object') throw new Error('Invalid parameters');
 
-		const { code, map, exports } = values;
-		if (exports && !(exports instanceof Set)) {
-			throw new Error('Invalid exports property. It must be a Set.');
-		}
-
+		const { code, map } = values;
 		this.#code = new Map();
 		this.#code.set('raw-code', code);
 
@@ -127,8 +116,6 @@ export class Code {
 		} else if (map) {
 			throw new Error('Invalid map property. It must be a string or an object.');
 		}
-
-		this.#exports = exports ? exports : new Set();
 
 		this.#hash = void 0; // Reset hash when code or map changes
 	}

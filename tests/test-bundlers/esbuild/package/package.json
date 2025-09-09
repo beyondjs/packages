@@ -1,7 +1,7 @@
 {
-	"name": "my-package",
+	"name": "bundle-test-esbuild",
 	"version": "0.0.1",
-	"description": "A test package",
+	"description": "BeyondJS `esbuild` Bundler test",
 	"main": "./dist/main.cjs",
 	"module": "./dist/main.mjs",
 	"browser": "./dist/browser.js",

@@ -1,5 +1,6 @@
 import type { BaseModule } from '../../';
 import type { ModuleSpecType } from '@beyond-js/packages/module/spec';
+import type { DynamicProcessorImplementation } from '@beyond-js/dynamic-processor/main';
 import { ConditionalSpec } from './spec';
 
 export /*bundle*/ interface IProcessedSpec {
@@ -14,9 +15,11 @@ export /*bundle*/ interface IOutput {
 	destroy(): void;
 }
 
-export /*bundle*/ type OutputType = 'esm' | 'types' | 'css' | 'local';
+export /*bundle*/ type OutputType = IOutput | (DynamicProcessorImplementation & IOutput);
 
-export /*bundle*/ type OutputsType = Map<OutputType, IOutput> & { destroy: () => void };
+export /*bundle*/ type OutputNameType = 'esm' | 'types' | 'css' | 'local';
+
+export /*bundle*/ type OutputsType = Map<OutputNameType, IOutput> & { destroy?: () => void };
 
 export /*bundle*/ abstract class BaseConditional {
 	#module: BaseModule;

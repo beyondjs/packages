@@ -11,7 +11,7 @@ function require(id) {
 const module = { exports: {} };
 const exports = module.exports;
 
-// beyondjs-bundler:/Users/henry/Documents/@beyond-js/packages/tests/test-package/my-package/dist/node/utils.cjs
+// beyondjs-bundler:/Users/henry/Documents/@beyond-js/packages/tests/test-bundlers/esbuild/package/dist/node/utils.cjs
 var react = require("react");
 var name = "henry";
 exports.hello = async function() {

@@ -1,5 +1,5 @@
 import type { Conditional } from './conditional';
-import type { OutputsType, OutputType, IOutput } from '@beyond-js/packages/module';
+import type { OutputsType, OutputNameType, IOutput } from '@beyond-js/packages/module';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { BuildResult } from 'esbuild';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
@@ -15,7 +15,7 @@ interface IDone {
 	updated?: Map<string, IOutput>;
 }
 
-export class Outputs extends DynamicProcessor(Map<OutputType, IOutput>) implements OutputsType {
+export class Outputs extends DynamicProcessor(Map<OutputNameType, IOutput>) implements OutputsType {
 	get dp() {
 		return 'exports-bundler.outputs';
 	}

@@ -1,11 +1,12 @@
 import type { Processor } from '../..';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
-import { Items } from './items';
+import type { CompiledArtifact } from './artifacts/artifact';
+import { CompiledArtifacts } from './artifacts';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 type OutputsType = 'ims' | 'types' | 'css';
 
-export class ProcessorOutputsBase extends DynamicProcessor(Map) {
+export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledArtifact>) {
 	get dp() {
 		return 'processor.outputs.base';
 	}
@@ -20,21 +21,11 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map) {
 		return this.#type;
 	}
 
-	#issues;
-	get issues() {
-		return this.#issues;
-	}
-
-	#generated;
-	get generated() {
-		return this.#generated;
-	}
-
 	/**
 	 * The hash of the sources set when the output was last built.
 	 * This is used to determine if the output needs to be rebuilt.
 	 */
-	#hash;
+	#hash: string;
 	get hash() {
 		return this.#hash;
 	}
@@ -55,14 +46,14 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map) {
 		super.setup(new Map([['sources', { child: processor.sources.hash }]]));
 	}
 
-	async _begin() {
-		const { store } = this.#processor.conditional;
-		const cached = await store.outputs.fetch(this.#processor.name, this.#type);
-		cached && this.hydrate(cached);
-	}
+	// async _begin() {
+	// 	const { store } = this.#processor.conditional;
+	// 	const cached = await store.outputs.fetch(this.#processor.name, this.#type);
+	// 	cached && this.hydrate(cached);
+	// }
 
-	async _build(request: IRequest, items: Items) {
-		void request, items;
+	async _build(request: IRequest, artifacts: CompiledArtifacts) {
+		void request, artifacts;
 		throw new Error(`Method '._build' must be overridden`);
 	}
 
@@ -70,24 +61,22 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map) {
 		void request;
 		if (this.updated) return false;
 
-		const items = new Items();
-		await this._build(request, items);
+		const artifacts = new CompiledArtifacts();
+		await this._build(request, artifacts);
 		if (request !== this._request) return;
 
 		this.#hash = this.#processor.sources.hash.value;
 
-		this.#issues = items.issues;
-		this.#generated = items.generated;
 		this.clear();
-		items.forEach((item, key) => this.set(key, item));
+		artifacts.forEach((item, key) => this.set(key, item));
 	}
 
-	hydrate(cached) {
-		this.#hash = cached.hash;
-	}
+	// hydrate(cached: Record<string, any>) {
+	// 	this.#hash = cached.hash;
+	// }
 
-	serialize(json) {
-		json = json || {};
-		return Object.assign({ hash: this.#hash }, json);
-	}
+	// serialize(json?: Record<string, any>) {
+	// 	json = json || {};
+	// 	return Object.assign({ hash: this.#hash }, json);
+	// }
 }

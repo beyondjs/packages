@@ -2,9 +2,9 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Processor } from '../..';
 import type { RequireType, IRequest } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
-import { PreprocessorItem } from './item';
+import { PreprocessedFile } from './item';
 
-export abstract class Preprocessor extends DynamicProcessor(Map<string, PreprocessorItem>) {
+export abstract class Preprocessor extends DynamicProcessor(Map<string, PreprocessedFile>) {
 	get dp() {
 		return 'processor.delegator.preprocessor';
 	}
@@ -45,7 +45,7 @@ export abstract class Preprocessor extends DynamicProcessor(Map<string, Preproce
 		this.#processor.sources.inputs.forEach(file => require(file, file.relative.file));
 	}
 
-	abstract _preprocess(input: PreprocessorItem): Promise<void>;
+	abstract _preprocess(input: PreprocessedFile): Promise<void>;
 
 	async _process(request: IRequest) {
 		const { sources } = this.processor;
@@ -58,7 +58,7 @@ export abstract class Preprocessor extends DynamicProcessor(Map<string, Preproce
 				continue;
 			}
 
-			item = new PreprocessorItem(file, this.#delegates);
+			item = new PreprocessedFile(file, this.#delegates);
 			updated.set(file.relative.file, item);
 
 			await this._preprocess(item);
