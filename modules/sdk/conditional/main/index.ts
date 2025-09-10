@@ -3,17 +3,11 @@ import type { BaseModule, IProcessors } from '../../module';
 import type { IConditions } from '@beyond-js/packages/types';
 import { BaseConditional } from '@beyond-js/packages/module';
 import { Processors } from '../processors/base';
-import { Outputs } from './outputs';
 import { ConditionalsStore } from './store';
 
 export /*bundler*/ abstract class Conditional extends BaseConditional {
 	get module(): BaseModule {
 		return <BaseModule>super.module;
-	}
-
-	#outputs: Outputs;
-	get outputs(): Outputs {
-		return this.#outputs;
 	}
 
 	#processors: Processors;
@@ -45,7 +39,6 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		super(module, conditions);
 
 		this.#processors = strategy.Processors ? new strategy.Processors(this) : new Processors(this);
-		this.#outputs = new Outputs(this, strategy.outputs);
 		this.#store = new ConditionalsStore(this);
 	}
 }

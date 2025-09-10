@@ -1,7 +1,8 @@
 import type { BaseModule } from '../../';
 import type { ModuleSpecType } from '@beyond-js/packages/module/spec';
-import type { DynamicProcessorImplementation } from '@beyond-js/dynamic-processor/main';
+import type { ConditionalOutput } from '@beyond-js/packages/module/output';
 import { ConditionalSpec } from './spec';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 export /*bundle*/ interface IProcessedSpec {
 	values: object | string;
@@ -9,19 +10,7 @@ export /*bundle*/ interface IProcessedSpec {
 	warnings?: Array<any>;
 }
 
-export /*bundle*/ interface IOutput {
-	code: string;
-	map?: string;
-	destroy(): void;
-}
-
-export /*bundle*/ type OutputType = IOutput | (DynamicProcessorImplementation & IOutput);
-
-export /*bundle*/ type OutputNameType = 'esm' | 'types' | 'css' | 'local';
-
-export /*bundle*/ type OutputsType = Map<OutputNameType, IOutput> & { destroy?: () => void };
-
-export /*bundle*/ abstract class BaseConditional {
+export /*bundle*/ abstract class BaseConditional extends DynamicProcessor() {
 	#module: BaseModule;
 	get module() {
 		return this.#module;
@@ -42,7 +31,7 @@ export /*bundle*/ abstract class BaseConditional {
 		return this.#spec;
 	}
 
-	abstract get outputs(): OutputsType;
+	abstract get output(): ConditionalOutput;
 
 	/**
 	 * This method can be overriden to process the spec values required for the processing of the outputs
@@ -58,16 +47,18 @@ export /*bundle*/ abstract class BaseConditional {
 	}
 
 	constructor(module: BaseModule, conditions: { platform: string; environment?: string }) {
+		super();
 		this.#module = module;
-		this.#spec = new ConditionalSpec(this);
 
 		const { platform, environment } = conditions;
 		this.#platform = platform;
 		this.#environment = environment;
+
+		this.#spec = new ConditionalSpec(this);
+		super.setup(new Map([['spec', { child: this.#spec }]]));
 	}
 
 	destroy() {
 		this.#spec.destroy();
-		this.outputs.destroy();
 	}
 }
