@@ -1,6 +1,6 @@
 import type { Conditional } from '../../main';
 import type { Processor } from '../../processor';
-import type { IProcessors } from '../../../module';
+import type { IProcessorsSetup } from '../../../conditional/main';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -75,7 +75,7 @@ export class Processors extends DynamicProcessor(Map<string, Processor>) {
 			updated.forEach((value, key) => this.set(key, value));
 		};
 
-		let { processors, errors, warnings }: IProcessors = this.#conditional._processors();
+		let { processors, errors, warnings }: IProcessorsSetup = this.#conditional._processors();
 		errors = errors || [];
 		warnings = warnings || [];
 		if (errors.length) return done({ errors, warnings });

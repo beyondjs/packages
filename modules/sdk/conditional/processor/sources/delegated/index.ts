@@ -29,9 +29,10 @@ export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>
 	get hash(): string {
 		if (this.#hash) return this.#hash;
 
-		const compute: Record<string, string> = {};
-		this.forEach((delegated, key) => (compute[key] = delegated.hash));
-		return (this.#hash = createHash('md5').update(equal.generate(compute)).digest('hex'));
+		const hashes = [...this.values()].map(delegated => delegated.hash);
+		const hash = createHash('sha256');
+		hashes.sort().forEach(h => hash.update(h));
+		return (this.#hash = hash.digest('hex'));
 	}
 
 	#errors: IDiagnostic[] = [];

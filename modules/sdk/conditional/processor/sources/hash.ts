@@ -1,6 +1,7 @@
 import type { ProcessorSources } from '.';
 import type { DynamicProcessorImplementation, RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { createHash } from 'crypto';
 
 export class ProcessorSourcesHash extends DynamicProcessor() {
 	get dp() {
@@ -11,25 +12,23 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 
 	/**
 	 * The calculated hash only considering the "inputs" of the processor
-	 * @return {number}
 	 */
-	#inputs: number;
+	#inputs: string;
 	get inputs() {
 		return this.#inputs;
 	}
 
 	/**
 	 * The calculated hash only considering the "files" of the processor
-	 * @return {number}
 	 */
-	#files: number;
+	#files: string;
 	get files() {
 		return this.#files;
 	}
 
-	#extensions: number;
-	get extensions() {
-		return this.#extensions;
+	#delegated: string;
+	get delegated() {
+		return this.#delegated;
 	}
 
 	#value: string;
@@ -54,8 +53,8 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 	 * @return {number} The calculated hash of the children of the inherited class
 	 * @private
 	 */
-	_compute() {
-		return 0;
+	_compute(): string {
+		return;
 	}
 
 	_prepared(require: RequireType) {
@@ -67,23 +66,17 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 	_process() {
 		const { inputs, files } = this.#sources;
 
-		let compute = 0;
-		// @TODO use reduce function
-		this.#inputs = [...inputs.values()]?.reduce((prev, file) => prev + file.hash, 0);
-		this.#files = files?.forEach(file => (compute += file.hash));
-		compute += this._compute();
+		function compute(hashes: string[]): string {
+			const hash = createHash('sha256');
+			hashes.sort().forEach(h => hash.update(h));
+			return hash.digest('hex');
+		}
 
-		/**
-		 * This hash calculation mechanism is mathematically imperfect, but in practical terms
-		 * enough, .. if a hash duplicate occurs, it would only be required to make a change in any of
-		 * the sources of the processor
-		 */
-		const value = this.#inputs + this.#files + this._compute();
-		const changed = this.#value !== value;
-		this.#value = value;
-		return changed;
+		this.#inputs = inputs && compute([...inputs.values()].map(file => file.hash));
+		this.#files = files && compute([...files.values()].map(file => file.hash));
+		this.#delegated = this.#sources.delegated?.hash;
 
-		const sh = this.children.get('sources.hash').child;
-		this.#extensions = new Map(sh.extensions);
+		const hashes = [this.#inputs, this.#files, this.#delegated, this._compute()].filter(Boolean);
+		this.#value = compute(hashes);
 	}
 }

@@ -1,9 +1,21 @@
 import type { IConditionalStrategy } from './types';
-import type { BaseModule, IProcessors } from '../../module';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { BaseModule } from '../../module';
 import type { IConditions } from '@beyond-js/packages/types';
 import { BaseConditional } from '@beyond-js/packages/module';
 import { Processors } from '../processors/base';
-import { ConditionalsStore } from './store';
+import { db } from '@beyond-js/packages/persistence/db';
+
+export /*bundle*/ interface IProcessorSpec {
+	specifier: string;
+	[key: string]: any;
+}
+
+export /*bundle*/ interface IProcessorsSetup {
+	processors: Map<string, IProcessorSpec>;
+	errors: IDiagnostic[];
+	warnings: IDiagnostic[];
+}
 
 export /*bundler*/ abstract class Conditional extends BaseConditional {
 	get module(): BaseModule {
@@ -15,16 +27,11 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		return this.#processors;
 	}
 
-	#store: ConditionalsStore;
-	get store(): ConditionalsStore {
-		return this.#store;
-	}
-
 	/**
 	 * The processors are of the conditional, but they can be the same for all conditionals of the module.
 	 * If the specifier is not provided, it will be resolved by the _resolve method of the processors collection.
 	 */
-	_processors(): IProcessors {
+	_processors(): IProcessorsSetup {
 		return this.module._processors();
 	}
 
@@ -34,8 +41,6 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		}
 
 		super(module, conditions);
-
 		this.#processors = strategy.Processors ? new strategy.Processors(this) : new Processors(this);
-		this.#store = new ConditionalsStore(this);
 	}
 }

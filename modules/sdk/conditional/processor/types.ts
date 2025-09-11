@@ -24,7 +24,8 @@ export /*bundle*/ interface IProcessorStrategy {
 export /*bundle*/ interface IProcessorSourcesStrategy {
 	Sources: typeof ProcessorSources;
 	inputs: IProcessorInputsStrategy;
-	files: IProcessorSourcesFileStrategy[];
+	files?: IProcessorSourcesFileStrategy[];
+	delegated?: boolean;
 	Hash: typeof ProcessorSourcesHash;
 }
 
