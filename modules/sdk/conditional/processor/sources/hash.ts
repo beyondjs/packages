@@ -1,5 +1,5 @@
 import type { ProcessorSources } from '.';
-import type { RequireType } from '@beyond-js/dynamic-processor/main';
+import type { DynamicProcessorImplementation, RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
 export class ProcessorSourcesHash extends DynamicProcessor() {
@@ -42,7 +42,7 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 		this.#sources = sources;
 
 		const { inputs, files } = sources;
-		const children = [];
+		const children: [string, { child: DynamicProcessorImplementation }][] = [];
 		inputs && children.push(['inputs', { child: inputs }]);
 		files && children.push(['files', { child: files }]);
 		children.length && super.setup(new Map(children));
@@ -69,8 +69,8 @@ export class ProcessorSourcesHash extends DynamicProcessor() {
 
 		let compute = 0;
 		// @TODO use reduce function
-		this.#inputs = inputs?.reduce(source => (compute += source.hash), 0);
-		this.#files = files?.forEach(source => (compute += source.hash));
+		this.#inputs = [...inputs.values()]?.reduce((prev, file) => prev + file.hash, 0);
+		this.#files = files?.forEach(file => (compute += file.hash));
 		compute += this._compute();
 
 		/**

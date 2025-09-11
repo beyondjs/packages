@@ -36,8 +36,6 @@ export class Conditional extends BaseConditional {
 	}
 
 	async _process(): Promise<void | boolean> {
-		this.#output = void 0;
-
 		if (!this.#target) {
 			const code = 'NO_TARGET';
 			const message = 'No target defined for the conditional';

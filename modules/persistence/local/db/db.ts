@@ -49,16 +49,16 @@ class LocalDB {
 		this.#get = promisify(this.#db.get.bind(this.#db));
 		this.#exec = promisify(this.#db.exec.bind(this.#db));
 
-		const sql = `
-			CREATE TABLE IF NOT EXISTS packages (
-				id TEXT PRIMARY KEY,
-				data TEXT NOT NULL
-			);
-		`;
+		const collections = ['packages', 'conditionals'];
 
-		this.exec(sql)
+		let sql = '';
+		collections.forEach(collection => {
+			sql += `CREATE TABLE IF NOT EXISTS ${collection} (id TEXT PRIMARY KEY, data TEXT NOT NULL);\n`;
+		});
+
+		this.#exec(sql)
 			.then(() => promise.resolve())
-			.catch(err => promise.reject(err));
+			.catch(exc => promise.reject(exc));
 
 		return promise;
 	}

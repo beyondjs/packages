@@ -32,9 +32,6 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		if (typeof strategy !== 'object') {
 			throw new Error(`Invalid strategy. An object is expected`);
 		}
-		if (typeof strategy.outputs !== 'object') {
-			throw new Error(`Invalid strategy. Property 'outputs' was expected as an object`);
-		}
 
 		super(module, conditions);
 

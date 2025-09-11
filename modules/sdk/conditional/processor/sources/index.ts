@@ -1,7 +1,7 @@
 import type { Processor } from '../../processor';
 import type { IProcessorSourcesStrategy } from '../types';
-import { ProcessorSourcesInputs } from './inputs';
-import { ProcessorSourcesFiles } from './files';
+import { ProcessorInputs } from './inputs';
+import { ProcessorFiles } from './files';
 import { ProcessorSourcesHash } from './hash';
 
 export class ProcessorSources {
@@ -10,13 +10,13 @@ export class ProcessorSources {
 		return this.#processor;
 	}
 
-	#inputs: ProcessorSourcesInputs;
-	get inputs(): ProcessorSourcesInputs {
+	#inputs: ProcessorInputs;
+	get inputs(): ProcessorInputs {
 		return this.#inputs;
 	}
 
-	#files: ProcessorSourcesFiles;
-	get files(): ProcessorSourcesFiles {
+	#files: ProcessorFiles;
+	get files(): ProcessorFiles {
 		return this.#files;
 	}
 
@@ -28,10 +28,10 @@ export class ProcessorSources {
 	constructor(processor: Processor, strategy: IProcessorSourcesStrategy) {
 		this.#processor = processor;
 
-		const Inputs = strategy.inputs && (strategy.inputs.Inputs || ProcessorSourcesInputs);
+		const Inputs = strategy.inputs && (strategy.inputs.Inputs || ProcessorInputs);
 		this.#inputs = Inputs && new Inputs(processor, strategy.inputs);
 
-		const Files = strategy.files && ProcessorSourcesFiles;
+		const Files = strategy.files && ProcessorFiles;
 		this.#files = Files && new Files(processor, strategy.files);
 
 		const Hash = strategy.Hash || ProcessorSourcesHash;

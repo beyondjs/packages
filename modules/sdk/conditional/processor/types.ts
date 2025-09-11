@@ -1,7 +1,7 @@
 import type { ProcessorSettings } from './settings';
 import type { ProcessorSpec } from './spec';
 import type { ProcessorSources } from './sources';
-import type { ProcessorSourcesInputs } from './sources/inputs';
+import type { ProcessorInputs } from './sources/inputs';
 import type { DynamicFile } from '@beyond-js/file/dynamic';
 import type { ProcessorDelegator } from './delegator';
 import type { Preprocessor } from './delegator/preprocessor';
@@ -29,7 +29,7 @@ export /*bundle*/ interface IProcessorSourcesStrategy {
 }
 
 export /*bundle*/ interface IProcessorInputsStrategy {
-	Inputs: typeof ProcessorSourcesInputs;
+	Inputs: typeof ProcessorInputs;
 	extname: string[] | string;
 }
 
