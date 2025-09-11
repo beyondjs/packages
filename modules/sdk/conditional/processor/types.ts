@@ -9,7 +9,6 @@ import type { ProcessorOutputs } from './outputs';
 import type { ImsOutput } from './outputs/ims';
 import type { CssOutput } from './outputs/css';
 import type { TypesOutput } from './outputs/types';
-import type { ProcessorSourcesHash } from './sources/hash';
 
 export /*bundle*/ interface IProcessorStrategy {
 	// If Spec is not specified, then the ProcessorSettings will be used as default
@@ -26,7 +25,6 @@ export /*bundle*/ interface IProcessorSourcesStrategy {
 	inputs: IProcessorInputsStrategy;
 	files?: IProcessorSourcesFileStrategy[];
 	delegated?: boolean;
-	Hash: typeof ProcessorSourcesHash;
 }
 
 export /*bundle*/ interface IProcessorInputsStrategy {

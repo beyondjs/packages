@@ -31,7 +31,7 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledA
 	}
 
 	get updated() {
-		return this.#processor.sources.hash.value === this.#hash;
+		return this.#processor.sources.hash === this.#hash;
 	}
 
 	constructor(processor: Processor, type: OutputsType) {
@@ -43,7 +43,7 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledA
 		this.#processor = processor;
 		this.#type = type;
 
-		super.setup(new Map([['sources', { child: processor.sources.hash }]]));
+		super.setup(new Map([['sources', { child: processor.sources }]]));
 	}
 
 	// async _begin() {
@@ -65,7 +65,7 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledA
 		await this._build(request, artifacts);
 		if (request !== this._request) return;
 
-		this.#hash = this.#processor.sources.hash.value;
+		this.#hash = this.#processor.sources.hash;
 
 		this.clear();
 		artifacts.forEach((item, key) => this.set(key, item));
