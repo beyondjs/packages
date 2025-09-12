@@ -1,10 +1,14 @@
-import type { IConditionalStrategy } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { BaseModule } from '../../module';
 import type { IConditions } from '@beyond-js/packages/types';
 import { BaseConditional } from '@beyond-js/packages/module';
-import { Processors } from '../processors/base';
+import { ConditionalProcessors } from '../processors/base';
 import { db } from '@beyond-js/packages/persistence/db';
+
+export /*bundle*/ interface IConditionalStrategy {
+	// If Processors property is not defined, then the Processors class will be used as default
+	Processors?: typeof ConditionalProcessors;
+}
 
 export /*bundle*/ interface IProcessorSpec {
 	specifier: string;
@@ -17,13 +21,13 @@ export /*bundle*/ interface IProcessorsSetup {
 	warnings: IDiagnostic[];
 }
 
-export /*bundler*/ abstract class Conditional extends BaseConditional {
+export /*bundle*/ abstract class Conditional extends BaseConditional {
 	get module(): BaseModule {
 		return <BaseModule>super.module;
 	}
 
-	#processors: Processors;
-	get processors(): Processors {
+	#processors: ConditionalProcessors;
+	get processors(): ConditionalProcessors {
 		return this.#processors;
 	}
 
@@ -41,6 +45,6 @@ export /*bundler*/ abstract class Conditional extends BaseConditional {
 		}
 
 		super(module, conditions);
-		this.#processors = strategy.Processors ? new strategy.Processors(this) : new Processors(this);
+		this.#processors = strategy.Processors ? new strategy.Processors(this) : new ConditionalProcessors(this);
 	}
 }

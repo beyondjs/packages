@@ -1,4 +1,4 @@
-import type { Processor } from '../';
+import type { ConditionalProcessor } from '../';
 import type { IProcessorOutputsStrategy } from '../types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
@@ -27,7 +27,7 @@ export class ProcessorOutputs extends DynamicProcessor() {
 		return this.#destroyed;
 	}
 
-	constructor(processor: Processor, strategy: IProcessorOutputsStrategy) {
+	constructor(processor: ConditionalProcessor, strategy: IProcessorOutputsStrategy) {
 		super();
 
 		this.#ims = strategy.InternalModules && new strategy.InternalModules(processor);

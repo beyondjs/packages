@@ -1,4 +1,4 @@
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -21,7 +21,7 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 		return 'bundler.processor.sources.spec';
 	}
 
-	#processor: Processor;
+	#processor: ConditionalProcessor;
 
 	#errors: IDiagnostic[] = [];
 	get errors(): IDiagnostic[] {
@@ -42,7 +42,7 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 		return this.#values;
 	}
 
-	constructor(processor: Processor) {
+	constructor(processor: ConditionalProcessor) {
 		super();
 		this.#processor = processor;
 		super.setup(new Map([['spec', { child: processor.spec }]]));

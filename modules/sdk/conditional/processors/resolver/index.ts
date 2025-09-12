@@ -1,7 +1,7 @@
 import type { Conditional } from '../../main';
-import { Processors } from '../base';
+import { ConditionalProcessors } from '../base';
 
-export class ProcessorsResolver extends Processors {
+export /*bundle*/ class ConditionalProcessorsResolver extends ConditionalProcessors {
 	get dp() {
 		return 'bundler.processors.resolver';
 	}

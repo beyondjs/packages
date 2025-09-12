@@ -1,4 +1,4 @@
-import type { Processor } from '../../processor';
+import type { ConditionalProcessor } from '../../processor';
 import type { IProcessorSourcesStrategy } from '../types';
 import type { DynamicProcessorImplementation, RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
@@ -12,8 +12,8 @@ export class ProcessorSources extends DynamicProcessor() {
 		return 'bundler.processor.sources';
 	}
 
-	#processor: Processor;
-	get processor(): Processor {
+	#processor: ConditionalProcessor;
+	get processor(): ConditionalProcessor {
 		return this.#processor;
 	}
 
@@ -52,7 +52,7 @@ export class ProcessorSources extends DynamicProcessor() {
 		return;
 	}
 
-	constructor(processor: Processor, strategy: IProcessorSourcesStrategy) {
+	constructor(processor: ConditionalProcessor, strategy: IProcessorSourcesStrategy) {
 		super();
 		this.#processor = processor;
 

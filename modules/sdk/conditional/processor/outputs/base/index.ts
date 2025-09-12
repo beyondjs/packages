@@ -1,4 +1,4 @@
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
 import type { CompiledArtifact } from './artifacts/artifact';
 import { CompiledArtifacts } from './artifacts';
@@ -11,7 +11,7 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledA
 		return 'processor.outputs.base';
 	}
 
-	#processor: Processor;
+	#processor: ConditionalProcessor;
 	get processor() {
 		return this.#processor;
 	}
@@ -34,7 +34,7 @@ export class ProcessorOutputsBase extends DynamicProcessor(Map<string, CompiledA
 		return this.#processor.sources.hash === this.#hash;
 	}
 
-	constructor(processor: Processor, type: OutputsType) {
+	constructor(processor: ConditionalProcessor, type: OutputsType) {
 		if (!processor.sources) {
 			throw new Error('The processor must have sources');
 		}

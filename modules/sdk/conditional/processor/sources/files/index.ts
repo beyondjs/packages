@@ -1,4 +1,4 @@
-import type { Processor } from '../../';
+import type { ConditionalProcessor } from '../../';
 import type { IProcessorSourcesFileStrategy } from '../../types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { DynamicFile, DynamicFileObject } from '@beyond-js/file/dynamic';
@@ -13,7 +13,7 @@ export class ProcessorFiles extends DynamicProcessor(Map<string, DynamicFile | D
 		return this.#processor;
 	}
 
-	constructor(processor: Processor, files: IProcessorSourcesFileStrategy[]) {
+	constructor(processor: ConditionalProcessor, files: IProcessorSourcesFileStrategy[]) {
 		super();
 		this.#processor = processor;
 

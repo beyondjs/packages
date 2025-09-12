@@ -1,5 +1,5 @@
 import type { Conditional } from '../../main';
-import type { Processor } from '../../processor';
+import type { ConditionalProcessor } from '../../processor';
 import type { IProcessorsSetup } from '../../../conditional/main';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
@@ -8,13 +8,13 @@ import { equal } from '@beyond-js/equal/main';
 interface IDone {
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
-	updated?: Map<string, Processor>;
+	updated?: Map<string, ConditionalProcessor>;
 }
 
 /**
  * The processors of a bundler
  */
-export class Processors extends DynamicProcessor(Map<string, Processor>) {
+export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<string, ConditionalProcessor>) {
 	get dp() {
 		return 'bundler.processors';
 	}
@@ -80,7 +80,7 @@ export class Processors extends DynamicProcessor(Map<string, Processor>) {
 		warnings = warnings || [];
 		if (errors.length) return done({ errors, warnings });
 
-		const updated: Map<string, Processor> = new Map();
+		const updated: Map<string, ConditionalProcessor> = new Map();
 		for (const [name, spec] of processors.entries()) {
 			let { specifier } = spec;
 			if (!specifier) {

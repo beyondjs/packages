@@ -1,4 +1,4 @@
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import { ProcessorOutputsBase } from '../base';
 
 export class TypesOutput extends ProcessorOutputsBase {
@@ -6,7 +6,7 @@ export class TypesOutput extends ProcessorOutputsBase {
 		return 'processor.outputs.types';
 	}
 
-	constructor(processor: Processor) {
+	constructor(processor: ConditionalProcessor) {
 		super(processor, 'types');
 	}
 }

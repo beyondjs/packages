@@ -8,7 +8,7 @@ import { ProcessorSpec } from './spec';
 import { ProcessorOutputs } from './outputs';
 import { join } from 'path';
 
-export class Processor {
+export /*bundle*/ class ConditionalProcessor {
 	#conditional: Conditional;
 	get conditional(): Conditional {
 		return this.#conditional;

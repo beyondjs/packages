@@ -1,5 +1,5 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import type { RequireType, IRequest } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { PreprocessedFile } from './item';
@@ -9,8 +9,8 @@ export abstract class Preprocessor extends DynamicProcessor(Map<string, Preproce
 		return 'processor.delegator.preprocessor';
 	}
 
-	#processor: Processor;
-	get processor(): Processor {
+	#processor: ConditionalProcessor;
+	get processor(): ConditionalProcessor {
 		return this.#processor;
 	}
 
@@ -33,7 +33,7 @@ export abstract class Preprocessor extends DynamicProcessor(Map<string, Preproce
 		return !this.#errors?.length;
 	}
 
-	constructor(processor: Processor, delegates: string[]) {
+	constructor(processor: ConditionalProcessor, delegates: string[]) {
 		super();
 		this.#processor = processor;
 		this.#delegates = delegates;

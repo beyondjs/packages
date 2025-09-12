@@ -1,4 +1,4 @@
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import type { Delegated } from '../../delegator/preprocessor/item/delegates/delegated';
@@ -15,8 +15,8 @@ export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>
 		return 'processor.delegation-collector';
 	}
 
-	#processor: Processor;
-	get processor(): Processor {
+	#processor: ConditionalProcessor;
+	get processor(): ConditionalProcessor {
 		return this.#processor;
 	}
 
@@ -44,7 +44,7 @@ export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>
 		return !this.errors.length;
 	}
 
-	constructor(processor: Processor) {
+	constructor(processor: ConditionalProcessor) {
 		super();
 		this.#processor = processor;
 

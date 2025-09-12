@@ -1,5 +1,5 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { Processor } from './';
+import type { ConditionalProcessor } from './';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
@@ -8,8 +8,8 @@ export class ProcessorSettings extends DynamicProcessor() {
 		return 'processor.settings';
 	}
 
-	#processor: Processor;
-	get processor(): Processor {
+	#processor: ConditionalProcessor;
+	get processor(): ConditionalProcessor {
 		return this.#processor;
 	}
 
@@ -32,7 +32,7 @@ export class ProcessorSettings extends DynamicProcessor() {
 		return !this.#errors?.length;
 	}
 
-	constructor(processor: Processor) {
+	constructor(processor: ConditionalProcessor) {
 		super();
 		this.#processor = processor;
 		const bundler = processor.conditional.module.bundler;

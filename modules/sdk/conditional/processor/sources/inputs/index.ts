@@ -1,4 +1,4 @@
-import type { Processor } from '../..';
+import type { ConditionalProcessor } from '../..';
 import type { IProcessorInputsStrategy } from '../../types';
 import { FinderCollection } from '@beyond-js/finder/collection';
 import { ProcessorInputsSpec } from './spec';
@@ -9,7 +9,7 @@ export class ProcessorInputs extends FinderCollection {
 		return 'processor.inputs';
 	}
 
-	#processor: Processor;
+	#processor: ConditionalProcessor;
 	get processor() {
 		return this.#processor;
 	}
@@ -17,7 +17,7 @@ export class ProcessorInputs extends FinderCollection {
 	#extname: string[];
 	#spec: ProcessorInputsSpec;
 
-	constructor(processor: Processor, strategy: IProcessorInputsStrategy) {
+	constructor(processor: ConditionalProcessor, strategy: IProcessorInputsStrategy) {
 		const { watcher } = processor.conditional.module.package;
 		super({ watcher });
 

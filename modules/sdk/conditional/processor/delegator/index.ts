@@ -1,11 +1,11 @@
-import type { Processor } from '..';
+import type { ConditionalProcessor } from '..';
 import type { IProcessorDelegatorStrategy } from '../types';
 import { Preprocessor } from './preprocessor';
 import { Delegators } from './delegators';
 
 export class ProcessorDelegator {
-	#processor: Processor;
-	get processor(): Processor {
+	#processor: ConditionalProcessor;
+	get processor(): ConditionalProcessor {
 		return this.#processor;
 	}
 
@@ -24,7 +24,7 @@ export class ProcessorDelegator {
 		return this.#destroyed;
 	}
 
-	constructor(processor: Processor, strategy: IProcessorDelegatorStrategy) {
+	constructor(processor: ConditionalProcessor, strategy: IProcessorDelegatorStrategy) {
 		if (typeof strategy !== 'object' || !strategy.Preprocessor || !Array.isArray(strategy.delegates)) {
 			const { name } = processor;
 			throw new Error(`Processor "${name}" error: Invalid strategy provided to the processor delegator`);
