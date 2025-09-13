@@ -1,15 +1,15 @@
 import type { CodeOutputType, MapType } from './code';
 import type { DynamicFile } from '@beyond-js/file/dynamic';
-import { ArtifactCode } from './code';
-import { ArtifactIssues } from './issues';
+import { CodeOutput } from './code';
+import { IssuesOutput } from './issues';
 
-export class CompiledArtifact {
-	#file: DynamicFile;
-	get file() {
-		return this.#file;
+export /*bundle*/ class Output {
+	#source?: DynamicFile;
+	get source() {
+		return this.#source;
 	}
 
-	#code: ArtifactCode;
+	#code: CodeOutput;
 	code(output: CodeOutputType) {
 		return this.#code.code(output);
 	}
@@ -17,12 +17,12 @@ export class CompiledArtifact {
 		return this.#code.map(format);
 	}
 
-	#issues = new ArtifactIssues();
+	#issues = new IssuesOutput();
 	get issues() {
 		return this.#issues;
 	}
 
-	constructor(file: DynamicFile) {
-		this.#file = file;
+	constructor(source?: DynamicFile) {
+		this.#source = source;
 	}
 }

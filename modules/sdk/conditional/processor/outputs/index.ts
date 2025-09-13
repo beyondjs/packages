@@ -1,45 +1,29 @@
-import type { ConditionalProcessor } from '../';
-import type { IProcessorOutputsStrategy } from '../types';
-import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { OutputsCollection } from './collection';
+import { DelegatedOutputs } from './delegated';
+import { Output } from './output';
 
-/**
- * The ProcessorsOutputs is a DynamicProcessor to allow conditional to process the outputs
- * both in the ProcessorOutputs and/or in the Output instances.
- */
-export class ProcessorOutputs extends DynamicProcessor() {
-	#ims;
+export class ProcessorOutputs {
+	#ims = new OutputsCollection();
 	get ims() {
 		return this.#ims;
 	}
 
-	#types;
+	#types = new OutputsCollection();
 	get types() {
 		return this.#types;
 	}
 
-	#css;
+	#css = new Output();
 	get css() {
 		return this.#css;
 	}
 
-	#destroyed = false;
-	get destroyed() {
-		return this.#destroyed;
+	#delegated: DelegatedOutputs;
+	get delegated() {
+		return this.#delegated;
 	}
 
-	constructor(processor: ConditionalProcessor, strategy: IProcessorOutputsStrategy) {
-		super();
-
-		this.#ims = strategy.InternalModules && new strategy.InternalModules(processor);
-		this.#css = strategy.Css && new strategy.Css(processor);
-		this.#types = strategy.Types && new strategy.Types(processor);
-	}
-
-	destroy() {
-		this.#ims?.destroy();
-		this.#css?.destroy();
-		this.#types?.destroy();
-
-		this.#destroyed = true;
+	constructor({ delegates }: { delegates: Set<string> }) {
+		this.#delegated = new DelegatedOutputs({ delegates });
 	}
 }

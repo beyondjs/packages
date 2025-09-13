@@ -66,9 +66,8 @@ export class ProcessorSources extends DynamicProcessor() {
 		this.#files = Files && new Files(processor, strategy.files);
 		Files && children.push(['files', { child: this.#files }]);
 
-		const Delegated = strategy.delegated && DelegationCollector;
-		this.#delegated = Delegated && new Delegated(processor);
-		Delegated && children.push(['delegated', { child: this.#delegated }]);
+		this.#delegated = new DelegationCollector(processor);
+		children.push(['delegated', { child: this.#delegated }]);
 
 		children.length && super.setup(new Map(children));
 	}

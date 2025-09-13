@@ -3,7 +3,7 @@ import { IssuesList } from './list';
 
 export type ListType = 'errors' | 'warnings';
 
-export class ArtifactIssues {
+export class IssuesOutput {
 	#errors = new IssuesList('errors');
 	get errors() {
 		return this.#errors;

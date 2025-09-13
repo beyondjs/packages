@@ -4,7 +4,7 @@ export type CodeOutputType = 'raw-code' | 'sourcemap-inline';
 
 export type MapType = 'string' | 'object' | 'base64';
 
-export class ArtifactCode extends ConditionalOutput {
+export class CodeOutput extends ConditionalOutput {
 	#exports: Set<string>;
 	get exports() {
 		return this.#exports;

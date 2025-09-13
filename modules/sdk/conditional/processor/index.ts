@@ -1,14 +1,15 @@
 import type { Conditional } from '../main';
 import type { IProcessorStrategy } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { DynamicProcessorImplementation, IRequest } from '@beyond-js/dynamic-processor/main';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { ProcessorSources } from './sources';
-import { ProcessorDelegator } from './delegator';
 import { ProcessorSettings } from './settings';
 import { ProcessorSpec } from './spec';
 import { ProcessorOutputs } from './outputs';
 import { join } from 'path';
 
-export /*bundle*/ class ConditionalProcessor {
+export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor() {
 	#conditional: Conditional;
 	get conditional(): Conditional {
 		return this.#conditional;
@@ -17,6 +18,11 @@ export /*bundle*/ class ConditionalProcessor {
 	#name: string;
 	get name(): string {
 		return this.#name;
+	}
+
+	#delegates: Set<string>;
+	get delegates(): Set<string> {
+		return this.#delegates;
 	}
 
 	/**
@@ -46,14 +52,18 @@ export /*bundle*/ class ConditionalProcessor {
 		return this.#sources;
 	}
 
-	#delegator: ProcessorDelegator;
-	get delegator() {
-		return this.#delegator;
-	}
-
 	#outputs: ProcessorOutputs;
 	get outputs() {
 		return this.#outputs;
+	}
+
+	#errors: IDiagnostic[] = [];
+	get errors(): IDiagnostic[] {
+		return this.#errors;
+	}
+
+	get valid(): boolean {
+		return !this.errors.length;
 	}
 
 	/**
@@ -64,26 +74,33 @@ export /*bundle*/ class ConditionalProcessor {
 	 * @param strategy The processor strategy
 	 */
 	constructor(conditional: Conditional, name: string, strategy: IProcessorStrategy) {
-		this.#conditional = conditional;
-		this.#name = name;
-
 		if (!strategy) {
 			throw new Error(`Processor "${name}" error: "strategy" specification is required`);
 		}
+		if (strategy.delegates && !Array.isArray(strategy.delegates)) {
+			throw new Error(`Processor "${name}" error: "strategy.delegates" must be an array of strings`);
+		}
+
+		super();
+		this.#conditional = conditional;
+		this.#name = name;
+		this.#delegates = new Set(strategy.delegates);
+
+		const children: Map<string, { child: DynamicProcessorImplementation }> = new Map();
 
 		const Settings = strategy.Settings || ProcessorSettings;
 		this.#settings = new Settings(this);
+		children.set('settings', { child: this.#settings });
 
 		const Spec = strategy.Spec || ProcessorSpec;
 		this.#spec = new Spec(this);
+		children.set('spec', { child: this.#spec });
 
 		const Sources = strategy.sources && (strategy.sources.Sources || ProcessorSources);
 		this.#sources = Sources && new Sources(this, strategy.sources);
+		children.set('sources', { child: this.#sources });
 
-		const Delegator = strategy.delegator && (strategy.delegator?.Delegator || ProcessorDelegator);
-		this.#delegator = Delegator && new Delegator(this, strategy.delegator);
-
-		this.#outputs = strategy.outputs && new ProcessorOutputs(this, strategy.outputs);
+		super.setup(children);
 	}
 
 	/**
@@ -117,9 +134,17 @@ export /*bundle*/ class ConditionalProcessor {
 		return { values: {} };
 	}
 
+	abstract _build(request: IRequest, outputs: ProcessorOutputs): Promise<void>;
+
+	async _process(request: IRequest) {
+		const outputs = new ProcessorOutputs({ delegates: this.#delegates });
+		await this._build(request, outputs);
+		if (request !== this._request) return;
+
+		this.#outputs = outputs;
+	}
+
 	destroy() {
 		this.#sources?.destroy();
-		this.#delegator?.destroy();
-		this.#outputs?.destroy();
 	}
 }

@@ -1,16 +1,14 @@
 import type { ConditionalProcessor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { RequireType } from '@beyond-js/dynamic-processor/main';
-import type { Delegated } from '../../delegator/preprocessor/item/delegates/delegated';
+import type { Output } from '../../outputs/output';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { DelegatingProcessors } from './processors';
-import { equal } from '@beyond-js/equal/main';
 import { createHash } from 'crypto';
 
 /**
  * The files collected from the extensions of the current processor
  */
-export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>) {
+export class DelegationCollector extends DynamicProcessor(Map<string, Output>) {
 	get dp() {
 		return 'processor.delegation-collector';
 	}
@@ -25,14 +23,9 @@ export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>
 		return this.#delegators;
 	}
 
-	#hash?: string;
+	#hash: string;
 	get hash(): string {
-		if (this.#hash) return this.#hash;
-
-		const hashes = [...this.values()].map(delegated => delegated.hash);
-		const hash = createHash('sha256');
-		hashes.sort().forEach(h => hash.update(h));
-		return (this.#hash = hash.digest('hex'));
+		return this.#hash;
 	}
 
 	#errors: IDiagnostic[] = [];
@@ -54,24 +47,32 @@ export class DelegationCollector extends DynamicProcessor(Map<string, Delegated>
 		super.setup(new Map([['delegators', { child: this.#delegators }]]));
 	}
 
-	_prepared(require: RequireType) {
-		this.#delegators.forEach(delegator => require(delegator, delegator.name));
-	}
-
 	_process() {
+		if (!this.#delegators.valid) {
+			this.clear();
+			this.#errors = this.#delegators.errors;
+
+			// If hash is set, return true to indicate a change
+			const changed = !!this.#hash;
+			this.#hash = void 0;
+			return changed;
+		}
+
+		// Calculate the hash of the delegators collected outputs
+		const hashes: string[] = [];
+		this.#delegators.forEach(outputs => {
+			outputs.forEach(output => hashes.push(output.source.hash));
+		});
+		const md5 = createHash('md5');
+		hashes.sort().forEach(hash => md5.update(hash));
+		const hash = md5.digest('hex');
+
+		// If the hash is the same as the previous one, return false to indicate no changes
+		if (this.#hash === hash) return false;
+
 		this.clear();
-		this.#hash = void 0;
-
-		const errors: IDiagnostic[] = (this.#errors = []);
-		this.#delegators.forEach(delegator => {
-			const { preprocessor } = delegator;
-			if (!preprocessor.valid) {
-				const code = 'PROCESSOR_PREPROCESSOR_ERROR';
-				const message = `Processor "${delegator.name}" has been preprocessed with errors`;
-				errors.push({ code, message });
-			}
-
-			delegator.forEach(delegated => this.set(delegated.file.relative.file, delegated));
+		this.#delegators.forEach(outputs => {
+			outputs.forEach(output => this.set(output.source.relative.file, output));
 		});
 	}
 }
