@@ -22,12 +22,12 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await bundler.ready;
 	console.log('  • Module class from Bundler:', bundler.Module);
 
-	// console.log('');
-	// // Process package modules
-	// console.log('2. Process package modules:'.green.bold);
-	// await pkg.modules.ready;
-	// console.log('  • Modules warnings:', pkg.modules.warnings);
-	// console.log('  • Modules:', [...pkg.modules.keys()]);
+	console.log('');
+	// Process package modules
+	console.log('2. Process package modules:'.green.bold);
+	await pkg.modules.ready;
+	console.log('  • Modules warnings:', pkg.modules.warnings);
+	console.log('  • Modules:', [...pkg.modules.keys()]);
 
 	// // Process specific module (./utils)
 	// console.log('');

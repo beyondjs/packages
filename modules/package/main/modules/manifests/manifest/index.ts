@@ -1,3 +1,4 @@
+import type { ModuleManifestsFinder } from '../finder';
 import type { FileData } from '@beyond-js/file/data';
 import { Config } from '@beyond-js/config/main';
 import { ManifestModules } from './modules';
@@ -18,7 +19,7 @@ export class Manifest {
 		return this.#static;
 	}
 
-	constructor(file: FileData) {
+	constructor(finder: ModuleManifestsFinder, file: FileData) {
 		this.#file = file;
 
 		const config = new Config(file.dirname, { '/static': 'object' });

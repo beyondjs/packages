@@ -82,7 +82,7 @@ export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 		const exports = this.#config.get('exports');
 		if (!exports.valid) return done({ errors: exports.errors, warnings: exports.warnings });
 
-		const updated = new Map(Object.entries(exports.value));
+		const updated = exports.value ? new Map(Object.entries(exports.value)) : new Map();
 		return done({ updated, warnings: exports.warnings });
 	}
 }

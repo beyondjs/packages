@@ -29,7 +29,7 @@ export /*bundle*/ class ModuleSpec extends DynamicProcessor() {
 
 	#subpath?: string;
 	get subpath() {
-		return this.#subpath;
+		return this.#subpath ? this.#subpath : (<IManifestModuleSpec>this.#values).subpath;
 	}
 
 	#path?: string;

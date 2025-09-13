@@ -2,7 +2,7 @@ import { OutputsCollection } from './collection';
 import { DelegatedOutputs } from './delegated';
 import { Output } from './output';
 
-export class ProcessorOutputs {
+export /*bundle*/ class ProcessorOutputs {
 	#ims = new OutputsCollection();
 	get ims() {
 		return this.#ims;

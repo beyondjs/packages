@@ -9,18 +9,18 @@ export /*bundle*/ interface IProcessorStrategy {
 	Spec?: typeof ProcessorSpec;
 	// If Settings is not specified, then the ProcessorSettings will be used as default
 	Settings?: typeof ProcessorSettings;
-	delegates: string[];
-	sources: IProcessorSourcesStrategy;
+	sources?: IProcessorSourcesStrategy;
+	delegates?: string[];
 }
 
 export /*bundle*/ interface IProcessorSourcesStrategy {
-	Sources: typeof ProcessorSources;
-	inputs: IProcessorInputsStrategy;
+	Sources?: typeof ProcessorSources;
+	inputs?: IProcessorInputsStrategy;
 	files?: IProcessorSourcesFileStrategy[];
 }
 
 export /*bundle*/ interface IProcessorInputsStrategy {
-	Inputs: typeof ProcessorInputs;
+	Inputs?: typeof ProcessorInputs;
 	extname: string[] | string;
 }
 

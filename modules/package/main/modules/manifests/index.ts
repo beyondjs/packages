@@ -1,9 +1,10 @@
 import type { Config } from '@beyond-js/config/main';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
+import type { Manifest } from './manifest';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { ModuleManifestsFinder } from './finder';
 
-export class ModuleManifests extends DynamicProcessor(Map<string, any>) {
+export class ModuleManifests extends DynamicProcessor(Map<string, Manifest>) {
 	get dp() {
 		return 'package.module.manifests';
 	}

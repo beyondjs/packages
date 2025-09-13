@@ -38,7 +38,7 @@
 	},
 	"dependencies": {
 		"@beyond-js/dynamic-processor": "~1.0.8",
-		"@beyond-js/finder": "~1.0.3",
+		"@beyond-js/finder": "~1.0.5",
 		"@beyond-js/watchers": "~1.0.7",
 		"@beyond-js/config": "~1.0.2",
 		"@beyond-js/pending-promise": "~0.0.5",

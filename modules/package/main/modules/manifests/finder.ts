@@ -21,14 +21,12 @@ export class ModuleManifestsFinder extends FinderCollection<Manifest> {
 	get errors() {
 		return this.#errors;
 	}
-
 	get valid() {
 		return !this.#errors.length;
 	}
 
 	constructor(config: Config, watcher?: WatcherClient) {
-		console.log('Change the order of the parameters in the constructor of ModuleManifestsFinder');
-		super(Manifest);
+		super({ Item: Manifest, watcher });
 		this.#config = config;
 	}
 

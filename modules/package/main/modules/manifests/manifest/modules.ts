@@ -29,12 +29,10 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 	get errors() {
 		return this.#errors;
 	}
-
 	#warnings: IDiagnostic[] = [];
 	get warnings() {
 		return this.#warnings;
 	}
-
 	get valid() {
 		return !this.#errors.length;
 	}
@@ -43,6 +41,8 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 		super();
 		this.#manifest = manifest;
 		this.#config = config;
+
+		super.setup(new Map([['config', { child: config }]]));
 	}
 
 	_process() {
@@ -85,7 +85,6 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 		};
 
 		const { errors, warnings } = this.#config;
-
 		if (!this.#config.valid || !this.#config.value) return done({ errors, warnings });
 
 		// Process the modules configuration
@@ -130,7 +129,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 			const common: Partial<IManifestModuleSpec> = { subpath: config.subpath, description: config.description };
 			delete config.description;
 
-			// At this point, all the properties of the config object should be the modules configuration
+			// At this point, all the properties of the config object should be the modules/bundlers configuration
 			for (const entry of entries) {
 				const bundler = entry[0];
 
