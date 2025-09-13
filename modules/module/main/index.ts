@@ -59,7 +59,7 @@ export /*bundle*/ abstract class BaseModule {
 
 	abstract _conditionals(): IConditions[];
 
-	abstract _conditional({ key }: { key: string }): BaseConditional;
+	abstract _conditional({ key, conditions }: { key: string; conditions: IConditions }): BaseConditional;
 
 	constructor({ package: pkg, bundler, spec }: IModuleConstructorParams) {
 		this.#package = pkg;

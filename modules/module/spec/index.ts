@@ -13,6 +13,7 @@ export /*bundle*/ interface IModuleManifestInfo {
 	type: 'manifest';
 	path: string;
 	language?: string;
+	[key: string]: any;
 }
 
 type IModuleInfo = IExportInfo | IModuleManifestInfo;

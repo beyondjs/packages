@@ -129,6 +129,8 @@ export class Bundler extends DynamicProcessor() {
 		({ errors, Module, path } = await importer(specifier, this.#path));
 		if (request !== this._request) return;
 
+		if (errors?.length) return done({ errors });
+
 		const updated: IDone = { Module, specifier, path, settings };
 
 		return done(updated);

@@ -1,9 +1,9 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { BaseModule } from '../../module';
 import type { IConditions } from '@beyond-js/packages/types';
+import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import { BaseConditional } from '@beyond-js/packages/module';
 import { ConditionalProcessors } from '../processors/base';
-import { db } from '@beyond-js/packages/persistence/db';
 
 export /*bundle*/ interface IConditionalStrategy {
 	// If Processors property is not defined, then the Processors class will be used as default
@@ -17,8 +17,8 @@ export /*bundle*/ interface IProcessorSpec {
 
 export /*bundle*/ interface IProcessorsSetup {
 	processors: Map<string, IProcessorSpec>;
-	errors: IDiagnostic[];
-	warnings: IDiagnostic[];
+	errors?: IDiagnostic[];
+	warnings?: IDiagnostic[];
 }
 
 export /*bundle*/ abstract class Conditional extends BaseConditional {
@@ -31,20 +31,34 @@ export /*bundle*/ abstract class Conditional extends BaseConditional {
 		return this.#processors;
 	}
 
+	#errors: IDiagnostic[] = [];
+	get errors(): IDiagnostic[] {
+		return this.#errors.concat(super.errors);
+	}
+	#warnings: IDiagnostic[] = [];
+	get warnings(): IDiagnostic[] {
+		return this.#warnings.concat(super.warnings);
+	}
+	get valid(): boolean {
+		return !this.#errors?.length && this.#processors.valid;
+	}
+
 	/**
 	 * The processors are of the conditional, but they can be the same for all conditionals of the module.
 	 * If the specifier is not provided, it will be resolved by the _resolve method of the processors collection.
 	 */
-	_processors(): IProcessorsSetup {
-		return this.module._processors();
-	}
+	abstract _processors(): IProcessorsSetup;
 
-	constructor(module: BaseModule, conditions: IConditions, strategy: IConditionalStrategy) {
+	constructor(module: BaseModule, conditions: IConditions, strategy?: IConditionalStrategy) {
 		if (typeof strategy !== 'object') {
 			throw new Error(`Invalid strategy. An object is expected`);
 		}
 
 		super(module, conditions);
 		this.#processors = strategy.Processors ? new strategy.Processors(this) : new ConditionalProcessors(this);
+	}
+
+	_prepare(require: RequireType) {
+		this.#processors.forEach(processor => require(processor, processor.name));
 	}
 }

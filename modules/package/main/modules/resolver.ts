@@ -80,9 +80,15 @@ export class ModuleResolver extends DynamicProcessor() {
 		const bundler = bundlers.get(spec.bundler);
 		const { Module } = bundler;
 
+		if (!bundler.valid) {
+			const code = 'INVALID_BUNDLER';
+			const message = `Bundler "${spec.bundler}" is not valid`;
+			return done({ errors: [{ code, message }] });
+		}
+
 		if (typeof Module !== 'function') {
 			const code = 'INVALID_MODULE_CLASS';
-			const message = `Module package didn't return a Module class`;
+			const message = `Bundler "${spec.bundler}" package didn't return a Module class`;
 			return done({ errors: [{ code, message }] });
 		}
 

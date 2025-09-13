@@ -49,7 +49,7 @@ export class Conditionals extends DynamicProcessor(Map<string, BaseConditional>)
 			const { platform } = conditions;
 			const environment = conditions.environment ? `/${conditions.environment}` : '';
 			const key = `${platform}${environment}`;
-			const conditional = this.has(key) ? this.get(key) : this.#module._conditional({ key });
+			const conditional = this.has(key) ? this.get(key) : this.#module._conditional({ key, conditions });
 			updated.set(key, conditional);
 		});
 

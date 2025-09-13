@@ -29,12 +29,12 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	console.log('  • Modules warnings:', pkg.modules.warnings);
 	console.log('  • Modules:', [...pkg.modules.keys()]);
 
-	// // Process specific module (./utils)
-	// console.log('');
-	// console.log('3. Process specific module (./utils):'.green.bold);
-	// const module = pkg.modules.get('./utils');
-	// await module.conditionals.ready;
-	// console.log(`  • Module "./utils" conditionals`, [...module.conditionals.keys()]);
+	// Process specific module (./main)
+	console.log('');
+	console.log('3. Process specific module (./main):'.green.bold);
+	const module = pkg.modules.get('./main');
+	await module.conditionals.ready;
+	console.log(`  • Module "./main" conditionals`, [...module.conditionals.keys()]);
 
 	// // Process specific conditional (node) of the module (./utils)
 	// console.log('');

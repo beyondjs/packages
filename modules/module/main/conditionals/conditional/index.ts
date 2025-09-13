@@ -1,6 +1,7 @@
 import type { BaseModule } from '../../';
 import type { ModuleSpecType } from '@beyond-js/packages/module/spec';
 import type { ConditionalOutput } from '@beyond-js/packages/module/output';
+import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import { ConditionalSpec } from './spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 
@@ -33,6 +34,18 @@ export /*bundle*/ abstract class BaseConditional extends DynamicProcessor() {
 
 	abstract get output(): ConditionalOutput;
 
+	#errors: IDiagnostic[] = [];
+	get errors() {
+		return this.#errors;
+	}
+	#warnings: IDiagnostic[] = [];
+	get warnings() {
+		return this.#warnings;
+	}
+	get valid() {
+		return !this.#errors?.length;
+	}
+
 	/**
 	 * This method can be overriden to process the spec values required for the processing of the outputs
 	 *
@@ -46,7 +59,7 @@ export /*bundle*/ abstract class BaseConditional extends DynamicProcessor() {
 		return { values: {} };
 	}
 
-	constructor(module: BaseModule, conditions: { platform: string; environment?: string }) {
+	constructor(module: BaseModule, conditions: IConditions) {
 		super();
 		this.#module = module;
 
