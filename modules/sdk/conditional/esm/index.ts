@@ -25,9 +25,9 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 
 				const creator = 'creator: function (require, exports) {';
 
-				concat.add(`im-set:${id}`, `ims.set('${id}', {hash: ${hash}, ${creator}`);
+				concat.add(null, `ims.set('${id}', {hash: ${hash}, ${creator}`);
 				concat.add(im.source.relative.file, code, map);
-				concat.add(`im-end:${id}`, '}});\n');
+				concat.add(null, '}});\n');
 			});
 		});
 
