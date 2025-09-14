@@ -1,0 +1,6 @@
+{
+	"name": "http/response",
+	"platforms": ["node"],
+	"bundle": "ts",
+	"files": "*"
+}

@@ -1,0 +1,20 @@
+openapi: 3.0.0
+info:
+  title: BeyondJS CDN API
+  description: BeyondJS CDN API Open API Specification
+  version: 1.0.0
+servers:
+  - url: https://api.cdn.beyondjs.com
+    description: Production server
+paths:
+  /:
+    $ref: 'paths/home.yaml'
+  /m/@{scope}/{pkg}@{version}/modules/{mod}:
+    $ref: 'paths/module-scoped.yaml'
+  /m/{pkg}@{version}/modules/{mod}:
+    $ref: 'paths/module-unscoped.yaml'
+components:
+  parameters:
+    $ref: 'components/parameters.yaml'
+  responses:
+    $ref: 'components/responses.yaml'

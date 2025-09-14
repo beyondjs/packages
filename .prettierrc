@@ -7,5 +7,19 @@
 	"trailingComma": "none",
 	"singleQuote": true,
 	"bracketSpacing": true,
-	"configPath": "${workspaceFolder}/prettier.json"
+	"configPath": "${workspaceFolder}/prettier.json",
+	"overrides": [
+		{
+			"files": "*.yaml",
+			"options": {
+				"tabWidth": 2
+			}
+		},
+		{
+			"files": "*.yml",
+			"options": {
+				"tabWidth": 2
+			}
+		}
+	]
 }

@@ -1,0 +1,98 @@
+scope:
+  name: scope
+  in: path
+  required: true
+  description: NPM scope sin '@'
+  schema:
+    type: string
+    pattern: '[a-z0-9._-]+'
+
+pkg:
+  name: pkg
+  in: path
+  required: true
+  description: Nombre del paquete
+  schema:
+    type: string
+    pattern: '[a-z0-9._-]+'
+
+version:
+  name: version
+  in: path
+  required: true
+  description: Versión semver o tag
+  schema:
+    type: string
+
+mod:
+  name: mod
+  in: path
+  required: true
+  description: Ruta del módulo dentro del paquete (p. ej. "core/router")
+  schema:
+    type: string
+
+target:
+  name: target
+  in: query
+  required: true
+  description: Destino del bundle
+  schema:
+    type: string
+    enum: [browser, node]
+
+format:
+  name: format
+  in: query
+  required: true
+  description: Formato del bundle
+  schema:
+    type: string
+    enum: [esm, cjs, system]
+
+env:
+  name: env
+  in: query
+  required: false
+  description: Modo de compilación
+  schema:
+    type: string
+    enum: [production, development]
+    default: production
+
+min:
+  name: min
+  in: query
+  required: false
+  description: Minificar salida
+  schema:
+    type: boolean
+    default: true
+
+sourcemap:
+  name: sourcemap
+  in: query
+  required: false
+  description: Tipo de sourcemap
+  schema:
+    type: string
+    enum: [inline, external, none]
+    default: external
+
+types:
+  name: types
+  in: query
+  required: false
+  description: Si true, agrega Link header al .d.ts del módulo
+  schema:
+    type: boolean
+    default: false
+
+css:
+  name: css
+  in: query
+  required: false
+  description: Si true, agrega Link header a la hoja de estilos (e import opcional en ESM)
+  schema:
+    type: boolean
+    default: false

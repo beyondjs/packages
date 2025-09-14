@@ -1,0 +1,15 @@
+get:
+  tags:
+    - Main
+  responses:
+    200:
+      description: Home endpoint
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+              data:
+                type: array

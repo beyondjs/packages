@@ -1,0 +1,6 @@
+{
+	"name": "http/errors",
+	"platforms": ["node"],
+	"bundle": "ts",
+	"files": "*"
+}
