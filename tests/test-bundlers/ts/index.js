@@ -36,13 +36,11 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await module.conditionals.ready;
 	console.log(`  • Module "./main" conditionals`, [...module.conditionals.keys()]);
 
-	// // Process specific conditional (node) of the module (./utils)
-	// console.log('');
-	// console.log('4. Process specific conditional (node) of the module (./utils):'.green.bold);
-	// const conditional = module.conditionals.get('node');
-	// const { outputs } = conditional;
-	// await outputs.ready;
-	// console.log('  • Outputs are processed and valid:', outputs.processed, outputs.valid);
-	// !outputs.valid && console.log('  • Outputs errors:', JSON.stringify(outputs.errors));
-	// console.log('  • Conditional "node" outputs:', [...outputs.keys()]);
+	// Process specific conditional (node) of the module (./main)
+	console.log('');
+	console.log('4. Process specific conditional (default) of the module (./main):'.green.bold);
+	const conditional = module.conditionals.get('default');
+	await conditional.ready;
+
+	console.log('  • Conditional "default" processors:', [...conditional.processors.keys()]);
 })().catch(exc => console.error(exc.stack));

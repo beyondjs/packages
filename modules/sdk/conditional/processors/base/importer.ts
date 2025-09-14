@@ -1,6 +1,5 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { BaseModule } from '@beyond-js/packages/module';
-import type { ModuleConstructor } from './bundler';
+import type { ProcessorConstructor } from './types';
 import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
@@ -9,31 +8,31 @@ const DEV = true;
 
 interface IResponse {
 	errors?: IDiagnostic[];
-	Module?: ModuleConstructor<BaseModule>;
+	Processor?: ProcessorConstructor;
 	path?: string;
 }
 
 declare const bimport: (specifier: string) => Promise<any>;
 
-const done = ({ errors, Module, path, specifier }: IResponse & { specifier: string }): IResponse => {
-	if (!errors?.length && typeof Module !== 'function') {
-		const code = 'BUNDLER_MODULE_NOT_FOUND';
-		const message = `Bundler "${specifier}" does not export a valid 'Module' class`;
+const done = ({ errors, Processor, path, specifier }: IResponse & { specifier: string }): IResponse => {
+	if (!errors?.length && typeof Processor !== 'function') {
+		const code = 'PROCESSOR_NOT_FOUND';
+		const message = `Processor "${specifier}" does not export a valid 'Processor' class`;
 		return { errors: [{ code, message }] };
 	}
 
-	return { errors, Module, path };
+	return { errors, Processor, path };
 };
 
 async function dev(specifier: string, basedir: string): Promise<IResponse> {
 	void basedir; // eslint-disable-line no-unused-vars
 	try {
 		const mod = await bimport(specifier);
-		const { Module } = mod;
-		return done({ Module, specifier });
+		const { Processor } = mod;
+		return done({ Processor, specifier });
 	} catch (exc) {
-		const code = 'BUNDLER_IMPORT_ERROR';
-		const message = `Error importing bundler "${specifier}": ${exc.message}`;
+		const code = 'PROCESSOR_IMPORT_ERROR';
+		const message = `Error importing processor "${specifier}": ${exc.message}`;
 		return done({ errors: [{ code, message }], specifier });
 	}
 }
@@ -44,19 +43,19 @@ async function prod(specifier: string, basedir: string): Promise<IResponse> {
 		const require = createRequire(join(basedir, '.__resolver__.js'));
 		path = require.resolve(specifier);
 	} catch (exc) {
-		const code = 'BUNDLER_NOT_FOUND';
-		const message = `Bundler "${specifier}" not found`;
+		const code = 'PROCESSOR_NOT_FOUND';
+		const message = `Processor "${specifier}" not found`;
 		console.log(code, message);
 		return done({ errors: [{ code, message }], specifier });
 	}
 
 	try {
 		const mod = await bimport(pathToFileURL(path).href);
-		const { Module } = mod;
-		return done({ Module, path, specifier });
+		const { Processor } = mod;
+		return done({ Processor, path, specifier });
 	} catch (exc) {
-		const code = 'BUNDLER_IMPORT_ERROR';
-		const message = `Error requiring bundler "${specifier}": ${exc.message}`;
+		const code = 'PROCESSOR_IMPORT_ERROR';
+		const message = `Error requiring processor "${specifier}": ${exc.message}`;
 		return done({ errors: [{ code, message }], specifier });
 	}
 }

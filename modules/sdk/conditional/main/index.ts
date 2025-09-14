@@ -50,15 +50,13 @@ export /*bundle*/ abstract class Conditional extends BaseConditional {
 	abstract _processors(): IProcessorsSetup;
 
 	constructor(module: BaseModule, conditions: IConditions, strategy?: IConditionalStrategy) {
-		if (typeof strategy !== 'object') {
-			throw new Error(`Invalid strategy. An object is expected`);
-		}
-
 		super(module, conditions);
-		this.#processors = strategy.Processors ? new strategy.Processors(this) : new ConditionalProcessors(this);
+		this.#processors = strategy?.Processors ? new strategy.Processors(this) : new ConditionalProcessors(this);
 	}
 
-	_prepare(require: RequireType) {
+	_prepared(require: RequireType) {
+		if (!require(this.#processors, 'processors')) return false;
+
 		this.#processors.forEach(processor => require(processor, processor.name));
 	}
 }

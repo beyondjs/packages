@@ -12,6 +12,10 @@ export /*bundle*/ interface IProcessedSpec {
 }
 
 export /*bundle*/ abstract class BaseConditional extends DynamicProcessor() {
+	get dp() {
+		return 'module.conditional';
+	}
+
 	#module: BaseModule;
 	get module() {
 		return this.#module;

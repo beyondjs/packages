@@ -19,7 +19,8 @@ export /*bundle*/ class ESM extends ESMConditional {
 			spec[key] = value;
 		}
 
-		const processors = new Map([['ts', { specifier: '@beyond-js/ts-bundler/processors/ts', ...spec }]]);
+		const specifier = '@beyond-js/packages/bundlers/ts/processors/ts';
+		const processors = new Map([['ts', { specifier, ...spec }]]);
 		return { processors };
 	}
 

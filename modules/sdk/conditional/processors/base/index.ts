@@ -1,9 +1,11 @@
 import type { Conditional } from '../../main';
 import type { ConditionalProcessor } from '../../processor';
 import type { IProcessorsSetup } from '../../../conditional/main';
+import type { ProcessorConstructor } from './types';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
+import { importer } from './importer';
 
 interface IDone {
 	errors?: IDiagnostic[];
@@ -56,7 +58,7 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 		return { error: { code, message } };
 	}
 
-	_process() {
+	async _process() {
 		const done = ({ errors, warnings, updated }: IDone) => {
 			const previous = { errors: this.#errors, warnings: this.#warnings };
 			const changed =
@@ -99,27 +101,18 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 				continue;
 			}
 
-			let resolved = null;
-			try {
-				const { module } = this.#conditional;
-				resolved = require.resolve(specifier, { paths: [module.package.path] });
-			} catch (exc) {
-				console.error(exc);
-				const code = 'PROCESSOR_NOT_FOUND';
-				const message = `Error resolving processor "${specifier}": ${exc.message}`;
-				errors.push({ code, message });
-				continue;
-			}
+			const { module } = this.#conditional;
+			let Processor: ProcessorConstructor, path: string;
+			({ errors, Processor, path } = await importer(specifier, module.package.path));
 
 			try {
-				const Processor = require(resolved);
-				const processor = new Processor(this.#conditional, name, specifier);
+				const processor = new Processor(this.#conditional, name);
 				processor.spec.values = spec;
 
 				updated.set(name, processor);
 			} catch (exc) {
 				console.error(exc);
-				const code = 'PROCESSOR_NOT_FOUND';
+				const code = 'PROCESSOR_INITIALIZATION_ERROR';
 				const message = `Error requiring processor "${specifier}": ${exc.message}`;
 				errors.push({ code, message });
 				continue;
