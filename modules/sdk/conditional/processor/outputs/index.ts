@@ -1,6 +1,6 @@
 import { OutputsCollection } from './collection';
 import { DelegatedOutputs } from './delegated';
-import { Output } from './output';
+import { ProcessorOutput } from './output';
 
 export /*bundle*/ class ProcessorOutputs {
 	#ims = new OutputsCollection();
@@ -13,7 +13,7 @@ export /*bundle*/ class ProcessorOutputs {
 		return this.#types;
 	}
 
-	#css = new Output();
+	#css = new ProcessorOutput();
 	get css() {
 		return this.#css;
 	}

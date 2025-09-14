@@ -1,5 +1,0 @@
-{
-	"name": "sdk/module",
-	"bundle": "ts",
-	"files": "*"
-}

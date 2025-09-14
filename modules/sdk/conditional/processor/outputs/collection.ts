@@ -1,25 +1,20 @@
 import type { DynamicFile } from '@beyond-js/file/dynamic';
-import { Output } from './output';
+import { ProcessorOutput } from './output';
 
-export class OutputsCollection extends Map<string, Output> {
-	#hash: string;
-	get hash() {
-		return this.#hash;
-	}
-
-	#get(file: DynamicFile): Output {
+export class OutputsCollection extends Map<string, ProcessorOutput> {
+	obtain(file: DynamicFile): ProcessorOutput {
 		if (this.has(file.relative.file)) {
 			return super.get(file.relative.file);
 		}
 
-		const output = new Output(file);
+		const output = new ProcessorOutput(file);
 		super.set(file.relative.file, output);
 		return output;
 	}
 
-	update(output: Output): void {
-		if (!(output instanceof Output)) {
-			throw new Error(`An instance of Output was expected`);
+	update(output: ProcessorOutput): void {
+		if (!(output instanceof ProcessorOutput)) {
+			throw new Error(`An instance of ProcessorOutput was expected`);
 		}
 
 		super.set(output.source.relative.file, output);

@@ -3,9 +3,10 @@ import { WatcherClient } from '@beyond-js/watchers/client';
 import { Config } from '@beyond-js/config/main';
 import Attributes from './attributes';
 import { Bundlers } from './bundlers';
+import { PackageController } from './controller';
 import { Modules } from './modules';
-// import Static from './static';
 import { equal } from '@beyond-js/equal/main';
+// import Static from './static';
 
 interface IOptions {
 	watcher?: boolean;
@@ -24,6 +25,8 @@ export /*bundle*/ class Package extends Attributes {
 	get watcher() {
 		return this.#watcher;
 	}
+
+	#controller: PackageController;
 
 	#errors: IDiagnostic[] = [];
 	get errors() {
@@ -68,6 +71,7 @@ export /*bundle*/ class Package extends Attributes {
 		};
 
 		this.#bundlers = new Bundlers(config);
+		this.#controller = new PackageController(this);
 		this.#modules = new Modules(this, config);
 		// this.#static = new Static(this, cfg.static, this.#modules);
 	}

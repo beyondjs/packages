@@ -3,18 +3,15 @@ import type { DynamicFile } from '@beyond-js/file/dynamic';
 import { CodeOutput } from './code';
 import { IssuesOutput } from './issues';
 
-export /*bundle*/ class Output {
+export /*bundle*/ class ProcessorOutput {
 	#source?: DynamicFile;
 	get source() {
 		return this.#source;
 	}
 
-	#code: CodeOutput;
-	code(output: CodeOutputType) {
-		return this.#code.code(output);
-	}
-	map(format: MapType) {
-		return this.#code.map(format);
+	#code: CodeOutput = new CodeOutput();
+	get code() {
+		return this.#code;
 	}
 
 	#issues = new IssuesOutput();

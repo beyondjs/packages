@@ -1,6 +1,6 @@
 import type { ConditionalProcessor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { Output } from '../../outputs/output';
+import type { ProcessorOutput } from '../../outputs/output';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { DelegatingProcessors } from './processors';
 import { createHash } from 'crypto';
@@ -8,7 +8,7 @@ import { createHash } from 'crypto';
 /**
  * The files collected from the extensions of the current processor
  */
-export class DelegationCollector extends DynamicProcessor(Map<string, Output>) {
+export class DelegationCollector extends DynamicProcessor(Map<string, ProcessorOutput>) {
 	get dp() {
 		return 'processor.delegation-collector';
 	}

@@ -38,10 +38,11 @@ export class ProcessorInputs extends FinderCollection {
 			return;
 		}
 
-		const path = join(this.#processor.conditional.module.spec.path, this.#spec.values.path);
+		const { module } = this.#processor.conditional;
+		const path = join(module.package.path, module.spec.path, this.#spec.values.path);
 		const { includes, excludes } = this.#spec.values;
 		const extname = this.#extname;
-		console.log('Configuring inputs', this.#processor.name, { path, extname, includes, excludes });
+
 		super.configure(path, { extname, includes, excludes });
 	}
 }

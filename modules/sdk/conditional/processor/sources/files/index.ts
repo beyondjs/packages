@@ -1,7 +1,10 @@
 import type { ConditionalProcessor } from '../../';
 import type { IProcessorSourcesFileStrategy } from '../../types';
-import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import type { IDynamicFileSpec } from '@beyond-js/file/dynamic';
+import { FileData } from '@beyond-js/file/data';
 import { DynamicFile, DynamicFileObject } from '@beyond-js/file/dynamic';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { join } from 'path';
 
 export class ProcessorFiles extends DynamicProcessor(Map<string, DynamicFile | DynamicFileObject>) {
 	get dp() {
@@ -21,11 +24,17 @@ export class ProcessorFiles extends DynamicProcessor(Map<string, DynamicFile | D
 		if (!(files instanceof Array)) throw new Error(`${error}: files sources must be an array`);
 
 		files.forEach(({ File, file, json }) => {
-			if (typeof file !== 'object') throw new Error(`${error}: file item must be an object`);
+			if (File && typeof File !== 'function') throw new Error(`${error}: File item must be a function`);
 			if (typeof file !== 'string' || !file) throw new Error(`${error}: file property of file item must be set`);
 
+			const { module } = this.#processor.conditional;
+			const root = join(module.package.path, module.spec.path, file);
+			const path = join(root, file);
+			const fdata = new FileData(root, path);
+
 			File = File || (json ? DynamicFileObject : DynamicFile);
-			this.set(file, new File(file));
+			const spec: IDynamicFileSpec = { file: fdata, watcher: module.package.watcher };
+			this.set(file, new File(spec));
 		});
 	}
 }

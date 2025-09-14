@@ -81,7 +81,7 @@ export class ProcessorSources extends DynamicProcessor() {
 	_process() {
 		function compute(hashes: string[]): string {
 			const hash = createHash('sha256');
-			hashes.sort().forEach(h => hash.update(h));
+			hashes.sort().forEach(h => h && hash.update(h));
 			return hash.digest('hex');
 		}
 
