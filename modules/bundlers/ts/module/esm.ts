@@ -23,8 +23,4 @@ export /*bundle*/ class ESM extends ESMConditional {
 		const processors = new Map([['ts', { specifier, ...spec }]]);
 		return { processors };
 	}
-
-	_process() {
-		console.log('Processing ESM conditional', this.spec.values);
-	}
 }

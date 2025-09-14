@@ -43,4 +43,7 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await conditional.ready;
 
 	console.log('  • Conditional "default" processors:', [...conditional.processors.keys()]);
+
+	console.log(`Conditional "${conditional.module.spec.subpath}" output:\n`);
+	console.log(conditional.output.code('sourcemap-inline'));
 })().catch(exc => console.error(exc.stack));
