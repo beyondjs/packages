@@ -10,6 +10,10 @@ import { ProcessorOutputs } from './outputs';
 import { join } from 'path';
 
 export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor() {
+	get dp() {
+		return 'conditional-processor';
+	}
+
 	#conditional: Conditional;
 	get conditional(): Conditional {
 		return this.#conditional;

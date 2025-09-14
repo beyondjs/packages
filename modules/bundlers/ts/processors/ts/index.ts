@@ -6,9 +6,8 @@ import { ConditionalProcessor } from '@beyond-js/packages/sdk';
 // import Analyzer  from './analyzer';
 // import Dependencies  from './dependencies';
 
-export class Processor extends ConditionalProcessor {
+export /*bundle*/ class Processor extends ConditionalProcessor {
 	constructor(conditional: Conditional, name: string) {
-		console.log('Creating TS processor', name);
 		super(conditional, name, {
 			// Analyzer,
 			// Dependencies,

@@ -3,6 +3,23 @@ import type { ConditionalProcessor } from './';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
 
+/**
+ * The settings values as defined in the package.json file for the bundler.
+ * If no settings are defined an empty object is used.
+ * The settings for the processor are defined in the "processors" section, using the processor name as the key.
+ * If no settings are defined for the processor an empty object is used.
+ *
+ * Example:
+ * "bundlers": {
+ * 		"code": {
+ * 			"specifier": "@beyond-js/bundler-code/module",
+ * 			"processors": {
+ * 				"ts": { ... }
+ * 			}
+ * 		}
+ * }
+ */
+
 export class ProcessorSettings extends DynamicProcessor() {
 	get dp() {
 		return 'processor.settings';
@@ -22,12 +39,10 @@ export class ProcessorSettings extends DynamicProcessor() {
 	get errors(): IDiagnostic[] {
 		return this.#errors;
 	}
-
 	#warnings: IDiagnostic[] = [];
 	get warnings(): IDiagnostic[] {
 		return this.#warnings;
 	}
-
 	get valid() {
 		return !this.#errors?.length;
 	}
@@ -42,8 +57,9 @@ export class ProcessorSettings extends DynamicProcessor() {
 
 	_process() {
 		const { bundler } = this.#processor.conditional.module;
-		const { processors } = bundler.settings.values;
-		let values = processors[this.#processor.name];
+		const { processors } = bundler.settings;
+
+		let values = processors?.[this.#processor.name];
 		values = values || {};
 
 		let errors, warnings;
