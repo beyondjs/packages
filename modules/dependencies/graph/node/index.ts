@@ -3,7 +3,7 @@ import type { Registries } from '@beyond-js/packages/repositories/registries';
 import type { DependenciesList } from '../list';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
-import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
+import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 
 export class DependenciesNode {
 	#registries: Registries;
@@ -51,12 +51,16 @@ export class DependenciesNode {
 		version: string,
 		parent?: DependenciesNode
 	) {
+		if (!registries || !list || !pkg || !version) {
+			throw new Error('Registries, list, pkg and version are required parameters');
+		}
+
 		this.#registries = registries;
 		this.#list = list;
 		this.#pkg = pkg;
 		this.#parent = parent;
 		this.#version = new Version(version);
-		this.#dependencies = new NodeDependencies(this, list);
+		this.#dependencies = new NodeDependencies(this, registries, list);
 
 		this.#version.on('change', this.invalidate.bind(this));
 	}
@@ -96,7 +100,7 @@ export class DependenciesNode {
 		const spec = await this.#registries.npm.spec(this.#pkg, this.#version.resolved);
 		if (spec.error) return done({ error: spec.error });
 
-		const dependencies = new DependenciesSpecs(spec.data.value);
+		const dependencies = new DependenciesSpec(spec.data.value);
 		await this.#dependencies.process(dependencies);
 		return done({});
 	}

@@ -3,7 +3,7 @@ import type { Registries } from '@beyond-js/packages/repositories/registries';
 import { Groups } from './groups';
 import { RepositoriesErrorManager } from '@beyond-js/packages/repositories/errors';
 
-export class PackageDependency {
+export class DependencyPackage {
 	#registries: Registries;
 
 	#pkg: string;

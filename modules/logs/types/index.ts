@@ -1,4 +1,8 @@
-export interface ILogger {
+export /*bundle*/ interface ILoggerOptions {
+	console?: boolean;
+}
+
+export /*bundle*/ interface ILogger {
 	id: string;
 	init: () => Promise<void>;
 	info(text: string, meta?: any, id?: string): void;

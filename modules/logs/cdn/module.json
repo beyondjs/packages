@@ -1,5 +1,5 @@
 {
-	"subpath": "logs",
+	"name": "logs/cdn",
 	"bundle": "ts",
 	"files": "*"
 }

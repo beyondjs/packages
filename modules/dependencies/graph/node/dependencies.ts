@@ -1,9 +1,9 @@
 import type { Registries } from '@beyond-js/packages/repositories/registries';
-import type { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
+import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import type { DependenciesList } from '../list';
 import type { DependenciesNode } from '.';
 
-export /*bundle*/ class NodeDependencies extends Map {
+export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 	#registries: Registries;
 	#node: DependenciesNode;
 	#list: DependenciesList;
@@ -20,16 +20,17 @@ export /*bundle*/ class NodeDependencies extends Map {
 
 	get completed(): boolean {
 		for (const dependency of [...this.values()]) {
-			if (!dependency.completed) return false;
+			if (!dependency.processed) return false;
 		}
 
 		return true;
 	}
 
-	constructor(node: DependenciesNode, list: DependenciesList) {
+	constructor(node: DependenciesNode, registries: Registries, list: DependenciesList) {
 		super();
 
 		this.#node = node;
+		this.#registries = registries;
 		this.#list = list;
 	}
 
@@ -45,7 +46,7 @@ export /*bundle*/ class NodeDependencies extends Map {
 		});
 	}
 
-	async process(specs: DependenciesSpecs) {
+	async process(spec: DependenciesSpec) {
 		if (this.#processing || this.#processed) {
 			throw new Error('Dependencies are already processed or they are being processed');
 		}
@@ -54,9 +55,10 @@ export /*bundle*/ class NodeDependencies extends Map {
 		/**
 		 * Node has to be dynamically required to avoid a cyclical import
 		 */
-		const { DependenciesNode: Node } = await import('./');
+		const m = require('./');
+		const Node: typeof DependenciesNode = m.DependenciesNode;
 
-		for (const [name, { version }] of specs) {
+		for (const [name, { version }] of spec) {
 			const node = new Node(this.#registries, this.#list, name, version, this.#node);
 			await node.register();
 			this.set(name, node);

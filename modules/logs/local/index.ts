@@ -1,15 +1,19 @@
-import type { ILogger } from './types';
-import { v4 as uuid } from 'uuid';
-import fs from 'fs';
+import type { ILogger, ILoggerOptions } from '@beyond-js/packages/logs/types';
+import { randomUUID } from 'crypto';
+import * as fs from 'fs';
 import { join } from 'path';
 
-const root = join(process.cwd(), './beyond/logs');
+const { mkdir, appendFile } = fs.promises;
+
+const ROOT = join(process.cwd(), '.beyond/logs');
 
 function now(): string {
 	return new Date().toISOString();
 }
 
-export class Logger implements ILogger {
+export /*bundle*/ class Logger implements ILogger {
+	#options: ILoggerOptions;
+
 	#id: string;
 	get id(): string {
 		return this.#id;
@@ -20,16 +24,18 @@ export class Logger implements ILogger {
 		return this.#file;
 	}
 
-	constructor() {
-		this.#id = uuid();
-		this.#file = join(root, `${this.#id}.log`);
+	constructor(options: ILoggerOptions = {}) {
+		this.#id = randomUUID();
+		this.#file = join(ROOT, `${this.#id}.log`);
+		console.log(`Logger file: ${this.#file}`);
+		this.#options = options;
 	}
 
 	/**
 	 * Initializes the logger by creating the logs directory if it doesn't exist.
 	 */
 	async init() {
-		await fs.promises.mkdir(root, { recursive: true });
+		await mkdir(ROOT, { recursive: true });
 	}
 
 	info(text: string, meta?: any, id?: string): void {
@@ -56,9 +62,11 @@ export class Logger implements ILogger {
 			...(meta ? { meta } : {})
 		};
 
-		console.log(`[${data.time}] [${level}] ${text}`);
+		// Log to console if the option is enabled
+		this.#options.console && console.log(`[${data.time}] [${level}] ${text}`);
 
+		// Append the log entry to the file
 		const line = JSON.stringify(data) + '\n';
-		fs.promises.appendFile(this.#file, line, 'utf8').catch(error => console.error('Failed to save log:', error));
+		appendFile(this.#file, line, 'utf8').catch(error => console.error('Failed to save log:', error));
 	}
 }

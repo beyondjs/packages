@@ -1,19 +1,29 @@
-import type { ILogger } from './types';
+import type { ILogger, ILoggerOptions } from '@beyond-js/packages/logs/types';
 import { Logging, type Log } from '@google-cloud/logging';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 
 const logging = new Logging();
 
-export class Logger implements ILogger {
-	#id = uuid();
+export /*bundle*/ class Logger implements ILogger {
+	#options: ILoggerOptions;
+
+	#id = randomUUID();
 	get id(): string {
 		return this.#id;
 	}
 
 	#log: Log;
 
+	constructor(options: ILoggerOptions = {}) {
+		this.#id = randomUUID();
+		this.#options = options;
+
+		// To avoid unused variable warnings
+		void this.#options;
+	}
+
 	async init() {
-		this.#log = logging.log(`BeyondCloud/${this.#id}`);
+		this.#log = logging.log(`BeyondCDN/${this.#id}`);
 	}
 
 	info(message: string, meta?: any) {

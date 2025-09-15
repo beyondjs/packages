@@ -1,20 +1,20 @@
 import type { Registries } from '@beyond-js/packages/repositories/registries';
 import type { IPackageSpec, IDependenciesSpec } from '@beyond-js/packages/repositories/types';
-import { DependenciesSpecs } from '@beyond-js/packages/dependencies/specs';
+import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
 
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
 	registries: Registries;
-	specs: IPackageSpec;
+	spec: IPackageSpec;
 	workspace?: { name: string; version: string }[];
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
-	#specs: IDependenciesSpec;
+	#spec?: IDependenciesSpec;
 
-	#workspace: { name: string; version: string }[];
+	#workspace?: { name: string; version: string }[];
 	get workspace() {
 		return this.#workspace;
 	}
@@ -33,19 +33,21 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		return this.dependencies.completed;
 	}
 
-	constructor({ registries, specs, workspace }: IDependenciesGraphConstructorParams) {
+	constructor({ registries, spec, workspace }: IDependenciesGraphConstructorParams) {
+		if (!registries || !spec) throw new Error('Registries and spec are required parameters');
+
 		const list = new DependenciesList(registries);
-		const { name, version } = specs;
+		const { name, version } = spec;
 		super(registries, list, name, version);
 
-		this.#specs = specs;
+		this.#spec = spec;
 		this.#workspace = workspace;
 		this.#list = list;
-		this.#logger = new Logger();
+		this.#logger = new Logger({ console: true });
 	}
 
 	async process() {
-		this.#logger.info('Process has been started');
+		this.#logger.info('Initializing dependencies graph');
 
 		// The root node version is the version of the package for which dependencies are being processed
 		// This version value can be treated as arbitrary, as it will not have impact
@@ -53,8 +55,18 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		this.version.update({ version: this.version.specified });
 
 		// Process the dependencies of the root node of the graph
-		const dependencies = new DependenciesSpecs(this.#specs);
-		await this.dependencies.process(dependencies);
+		const deps: ['dependencies', 'devDependencies', 'peerDependencies'] = [
+			'dependencies',
+			'devDependencies',
+			'peerDependencies'
+		];
+
+		if (deps.every(dep => this.#spec[dep] === void 0)) {
+			await super.process();
+		} else {
+			const dependencies = new DependenciesSpec(this.#spec);
+			await this.dependencies.process(dependencies);
+		}
 
 		let i = 0;
 		while (!this.completed) {

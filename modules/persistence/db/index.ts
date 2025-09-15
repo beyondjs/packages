@@ -3,7 +3,7 @@ import type { Packages, Conditionals } from '@beyond-js/packages/persistence/typ
 
 declare const bimport: (module: string) => Promise<any>;
 
-export class DB {
+export /*bundle*/ const db = new (class DB {
 	#ready: PendingPromise<void>;
 
 	#packages: Packages;
@@ -27,6 +27,4 @@ export class DB {
 		this.#conditionals = conditionals;
 		this.#ready.resolve();
 	}
-}
-
-export /*bundle*/ const db = new DB();
+})();

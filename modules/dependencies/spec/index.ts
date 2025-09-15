@@ -27,9 +27,9 @@ const priority: Record<Kind, number> = {
  * - raw `overrides`
  * - a list of warnings if the input structure is invalid
  */
-export /*bundle*/ class DependenciesSpecs extends Map<string, { version: string; kind: Kind }> {
+export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; kind: Kind }> {
 	#hash?: Hash;
-	get hash(): number {
+	get hash(): string {
 		return this.#hash.value;
 	}
 

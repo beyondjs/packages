@@ -1,0 +1,5 @@
+{
+	"name": "logs",
+	"bundle": "ts",
+	"files": "*"
+}
