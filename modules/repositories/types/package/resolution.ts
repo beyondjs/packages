@@ -1,4 +1,5 @@
-import type { RepositoryType } from '../';
+import { IDiagnostic } from '@beyond-js/packages/types';
+import type { ProviderType } from './providers';
 import type { IGitIdentifier } from './identifiers';
 
 /**
@@ -22,14 +23,20 @@ export /*bundle*/ interface IPackageResolution {
 	 * Full package name as defined in package.json.
 	 * Includes scope if applicable (e.g., '@beyond-js/http', 'lodash').
 	 */
-	name: string;
+	package: string;
 
 	/**
-	 * Optional extracted scope from the package name (without the '@').
-	 * For '@beyond-js/http', this would be 'beyond-js'.
+	 * Optional extracted scope from the package name (with the '@').
+	 * For '@beyond-js/http', this would be '@beyond-js'.
 	 * Omitted for unscoped packages.
 	 */
 	scope?: string;
+
+	// 'semver', 'git', 'url', 'file', 'unknown', 'error'
+	is: PackageResolutionType;
+
+	// 'npm', 'github-pkg', 'github', 'bitbucket', 'verdaccio', 'custom', etc.
+	provider: ProviderType;
 
 	/**
 	 * Raw version string as declared in package.json.
@@ -39,35 +46,6 @@ export /*bundle*/ interface IPackageResolution {
 	 * - 'https://cdn.example.com/pkg.tgz' (tarball)
 	 */
 	version: string;
-
-	/**
-	 * Resolution strategy determined from the version string.
-	 * Possible values:
-	 * - 'semver'
-	 * - 'git'
-	 * - 'tarball'
-	 * - 'unknown'
-	 */
-	type?: PackageResolutionType;
-
-	/**
-	 * Semantic version specifier (e.g., '^1.2.0').
-	 * Present only if resolution is 'semver'.
-	 * Undefined otherwise.
-	 */
-	semver?: string;
-
-	/**
-	 * The source or provider used to resolve the package.
-	 * Applies to semver and git resolutions that involve known registries or platforms.
-	 * Examples:
-	 * - 'npm'
-	 * - 'github'
-	 * - 'gitlab'
-	 * - 'verdaccio'
-	 * - 'custom'
-	 */
-	repository?: RepositoryType;
 
 	/**
 	 * Git-specific information extracted from the version string.
@@ -86,13 +64,10 @@ export /*bundle*/ interface IPackageResolution {
 	 * Optional metadata for failed resolutions.
 	 * Contains machine-readable code and human-readable explanation.
 	 */
-	error?: {
-		code: string;
-		text: string;
-	};
+	errors?: IDiagnostic;
 
 	/**
 	 * Optional developer warnings (e.g., about credentials or unsupported formats).
 	 */
-	warnings?: string[];
+	warnings?: IDiagnostic[];
 }

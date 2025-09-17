@@ -1,4 +1,4 @@
-import type { IPackageResolution, RepositoryType } from '@beyond-js/packages/repositories/types';
+import type { IGitIdentifier, IPackageResolution, RepositoryType } from '@beyond-js/packages/repositories/types';
 import { PackageResolutionType } from '@beyond-js/packages/repositories/types';
 import { Semver } from './semver';
 import { GitParser } from './git';
@@ -7,40 +7,38 @@ import { GitParser } from './git';
  * Resolves and interprets a dependency version specifier declared in a package.json.
  * Determines the resolution type (semver, tarball, git, etc.) and extracts relevant metadata.
  */
-export /*bundle*/ class PackageResolution implements IPackageResolution {
-	#name: string;
-	get name() {
-		return this.#name;
-	}
-
-	#scope?: string;
-	get scope() {
-		return this.#scope;
-	}
-
-	#version: string;
-	get version() {
-		return this.#version;
-	}
-
-	// Options are 'semver', 'git', 'url', 'file', 'unknown', 'error'
-	// Indicates if the version is a valid semver, git URL, or tarball URL
+export /*bundle*/ class DependencyResolution implements IPackageResolution {
+	// 'semver', 'git', 'url', 'unknown'
 	#is?: PackageResolutionType;
 	get is() {
 		return this.#is;
 	}
 
-	#semver?: string;
-	get semver() {
-		return this.#semver;
+	// Repository type: 'default', 'npm', 'github', 'github-pkg', etc.
+	#type: RepositoryType;
+	get type() {
+		return this.#type;
 	}
 
-	#repository?: RepositoryType;
-	get repository() {
-		return this.#repository;
+	// The package name (with scope if applicable)
+	#package: string;
+	get package() {
+		return this.#package;
 	}
 
-	#git?: { host: string; owner: string; repo: string; ref?: string };
+	// Extracted scope (if any, with the '@')
+	#scope?: string;
+	get scope() {
+		return this.#scope;
+	}
+
+	// The raw version specifier as declared in package.json
+	#version: string;
+	get version() {
+		return this.#version;
+	}
+
+	#git?: IGitIdentifier;
 	get git() {
 		return this.#git;
 	}
@@ -50,8 +48,15 @@ export /*bundle*/ class PackageResolution implements IPackageResolution {
 		return this.#error;
 	}
 
-	constructor(name: string, version: string) {
-		this.#name = name;
+	/**
+	 * Creates a new DependencyResolution instance by parsing the package name and version specifier.
+	 *
+	 * @param pkg The full package name as declared in package.json (with scope if applicable)
+	 * @param version The version specifier as declared in package.json
+	 * @returns
+	 */
+	constructor(pkg: string, version: string) {
+		this.#package = pkg;
 		this.#version = version;
 
 		// Alias resolution (e.g., "npm:lodash@^4.17.0")

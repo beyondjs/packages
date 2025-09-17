@@ -1,15 +1,17 @@
-import { RepositoryType } from '..';
+import type { GitProviderType, SemverProviderType } from './providers';
 
 /**
  * Represents a package identifier for NPM or similar registries.
  * This is used for packages that are resolved from the NPM registry or similar sources.
- * It includes the repository type, package name, and exact version resolved.
+ * It includes the provider type, package name, and exact version resolved.
  */
-export /*bundle*/ interface INpmIdentifier {
-	repository: RepositoryType; // 'npm' | 'github' | 'gitlab' | etc.
+export /*bundle*/ interface ISemverIdentifier {
+	provider: SemverProviderType;
 	name: string;
 	version: string; // exact version resolved (no semver range)
 }
+
+export /*bundle*/ type GitReferenceType = 'branch' | 'tag' | 'commit';
 
 /**
  * Represents a Git-based package identifier.
@@ -17,6 +19,8 @@ export /*bundle*/ interface INpmIdentifier {
  * It includes the host, owner, repository name, and an optional reference (branch, tag, or commit).
  */
 export /*bundle*/ interface IGitIdentifier {
+	repository: GitProviderType;
+
 	/**
 	 * The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
 	 */
@@ -36,8 +40,8 @@ export /*bundle*/ interface IGitIdentifier {
 	 * Optional reference (branch, tag, or commit hash).
 	 * If omitted, defaults to the default branch of the repository (e.g., 'main').
 	 */
-	ref?: string;
+	ref?: GitReferenceType;
 }
 
 // PackageIdentifier can also be a string, in which case it represents a direct URL to a tarball package
-export /*bundle*/ type PackageIdentifierType = INpmIdentifier | IGitIdentifier | string;
+export /*bundle*/ type PackageIdentifierType = ISemverIdentifier | IGitIdentifier | string;

@@ -1,25 +1,74 @@
-import type { IPackageResolution, RepositoryType } from '@beyond-js/packages/repositories/types';
+import type {
+	IPackageResolution,
+	GitRepositoryType,
+	IGitIdentifier,
+	GitReferenceType
+} from '@beyond-js/packages/repositories/types';
+
+const providers: Partial<Record<GitRepositoryType, string>> = {
+	github: 'github.com',
+	gitlab: 'gitlab.com',
+	bitbucket: 'bitbucket.org'
+};
 
 /**
  * Parses git-based dependency specifiers (e.g., git+https://..., github:user/repo).
  * Identifies the host, repository, owner, and optional ref (branch, tag, or commit).
  */
-export class GitParser {
-	static known: Record<string, RepositoryType> = {
-		'github.com': 'github',
-		'gitlab.com': 'gitlab',
-		'bitbucket.org': 'bitbucket'
-	};
+export class GitParser implements IGitIdentifier {
+	// 'github' | 'gitlab' | 'bitbucket' | 'custom-git'
+	#provider: GitRepositoryType;
+	get provider() {
+		return this.#provider;
+	}
 
-	static parse(version: string): (IPackageResolution['git'] & { repository: RepositoryType }) | null {
+	/**
+	 * The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
+	 */
+	#host: string;
+	get host() {
+		return this.#host;
+	}
+
+	/**
+	 * The owner or organization of the repository (e.g., 'user' or 'org').
+	 */
+	#owner: string;
+	get owner() {
+		return this.#owner;
+	}
+
+	/**
+	 * The name of the repository (e.g., 'my-lib').
+	 */
+	#repo: string;
+	get repo() {
+		return this.#repo;
+	}
+
+	/**
+	 * Optional reference (branch, tag, or commit hash).
+	 * If omitted, defaults to the default branch of the repository (e.g., 'main').
+	 */
+	#ref?: GitReferenceType;
+	get ref() {
+		return this.#ref;
+	}
+
+	parse(version: string) {
 		// Handles shorthand formats: github:user/repo[#ref], gitlab:user/repo[#ref]
 		if (version.startsWith('github:') || version.startsWith('gitlab:')) {
 			const match = /^(\w+):([^/]+)\/([^#]+)(#(.+))?$/.exec(version);
 			if (!match) return null;
 
 			const [, provider, owner, repo, , ref] = match;
-			const host = `${provider}.com`;
-			const repository = GitParser.known[host] || 'custom';
+
+			this.#host = providers[provider as GitRepositoryType] || 'custom';
+			this.#owner = owner;
+			this.#repo = repo;
+			this.#ref = ref as GitReferenceType;
+
+			this.#host = `${provider}.com`;
 
 			return { host, owner, repo, ref, repository };
 		}
