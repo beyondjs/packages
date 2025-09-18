@@ -1,9 +1,9 @@
-import type { DependencyResolution } from '@beyond-js/packages/dependencies/resolution';
-import type { RepositoriesSettings } from '@beyond-js/packages/providers/settings';
+import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
+import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { IPackageSpecResponse } from './types';
-import { PackageResolutionType } from '@beyond-js/packages/providers/types';
-import { RepositoriesResponse } from '@beyond-js/packages/providers/response';
 import type { Logger } from '@beyond-js/packages/logs';
+import { InfoIsType } from '@beyond-js/packages/dependencies/info';
+import { ProvidersResponse } from '@beyond-js/packages/providers/response';
 import { SemverRegistry } from './semver';
 
 export /*bundle*/ class Registries extends Map {
@@ -12,32 +12,54 @@ export /*bundle*/ class Registries extends Map {
 		return this.#semver;
 	}
 
-	constructor(settings: RepositoriesSettings) {
+	constructor(settings: ProvidersSettings) {
 		super();
 		this.#semver = new SemverRegistry(settings);
 
 		super.set('semver', this.#semver);
 	}
 
-	async versions(dependency: DependencyResolution, logger?: Logger): Promise<RepositoriesResponse<string[]>> {
-		switch (dependency.is) {
-			case PackageResolutionType.Semver:
-				return await this.#semver.versions(dependency.name, logger);
+	/**
+	 * Retrieves the available versions for a given dependency.
+	 *
+	 * @param dependency The dependency info as it is defined in package.json
+	 * @param version The version specifier as it is defined in package.json
+	 * @param logger
+	 * @returns
+	 */
+	async versions(dependency: DependencyInfo, logger?: Logger): Promise<ProvidersResponse<string[]>> {
+		const { is } = dependency.data;
+		switch (is) {
+			case InfoIsType.Semver:
+				return await this.#semver.versions(dependency.package, dependency.scope, logger);
 			default:
-				throw new Error(`Versions retrieval not supported for dependency type: "${dependency.is}"`);
+				throw new Error(`Versions retrieval not supported for dependency type: "${is}"`);
 		}
 	}
 
-	async spec(dependency: DependencyResolution, logger?: Logger): Promise<RepositoriesResponse<IPackageSpecResponse>> {
-		switch (dependency.is) {
-			case PackageResolutionType.Semver:
-				return this.#semver.spec(dependency.name, logger);
-			case PackageResolutionType.Git:
+	/**
+	 * Retrieves the package specification for a given dependency.
+	 *
+	 * @param dependency The dependency info as it is defined in package.json
+	 * @param version The version as it was resolved in the dependencies tree (only when dependency.is is 'semver')
+	 * @param logger
+	 * @returns
+	 */
+	async spec(
+		dependency: DependencyInfo,
+		version: string,
+		logger?: Logger
+	): Promise<ProvidersResponse<IPackageSpecResponse>> {
+		const { is } = dependency.data;
+		switch (is) {
+			case InfoIsType.Semver:
+				return this.#semver.spec(dependency.package, version, dependency.scope, logger);
+			case InfoIsType.Git:
 				return this.#git.spec(dependency.git!, logger);
-			case PackageResolutionType.Url:
+			case InfoIsType.Url:
 				return this.#url.spec(dependency.url!, logger);
 			default:
-				throw new Error(`Unsupported dependency type: ${dependency.is}`);
+				throw new Error(`Unsupported dependency type: ${is}`);
 		}
 	}
 }

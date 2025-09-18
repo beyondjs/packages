@@ -1,6 +1,5 @@
+import type { GitProviderType } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-
-export /*bundle*/ type GitProviderType = 'github' | 'gitlab' | 'bitbucket' | 'custom-git'; // any other git host
 
 const providers: Partial<Record<GitProviderType, string>> = {
 	github: 'github.com',
@@ -13,7 +12,7 @@ const providers: Partial<Record<GitProviderType, string>> = {
  * (e.g., git+https://..., github:user/repo).
  * Identifies the host, repository, owner, and optional ref (branch, tag, or commit).
  */
-export class GitProvider {
+export /*bundle*/ class GitInfo {
 	#provider: GitProviderType;
 	get provider() {
 		return this.#provider;

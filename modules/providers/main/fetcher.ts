@@ -1,12 +1,21 @@
-import type { IPackageSpec } from '@beyond-js/packages/repositories/types';
+import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { Logger } from '@beyond-js/packages/logs';
 import type { IPackageSpecResponse, IPackageSpecsResponse, IPackageVersionsResponse } from './types';
-import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/repositories/errors';
+import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 
 export interface IRequest {
+	package: string;
 	host: string;
 	headers: Record<string, string>;
 	logger?: Logger;
+}
+
+export interface ISpecRequest extends IRequest {
+	version: string;
+}
+
+export interface ISpecsRequest extends IRequest {
+	abbreviated?: boolean;
 }
 
 export /*bundle*/ class PackageRegistryFetcher {
@@ -16,13 +25,11 @@ export /*bundle*/ class PackageRegistryFetcher {
 	 * @param rq Request object containing host, headers, and optional logger
 	 * @param name Package name
 	 * @param version Package version
-	 * @param scope Optional package scope (e.g., '@scope').
 	 * @returns
 	 */
-	static async spec(rq: IRequest, name: string, version: string, scope?: string): Promise<IPackageSpecResponse> {
-		const { host, headers, logger } = rq;
+	static async spec(rq: ISpecRequest): Promise<IPackageSpecResponse> {
+		const { host, headers, logger, package: name, version } = rq;
 
-		name = scope ? `${scope}/${name}` : name;
 		const url = `https://${host}/${name}/${version}`;
 
 		let response: Response;
@@ -51,7 +58,7 @@ export /*bundle*/ class PackageRegistryFetcher {
 		}
 
 		try {
-			const value: IPackageSpec = await response.json();
+			const value: IPackageManifest = await response.json();
 			return { host, name, version, found: true, valid: true, value };
 		} catch (exc) {
 			logger?.error(exc);
@@ -66,17 +73,11 @@ export /*bundle*/ class PackageRegistryFetcher {
 	 *
 	 * - When `abbreviated` is true, sends Accept: application/vnd.npm.install-v1+json to reduce payload size.
 	 */
-	static async specs(
-		rq: IRequest,
-		name: string,
-		scope?: string,
-		abbreviated = false
-	): Promise<IPackageSpecsResponse> {
-		const { host, logger } = rq;
+	static async specs(rq: ISpecsRequest): Promise<IPackageSpecsResponse> {
+		const { host, logger, abbreviated, package: name } = rq;
 		const base = rq.headers ?? {};
 		const headers = abbreviated ? { ...base, Accept: 'application/vnd.npm.install-v1+json' } : base;
 
-		name = scope ? `${scope}/${name}` : name;
 		const url = `https://${host}/${encodeURIComponent(name)}`;
 		let response: Response;
 		try {
@@ -100,7 +101,7 @@ export /*bundle*/ class PackageRegistryFetcher {
 		}
 
 		try {
-			const value: { versions: IPackageSpec[] } = await response.json();
+			const value: { versions: IPackageManifest[] } = await response.json();
 			return { host, name, found: true, valid: true, value };
 		} catch (exc) {
 			logger?.error(exc);

@@ -1,25 +1,25 @@
-import type { IRegistry, IPackageSpecResponse } from './types';
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
+import type { IProvider, IPackageManifestResponse } from './types';
+import type { IRepositoryAuth } from '@beyond-js/packages/providers/types';
 import type { Logger } from '@beyond-js/packages/logs';
-import type { RepositoriesSettings } from '@beyond-js/packages/repositories/settings';
+import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import { PackageRegistryFetcher } from './fetcher';
 import { Cli } from './cil';
-import { ErrorGettingPackageVersions } from '@beyond-js/packages/repositories/errors';
-import { RepositoriesResponse } from '@beyond-js/packages/repositories/response';
+import { ErrorGettingPackageVersions } from '@beyond-js/packages/providers/errors';
+import { ProvidersResponse } from '@beyond-js/packages/providers/response';
 import { AuthHeaders } from './tools';
 
 /**
  * Registry adapter for semver-based dependencies resolved against npm-compatible registries.
  */
-export class SemverRegistry implements IRegistry {
-	#settings: RepositoriesSettings;
+export class SemverRegistry implements IProvider {
+	#settings: ProvidersSettings;
 
 	readonly #name = 'semver';
 	get name(): string {
 		return this.#name;
 	}
 
-	constructor(settings: RepositoriesSettings) {
+	constructor(settings: ProvidersSettings) {
 		this.#settings = settings;
 	}
 
@@ -37,8 +37,10 @@ export class SemverRegistry implements IRegistry {
 		return { ...base, ...extra };
 	}
 
-	tarball(name: string, scope?: string): { url: string; headers: Record<string, string> } {
-		const fullname = scope ? `${scope}/${name}` : name;
+	tarball(name: string): { url: string; headers: Record<string, string> } {
+		const fullname = name;
+		const scope = name.startsWith('@') ? name.split('/')[0] : void 0;
+		name = name.startsWith('@') ? name.split('/')[1] : name;
 
 		const { host, auth } = this.#host(scope);
 		const headers = this.#headers(auth);
@@ -46,7 +48,9 @@ export class SemverRegistry implements IRegistry {
 		return { url, headers };
 	}
 
-	async versions(name: string, scope?: string, logger?: Logger): Promise<RepositoriesResponse<string[]>> {
+	async versions(name: string, logger?: Logger): Promise<ProvidersResponse<string[]>> {
+		const scope = name.startsWith('@') ? name.split('/')[0] : void 0;
+
 		const { host, auth } = this.#host(scope);
 		const headers = this.#headers(auth);
 
@@ -57,21 +61,21 @@ export class SemverRegistry implements IRegistry {
 		}
 
 		// Use API (abbreviated packument) to avoid heavy payloads
-		const response = await PackageRegistryFetcher.specs({ host, headers, logger }, name, scope, true);
+		const response = await PackageRegistryFetcher.specs({ host, headers, logger }, name, true);
 
 		// Error from fetcher → bubble up
-		if (response.error) return new RepositoriesResponse({ error: response.error });
+		if (response.error) return new ProvidersResponse({ error: response.error });
 
 		// Not found or invalid → empty list
 		if (!response.found || response.valid === false || !response.value) {
-			return new RepositoriesResponse({ data: [] });
+			return new ProvidersResponse({ data: [] });
 		}
 
 		// Extract version keys from packument
 		const packument = response.value;
 		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
 
-		return new RepositoriesResponse({ data: versions });
+		return new ProvidersResponse({ data: versions });
 	}
 
 	/**
@@ -84,16 +88,16 @@ export class SemverRegistry implements IRegistry {
 		scope?: string,
 		abbreviated = false,
 		logger?: Logger
-	): Promise<RepositoriesResponse<IPackageSpecResponse>> {
+	): Promise<ProvidersResponse<IPackageManifestResponse>> {
 		const { host, auth } = this.#host(scope);
 		const headers = this.#headers(auth);
 
 		const response = await PackageRegistryFetcher.spec({ host, headers, logger }, name, scope);
 
 		if (response.error) {
-			return new RepositoriesResponse({ error: response.error });
+			return new ProvidersResponse({ error: response.error });
 		} else {
-			return new RepositoriesResponse({ data: response });
+			return new ProvidersResponse({ data: response });
 		}
 	}
 }

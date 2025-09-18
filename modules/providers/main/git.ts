@@ -2,7 +2,7 @@ import type { IRegistry, IPackageSpecResponse } from './types';
 import type { Logger } from '@beyond-js/packages/logs';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { IProviderAuth } from '@beyond-js/packages/providers/types';
-import type { DependencyResolution } from '@beyond-js/packages/dependencies/resolution';
+import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { ProvidersResponse } from '@beyond-js/packages/providers/response';
 import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 import { AuthHeaders } from './tools';
@@ -63,8 +63,8 @@ export class GitProvider implements IRegistry {
 	 * - owner/repo: the repository coordinates
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
-	async spec(dependency: DependencyResolution, logger?: Logger): Promise<ProvidersResponse<IPackageSpecResponse>> {
-		const { host, owner, repo: repoName } = dependency;
+	async spec(dependency: DependencyInfo, logger?: Logger): Promise<ProvidersResponse<IPackageSpecResponse>> {
+		const { host, owner, repo: repoName } = dependency.git;
 		const ref = repo.ref ?? 'HEAD';
 		const url = this.#url(repo.host, repo.owner, repo.repo, ref);
 		const headers = this.#headers(repo.host);
@@ -120,7 +120,7 @@ export class GitProvider implements IRegistry {
 	 * Build a tarball request (url + headers) for downloading repository archive at a ref.
 	 * This is optional but handy to keep symmetry with semver tarball usage.
 	 */
-	tarball(dependency: DependencyResolution) {
+	tarball(dependency: DependencyInfo) {
 		const { host, owner, repo: repoName, ref = 'HEAD' } = dependency;
 
 		const ref = repo.ref ?? 'HEAD';

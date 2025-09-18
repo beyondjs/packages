@@ -7,12 +7,12 @@ export /*bundle*/ interface IPackagePerson {
 	url?: string;
 }
 
-export /*bundle*/ interface IBeyondPackageJSON extends IPackageJSON {
+export /*bundle*/ interface IBeyondPackageManifest extends IPackageManifest {
 	bundlers: BundlersSettingsType;
 	modules: string | { path: string };
 }
 
-export /*bundle*/ interface IPackageJSON extends IPackageExports {
+export /*bundle*/ interface IPackageManifest extends IPackageExports {
 	// Metadata
 	name?: string;
 	version?: string;
@@ -55,12 +55,7 @@ export /*bundle*/ interface IPackageJSON extends IPackageExports {
 	optionalDependencies?: Record<string, string>;
 	bundleDependencies?: string[]; // legacy alias
 	bundledDependencies?: string[]; // alias
-	peerDependenciesMeta?: Record<
-		string,
-		{
-			optional?: boolean;
-		}
-	>;
+	peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 
 	// Platform constraints
 	engines?: Record<string, string>;
