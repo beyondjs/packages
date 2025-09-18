@@ -1,23 +1,20 @@
-import type {
-	IPackageResolution,
-	GitRepositoryType,
-	IGitIdentifier,
-	GitReferenceType
-} from '@beyond-js/packages/repositories/types';
+import type { IDiagnostic } from '@beyond-js/packages/types';
 
-const providers: Partial<Record<GitRepositoryType, string>> = {
+export /*bundle*/ type GitProviderType = 'github' | 'gitlab' | 'bitbucket' | 'custom-git'; // any other git host
+
+const providers: Partial<Record<GitProviderType, string>> = {
 	github: 'github.com',
 	gitlab: 'gitlab.com',
 	bitbucket: 'bitbucket.org'
 };
 
 /**
- * Parses git-based dependency specifiers (e.g., git+https://..., github:user/repo).
+ * Git-specific information extracted from the version string.
+ * (e.g., git+https://..., github:user/repo).
  * Identifies the host, repository, owner, and optional ref (branch, tag, or commit).
  */
-export class GitParser implements IGitIdentifier {
-	// 'github' | 'gitlab' | 'bitbucket' | 'custom-git'
-	#provider: GitRepositoryType;
+export class GitProvider {
+	#provider: GitProviderType;
 	get provider() {
 		return this.#provider;
 	}
@@ -50,44 +47,52 @@ export class GitParser implements IGitIdentifier {
 	 * Optional reference (branch, tag, or commit hash).
 	 * If omitted, defaults to the default branch of the repository (e.g., 'main').
 	 */
-	#ref?: GitReferenceType;
+	#ref?: string;
 	get ref() {
 		return this.#ref;
 	}
 
-	parse(version: string) {
+	#error: IDiagnostic;
+	get error() {
+		return this.#error;
+	}
+
+	constructor(version: string) {
 		// Handles shorthand formats: github:user/repo[#ref], gitlab:user/repo[#ref]
-		if (version.startsWith('github:') || version.startsWith('gitlab:')) {
+		if (version.startsWith('github:') || version.startsWith('gitlab:') || version.startsWith('bitbucket:')) {
 			const match = /^(\w+):([^/]+)\/([^#]+)(#(.+))?$/.exec(version);
 			if (!match) return null;
 
 			const [, provider, owner, repo, , ref] = match;
 
-			this.#host = providers[provider as GitRepositoryType] || 'custom';
+			this.#provider = <GitProviderType>provider;
+			this.#host = providers[this.#provider];
 			this.#owner = owner;
 			this.#repo = repo;
-			this.#ref = ref as GitReferenceType;
-
-			this.#host = `${provider}.com`;
-
-			return { host, owner, repo, ref, repository };
+			this.#ref = ref;
+			return;
 		}
 
 		// Handles full git URLs like git+https://host/user/repo.git[#ref]
 		if (version.startsWith('git+')) {
 			try {
 				const url = new URL(version.replace(/^git\+/, ''));
-				const [owner, repoRaw] = url.pathname.replace(/^\/+/, '').split('/');
-				if (!owner || !repoRaw) return null;
+				const [owner, repo] = url.pathname.replace(/^\/+/, '').split('/');
+				if (!owner || !repo) return null;
 
-				const repo = repoRaw.replace(/\.git$/, '');
-				const ref = url.hash ? url.hash.slice(1) : undefined;
-				const host = url.hostname;
-				const repository = GitParser.known[host] || 'custom';
-
-				return { host, owner, repo, ref, repository };
+				this.#repo = repo.replace(/\.git$/, '');
+				this.#ref = url.hash ? url.hash.slice(1) : undefined;
+				this.#host = url.hostname;
+				this.#provider = (() => {
+					const entries = Object.entries(providers);
+					const found = entries.find(([, value]) => value === this.#host)?.[0] ?? void 0;
+					return (found as GitProviderType) ?? 'custom-git';
+				})();
 			} catch {
-				return null;
+				const code = 'INVALID_GIT_URL';
+				const message = `Invalid git URL format: ${version}`;
+				this.#error = { code, message };
+				return;
 			}
 		}
 

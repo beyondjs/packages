@@ -1,0 +1,5 @@
+{
+	"name": "providers/types",
+	"bundle": "ts",
+	"files": "*"
+}

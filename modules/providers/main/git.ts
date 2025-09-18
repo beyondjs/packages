@@ -1,33 +1,33 @@
-// git.ts
 import type { IRegistry, IPackageSpecResponse } from './types';
 import type { Logger } from '@beyond-js/packages/logs';
-import type { RepositoriesSettings } from '@beyond-js/packages/repositories/settings';
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
+import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
+import type { IProviderAuth } from '@beyond-js/packages/providers/types';
 import type { DependencyResolution } from '@beyond-js/packages/dependencies/resolution';
-import { RepositoriesResponse } from '@beyond-js/packages/repositories/response';
-import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/repositories/errors';
+import { ProvidersResponse } from '@beyond-js/packages/providers/response';
+import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 import { AuthHeaders } from './tools';
 
 /**
  * Registry adapter for git-based dependencies.
+ *
  * - Does not clone repositories.
  * - Resolves package.json via provider raw HTTP endpoints (GitHub/GitLab/Bitbucket).
- * - Auth/headers are resolved per request from RepositoriesSettings.
+ * - Auth/headers are resolved per request from ProvidersSettings.
  */
-export class GitRegistry implements IRegistry {
-	#settings: RepositoriesSettings;
+export class GitProvider implements IRegistry {
+	#settings: ProvidersSettings;
 
 	readonly #name = 'git';
 	get name(): string {
 		return this.#name;
 	}
 
-	constructor(settings: RepositoriesSettings) {
+	constructor(settings: ProvidersSettings) {
 		this.#settings = settings;
 	}
 
 	/** Resolve auth for a given host from settings (host-specific first, then default). */
-	#auth(host: string): IRepositoryAuth | undefined {
+	#auth(host: string): IProviderAuth | undefined {
 		return this.#settings.hosts.get(host) ?? this.#settings.default?.auth;
 	}
 
@@ -63,7 +63,7 @@ export class GitRegistry implements IRegistry {
 	 * - owner/repo: the repository coordinates
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
-	async spec(dependency: DependencyResolution, logger?: Logger): Promise<RepositoriesResponse<IPackageSpecResponse>> {
+	async spec(dependency: DependencyResolution, logger?: Logger): Promise<ProvidersResponse<IPackageSpecResponse>> {
 		const { host, owner, repo: repoName } = dependency;
 		const ref = repo.ref ?? 'HEAD';
 		const url = this.#url(repo.host, repo.owner, repo.repo, ref);
@@ -74,7 +74,7 @@ export class GitRegistry implements IRegistry {
 			response = await fetch(url, { headers });
 		} catch (exc) {
 			logger?.error(exc);
-			return new RepositoriesResponse({ error: new InvalidRegistryResponse(0) });
+			return new ProvidersResponse({ error: new InvalidRegistryResponse(0) });
 		}
 
 		if (response.status === 404) {
@@ -84,11 +84,11 @@ export class GitRegistry implements IRegistry {
 				version: ref,
 				found: false
 			};
-			return new RepositoriesResponse({ data: notFound });
+			return new ProvidersResponse({ data: notFound });
 		}
 
 		if (!response.ok) {
-			return new RepositoriesResponse({ error: new InvalidRegistryResponse(response.status) });
+			return new ProvidersResponse({ error: new InvalidRegistryResponse(response.status) });
 		}
 
 		try {
@@ -101,7 +101,7 @@ export class GitRegistry implements IRegistry {
 				valid: true,
 				value
 			};
-			return new RepositoriesResponse({ data: ok });
+			return new ProvidersResponse({ data: ok });
 		} catch (exc) {
 			logger?.error(exc);
 			const bad: IPackageSpecResponse = {
@@ -112,7 +112,7 @@ export class GitRegistry implements IRegistry {
 				valid: false,
 				error: new RegistryResponseCouldNotBeParsed()
 			};
-			return new RepositoriesResponse({ data: bad });
+			return new ProvidersResponse({ data: bad });
 		}
 	}
 

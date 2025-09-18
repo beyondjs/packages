@@ -1,5 +1,5 @@
 {
-	"subpath": "registries",
+	"subpath": "providers",
 	"bundle": "ts",
 	"files": "*"
 }

@@ -14,11 +14,8 @@ export /*bundle*/ type SemverProviderType =
 	| 'custom-registry'; // any other npm-compatible host
 
 /**
- * Git-based providers (source deps).
- */
-export /*bundle*/ type GitProviderType = 'github' | 'gitlab' | 'bitbucket' | 'custom-git'; // any other git host
-
-/**
  * Unified provider type.
  */
-export /*bundle*/ type ProviderType = SemverProviderType | GitProviderType;
+export /*bundle*/ type ProviderType = SemverProviderType | GitProviderType | 'url'; // 'url' for direct tarball URLs
+
+// GitProviderType is now defined in @beyond-js/packages/registries

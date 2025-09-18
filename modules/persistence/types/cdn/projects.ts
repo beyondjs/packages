@@ -1,13 +1,13 @@
 import type { ICollection } from '@beyond-js/packages/persistence/types';
-import type { IRepositoryAuthData } from '@beyond-js/packages/repositories/types';
+import type { IProviderAuthData } from '@beyond-js/packages/providers/types';
 
-export /*bundle*/ interface ICdnRepositoriesSettings {
+export /*bundle*/ interface ICdnProvidersSettings {
 	default: {
 		host: string; // e.g., 'registry.mycompany.com' | 'registry.npmjs.org'
-		auth: IRepositoryAuthData;
+		auth: IProviderAuthData;
 	};
 	scopes: Record<string, string>; // e.g., {'@myorg': 'registry.mycompany.com', '@internal': 'registry.dev.com'}
-	hosts: Record<string, IRepositoryAuthData>; // e.g., {'registry.mycompany.com': {mode: 'token', token: 'abcdef}}
+	hosts: Record<string, IProviderAuthData>; // e.g., {'registry.mycompany.com': {mode: 'token', token: 'abcdef}}
 }
 
 export /*bundle*/ interface IProjectData {
@@ -20,7 +20,7 @@ export /*bundle*/ interface IProjectData {
 		updated?: { at: number };
 		deleted?: { at: number };
 	};
-	repositories: ICdnRepositoriesSettings;
+	providers: ICdnProvidersSettings;
 }
 
 export /*bundle*/ type Projects = ICollection<IProjectData>;

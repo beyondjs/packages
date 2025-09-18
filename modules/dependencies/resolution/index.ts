@@ -1,51 +1,48 @@
-import type { IGitIdentifier, IPackageResolution, RepositoryType } from '@beyond-js/packages/repositories/types';
-import { PackageResolutionType } from '@beyond-js/packages/repositories/types';
+import type { DependencyResolutionType } from './types';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import { ResolutionIsType } from './types';
 import { Semver } from './semver';
-import { GitParser } from './git';
+import { GitProvider } from './git';
 
 /**
  * Resolves and interprets a dependency version specifier declared in a package.json.
- * Determines the resolution type (semver, tarball, git, etc.) and extracts relevant metadata.
+ * Determines the resolution type (semver, git, etc.) and extracts relevant metadata.
  */
-export /*bundle*/ class DependencyResolution implements IPackageResolution {
-	// 'semver', 'git', 'url', 'unknown'
-	#is?: PackageResolutionType;
-	get is() {
-		return this.#is;
-	}
-
-	// Repository type: 'default', 'npm', 'github', 'github-pkg', etc.
-	#type: RepositoryType;
-	get type() {
-		return this.#type;
-	}
-
-	// The package name (with scope if applicable)
+export /*bundle*/ class DependencyResolution {
+	/**
+	 * Full package name as defined in package.json.
+	 * Includes scope if applicable (e.g., '@beyond-js/http', 'lodash').
+	 */
 	#package: string;
 	get package() {
 		return this.#package;
 	}
 
-	// Extracted scope (if any, with the '@')
+	/**
+	 * Optional extracted scope from the package name (with the '@').
+	 * For '@beyond-js/http', this would be '@beyond-js'.
+	 * Omitted for unscoped packages.
+	 */
 	#scope?: string;
 	get scope() {
 		return this.#scope;
 	}
 
-	// The raw version specifier as declared in package.json
+	/**
+	 * Raw version string as declared in package.json.
+	 * Examples:
+	 * - '^1.2.0' (semver)
+	 * - 'github:user/repo#v1.0.0' (git)
+	 * - 'https://cdn.example.com/pkg.tgz' (tarball)
+	 */
 	#version: string;
 	get version() {
 		return this.#version;
 	}
 
-	#git?: IGitIdentifier;
-	get git() {
-		return this.#git;
-	}
-
-	#error?: { code: string; text: string };
-	get error() {
-		return this.#error;
+	#resolution: DependencyResolutionType;
+	get resolution() {
+		return this.#resolution;
 	}
 
 	/**
@@ -57,57 +54,42 @@ export /*bundle*/ class DependencyResolution implements IPackageResolution {
 	 */
 	constructor(pkg: string, version: string) {
 		this.#package = pkg;
+		this.#scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
 		this.#version = version;
 
-		// Alias resolution (e.g., "npm:lodash@^4.17.0")
-		if (version.startsWith('npm:')) {
-			const [, target] = version.split(':');
-			const [, aliasVersion] = target.split('@');
-			this.#is = PackageResolutionType.Semver;
-			this.#repository = 'default';
-			this.#semver = aliasVersion || '*';
+		// Semver resolution (e.g., "^1.0.0", "~2.3.4")
+		if (Semver.is(version)) {
+			this.#resolution = { is: ResolutionIsType.Semver };
+			return;
+		}
+
+		// Git resolution (shorthand or git+ protocol)
+		const git = new GitProvider(version);
+		if (git) {
+			this.#resolution = { is: ResolutionIsType.Git, git };
 			return;
 		}
 
 		// Tarball resolution (e.g., "https://.../mypackage.tgz")
 		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
-			this.#is = PackageResolutionType.Url;
+			this.#resolution = { is: ResolutionIsType.Url, url: version };
 			return;
 		}
 
-		// Git resolution (shorthand or git+ protocol)
-		const parsed = GitParser.parse(version);
-		if (parsed) {
-			this.#is = PackageResolutionType.Git;
-			this.#git = {
-				host: parsed.host,
-				owner: parsed.owner,
-				repo: parsed.repo,
-				ref: parsed.ref
-			};
-			this.#repository = parsed.repository;
-			return;
-		}
-
-		// Semver resolution (e.g., "^1.0.0", "~2.3.4")
-		if (Semver.is(version)) {
-			this.#is = PackageResolutionType.Semver;
-			this.#semver = version;
-			this.#repository = 'default';
-
-			if (name.startsWith('@')) {
-				const [scope, pkg] = name.slice(1).split('/');
-				this.#scope = scope;
-				this.#name = pkg;
-			}
+		// Alias resolution (e.g., "npm:lodash@^4.17.0")
+		if (version.startsWith('npm:')) {
+			const [, target] = version.split(':');
+			this.#resolution = { is: ResolutionIsType.Alias, target };
 			return;
 		}
 
 		// Fallback: invalid or unsupported version specifier
-		this.#is = PackageResolutionType.Unknown;
-		this.#error = {
-			code: 'INVALID_SPECIFIER',
-			text: `The version specifier '${version}' is not recognized.`
+		this.#resolution = {
+			is: ResolutionIsType.Error,
+			error: {
+				code: 'INVALID_SPECIFIER',
+				message: `The version specifier '${version}' is not recognized.`
+			}
 		};
 	}
 }

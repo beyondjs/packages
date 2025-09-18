@@ -1,5 +1,5 @@
 {
-	"name": "repositories/response",
+	"name": "providers/response",
 	"platforms": ["node"],
 	"bundle": "ts",
 	"files": "*"

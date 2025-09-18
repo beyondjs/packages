@@ -1,6 +1,6 @@
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
-import type { ICdnRepositoriesSettings } from '@beyond-js/packages/persistence/types/cdn';
-import type { IRepositoriesSettings } from '../../types';
+import type { IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { ICdnProvidersSettings } from '@beyond-js/packages/persistence/types/cdn';
+import type { IProvidersSettings } from '../../types';
 
 /**
  * Interface for the credentials needed to access Firestore-based settings.
@@ -14,18 +14,18 @@ export interface CdnCredentials {
 /**
  * Firestore-based repository settings loader.
  */
-export class DbSettingsLoader implements IRepositoriesSettings {
+export class DbSettingsLoader implements IProvidersSettings {
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
 		return this.#scopes;
 	}
 
-	#hosts: Map<string, IRepositoryAuth> = new Map();
+	#hosts: Map<string, IProviderAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
-	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
+	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}
@@ -43,7 +43,7 @@ export class DbSettingsLoader implements IRepositoriesSettings {
 		// TODO: Load document from Firestore collection using `credentials.account` and `credentials.project`
 		// Verify permissions using `credentials.token`
 		// Expected document structure:
-		const data: ICdnRepositoriesSettings = {
+		const data: ICdnProvidersSettings = {
 			default: {
 				host: 'registry.mycompany.com',
 				auth: {

@@ -1,11 +1,11 @@
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
-import type { IRepositoriesSettings } from '../../types';
+import type { IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IProvidersSettings } from '../../types';
 import { LocalSettingsFiles } from './files';
 
 /**
  * Load registry and scope configurations from local .npmrc files.
  */
-export class LocalLoader implements IRepositoriesSettings {
+export class LocalLoader implements IProvidersSettings {
 	// Scopes to registry mapping: the key is the scope and the value is the repository host
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
@@ -13,13 +13,13 @@ export class LocalLoader implements IRepositoriesSettings {
 	}
 
 	// The hosts map: the key is the host and the value is the repository auth type
-	#hosts: Map<string, IRepositoryAuth> = new Map();
+	#hosts: Map<string, IProviderAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
 	// The default repository host
-	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
+	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}

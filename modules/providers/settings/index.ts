@@ -1,5 +1,5 @@
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
-import type { IRepositoriesSettings } from './types';
+import type { IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IProvidersSettings } from './types';
 import { TokenTools } from './tools';
 
 // Import the loaders
@@ -7,7 +7,7 @@ import { LocalLoader } from './loaders/local';
 import { VarsSettingsLoader } from './loaders/vars';
 import { DbSettingsLoader, type CdnCredentials } from './loaders/db';
 
-export /*bundle*/ interface IRepositoriesSettingsOptions {
+export /*bundle*/ interface IProvidersSettingsOptions {
 	path?: string; // Optional context path for local settings
 	workspace?: string; // Optional workspace for local settings
 	cdn?: {
@@ -15,35 +15,35 @@ export /*bundle*/ interface IRepositoriesSettingsOptions {
 	};
 }
 
-export /*bundle*/ class RepositoriesSettings implements IRepositoriesSettings {
-	#options: IRepositoriesSettingsOptions;
+export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
+	#options: IProvidersSettingsOptions;
 	get options() {
 		return this.#options;
 	}
 
-	// Scopes to registry mapping: the key is the scope and the value is the repository host
+	// Scopes to registry mapping: the key is the scope and the value is the provider host
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
 		return this.#scopes;
 	}
 
-	// The hosts map: the key is the host and the value is the repository auth type
-	#hosts: Map<string, IRepositoryAuth> = new Map();
+	// The hosts map: the key is the host and the value is the provider auth type
+	#hosts: Map<string, IProviderAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
-	// The default repository host
-	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
+	// The default provider host
+	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}
 
-	constructor(options: IRepositoriesSettingsOptions = {}) {
+	constructor(options: IProvidersSettingsOptions = {}) {
 		this.#options = options;
 	}
 
-	#merge(settings: IRepositoriesSettings) {
+	#merge(settings: IProvidersSettings) {
 		// Merge scopes
 		for (const [scope, host] of settings.scopes) {
 			this.#scopes.set(scope, host);

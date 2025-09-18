@@ -1,7 +1,7 @@
-# Repository & Registry Settings System
+# Provider & Registry Settings System
 
-This document explains **how we load, normalize, merge, and expose configuration** for NPM–style package repositories
-and their registries from multiple sources:
+This document explains **how we load, normalize, merge, and expose configuration** for NPM–style package providers and
+their registries from multiple sources:
 
 1. Local `.npmrc` files (project, workspace, user, global)
 2. Environment variables (CI / runtime overrides)
@@ -13,25 +13,25 @@ It is written so that **someone with zero prior `.npmrc` knowledge** can underst
 
 ## 1. Core Concepts
 
-| Term           | Meaning                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------ |
-| **Repository** | A logical package source (e.g. "npm", "internal", "github-pkg"). It _may_ expose a registry protocol.  |
-| **Registry**   | An interface that can return: `versions(pkg)` and `spec(pkg, version)` (i.e. metadata & package JSON). |
-| **Scope**      | A namespace prefix in package names: `@scope/name`. Scopes can map to different repositories/hosts.    |
-| **Host**       | Network host part of a registry URL (e.g. `registry.npmjs.org`, `custom.repo.io`).                     |
-| **Auth**       | Credentials attached either to a host (scoped or global) or implicitly to the _default repository_.    |
-| **Default**    | The repository / host used for any package **without an explicit scope mapping**.                      |
+| Term         | Meaning                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------ |
+| **Provider** | A logical package source (e.g. "npm", "internal", "github-pkg"). It _may_ expose a registry protocol.  |
+| **Registry** | An interface that can return: `versions(pkg)` and `spec(pkg, version)` (i.e. metadata & package JSON). |
+| **Scope**    | A namespace prefix in package names: `@scope/name`. Scopes can map to different providers/hosts.       |
+| **Host**     | Network host part of a registry URL (e.g. `registry.npmjs.org`, `custom.repo.io`).                     |
+| **Auth**     | Credentials attached either to a host (scoped or global) or implicitly to the _default provider_.      |
+| **Default**  | The provider / host used for any package **without an explicit scope mapping**.                        |
 
 ---
 
 ## 2. Why a Unified Settings Loader?
 
-Typical NPM-based projects rely on `.npmrc` only. Advanced, multi-environment or poly-repository systems need:
+Typical NPM-based projects rely on `.npmrc` only. Advanced, multi-environment or poly-provider systems need:
 
 -   Deterministic merging (local vs CI overrides).
 -   Centralized distribution of auth (Firestore / secrets backend).
--   Support for multiple repository types (npm, verdaccio, artifactory, custom).
--   Clean abstraction: **Repository** (logical) vs **Registry** (protocol) vs **Scope** (routing) vs **Auth**
+-   Support for multiple provider types (npm, verdaccio, artifactory, custom).
+-   Clean abstraction: **Provider** (logical) vs **Registry** (protocol) vs **Scope** (routing) vs **Auth**
     (credentials).
 
 ---
@@ -41,10 +41,10 @@ Typical NPM-based projects rely on `.npmrc` only. Advanced, multi-environment or
 ### 3.1 Authentication Types
 
 ```ts
-type RepositoryAuthMode = 'token' | 'basic' | 'user-pass';
+type ProviderAuthMode = 'token' | 'basic' | 'user-pass';
 
-interface RepositoryAuthType {
-	mode: RepositoryAuthMode;
+interface ProviderAuthType {
+	mode: ProviderAuthMode;
 	token: string; // raw token, base64 (basic), password (user-pass), or auth token
 	user?: string; // only for user-pass
 	origin: OriginType;
@@ -55,8 +55,8 @@ type OriginType = 'project-rc' | 'workspace-rc' | 'user-rc' | 'global-rc' | 'ci'
 
 3.2 Aggregated Settings Shape (exposed by each loader)
 
-interface IRepositorySettings { default: { host: string; auth?: RepositoryAuthType }; // default repository host scopes:
-Map<string, string>; // scope (@scope) -> host hosts: Map<string, RepositoryAuthType>; // host -> auth }
+interface IProviderSettings { default: { host: string; auth?: ProviderAuthType }; // default provider host scopes:
+Map<string, string>; // scope (@scope) -> host hosts: Map<string, ProviderAuthType>; // host -> auth }
 
 Important: We intentionally separate: • scopes (routing) • hosts (auth map) • default (fallback host + optional auth)
 
@@ -146,7 +146,7 @@ Example:
 
 Parses .npmrc chain: Order (low → high priority inside LocalLoader): global → user → workspace → project
 
-Outputs IRepositorySettings.
+Outputs IProviderSettings.
 
 Key parsing steps: 1. Identify registry=... (default host) 2. Map @scope:registry=... (scope → host) 3. Gather auth
 tokens / basic / user-pass (hosted or default)
@@ -166,7 +166,7 @@ Pseudo-sequence:
 const local = await new LocalLoader().process(...); const env = await new EnvLoader().process(); const remote = await
 new FirestoreLoader().process(docRef);
 
-const merged: IRepositorySettings = mergeSettings(local, env, remote);
+const merged: IProviderSettings = mergeSettings(local, env, remote);
 
 9.1 Conflict Rules
 
@@ -180,13 +180,13 @@ overwrites same host).
 
 10.1 Resolve Host for a Package
 
-function hostFor(pkg: string, settings: IRepositorySettings): string { if (pkg.startsWith('@')) { const scope =
+function hostFor(pkg: string, settings: IProviderSettings): string { if (pkg.startsWith('@')) { const scope =
 pkg.split('/')[0]; const scoped = settings.scopes.get(scope); if (scoped) return scoped; } return settings.default.host;
 }
 
 10.2 Resolve Auth for a Host
 
-function authFor(host: string, settings: IRepositorySettings): RepositoryAuthType | undefined { if (host ===
+function authFor(host: string, settings: IProviderSettings): ProviderAuthType | undefined { if (host ===
 settings.default.host && settings.default.auth) return settings.default.auth; return settings.hosts.get(host); }
 
 ⸻
@@ -218,9 +218,9 @@ Auth: • Firestore provides token for secure.repo.local → final auth: fireX.
 
 12. Extension Points
 
-Need Strategy Add new source (e.g. S3) Implement IRepositorySettings loader with process() returning the structure.
-Inject repository type mapping Add a resolver that maps host → RepositoryType. Support encryption Decrypt tokens in
-loader before populating hosts. Custom precedence Reorder loader invocation.
+Need Strategy Add new source (e.g. S3) Implement IProviderSettings loader with process() returning the structure. Inject
+provider type mapping Add a resolver that maps host → ProviderType. Support encryption Decrypt tokens in loader before
+populating hosts. Custom precedence Reorder loader invocation.
 
 ⸻
 
@@ -263,7 +263,7 @@ Host username	^\/\/([^/]+)\/?:username=(.+)$ Host password lookup ^//HOST/:passw
 
 17. Minimal Code Snippet (Load All)
 
-async function loadAll(): Promise<IRepositorySettings> { const local = new LocalLoader(); await
+async function loadAll(): Promise<IProviderSettings> { const local = new LocalLoader(); await
 local.process(process.cwd());
 
     const env = new EnvLoader();
@@ -283,5 +283,5 @@ local.process(process.cwd());
 The system produces a unified, explicit, minimal surface: • default.host (+ optional default.auth) • scopes: Map<scope,
 host> • hosts: Map<host, auth>
 
-Everything else (repository type inference, registry instantiation, scope routing, dependency resolution) builds on top
-of this consistent foundation.
+Everything else (provider type inference, registry instantiation, scope routing, dependency resolution) builds on top of
+this consistent foundation.

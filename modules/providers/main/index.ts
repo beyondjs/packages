@@ -1,8 +1,8 @@
 import type { DependencyResolution } from '@beyond-js/packages/dependencies/resolution';
-import type { RepositoriesSettings } from '@beyond-js/packages/repositories/settings';
+import type { RepositoriesSettings } from '@beyond-js/packages/providers/settings';
 import type { IPackageSpecResponse } from './types';
-import { PackageResolutionType } from '@beyond-js/packages/repositories/types';
-import { RepositoriesResponse } from '@beyond-js/packages/repositories/response';
+import { PackageResolutionType } from '@beyond-js/packages/providers/types';
+import { RepositoriesResponse } from '@beyond-js/packages/providers/response';
 import type { Logger } from '@beyond-js/packages/logs';
 import { SemverRegistry } from './semver';
 

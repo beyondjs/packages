@@ -1,4 +1,4 @@
-import type { OriginType } from '@beyond-js/packages/repositories/types';
+import type { OriginType } from '@beyond-js/packages/providers/types';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as os from 'os';

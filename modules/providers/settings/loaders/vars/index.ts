@@ -1,5 +1,5 @@
-import type { IRepositoryAuth } from '@beyond-js/packages/repositories/types';
-import type { IRepositoriesSettings } from '../../types';
+import type { IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IProvidersSettings } from '../../types';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -7,18 +7,18 @@ dotenv.config();
 /**
  * Load repository and scope configurations from environment variables for CI environments.
  */
-export class VarsSettingsLoader implements IRepositoriesSettings {
+export class VarsSettingsLoader implements IProvidersSettings {
 	#scopes: Map<string, string> = new Map();
 	get scopes() {
 		return this.#scopes;
 	}
 
-	#hosts: Map<string, IRepositoryAuth> = new Map();
+	#hosts: Map<string, IProviderAuth> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
 
-	#default: { host: string; auth?: IRepositoryAuth } = { host: 'registry.npmjs.org' };
+	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
 	get default() {
 		return this.#default;
 	}
