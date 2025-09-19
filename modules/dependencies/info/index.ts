@@ -1,6 +1,6 @@
 import type { DependencyInfoType } from './types';
 import { InfoIsType } from './types';
-import { Semver } from './semver';
+import * as semver from 'semver';
 import { GitInfo } from './git';
 
 /**
@@ -57,7 +57,7 @@ export /*bundle*/ class DependencyInfo {
 		this.#version = version;
 
 		// Semver data (e.g., "^1.0.0", "~2.3.4")
-		if (Semver.is(version)) {
+		if (semver.valid(version) || semver.validRange(version)) {
 			this.#data = { is: InfoIsType.Semver };
 			return;
 		}

@@ -40,8 +40,18 @@ export class DependencyPackage {
 	async initialize() {
 		if (this.#initialized) return;
 
+		console.log(
+			'Initializing dependency package:',
+			this.#info.package,
+			this.#info.version,
+			this.#info.data.is,
+			this.#info.data.is !== InfoIsType.Semver
+		);
+
+		// Only semver packages have versions and groups
 		if (this.#info.data.is !== InfoIsType.Semver) return;
 
+		// Retrieve the versions of the package
 		const { error, versions } = await this.#providers.semver.versions(this.#info.package);
 		if (error) {
 			this.#initialized = true;
