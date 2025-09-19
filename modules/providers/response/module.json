@@ -1,6 +1,0 @@
-{
-	"name": "providers/response",
-	"platforms": ["node"],
-	"bundle": "ts",
-	"files": "*"
-}

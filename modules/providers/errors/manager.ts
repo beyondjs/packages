@@ -1,6 +1,6 @@
 import { ErrorManager } from '@beyond-js/response/main';
 
-const is = 'packages-repositories-error';
+const is = 'packages-providers-error';
 
 export /*bundle*/ class ProvidersErrorManager extends ErrorManager {
 	get is(): typeof is {

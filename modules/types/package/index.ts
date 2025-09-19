@@ -1,11 +1,30 @@
 import type { BundlersSettingsType } from './bundlers';
 import type { IPackageExports } from './exports';
 
+export /*bundle*/ interface IPackageMetadata {}
+
 export /*bundle*/ interface IPackagePerson {
 	name: string;
 	email?: string;
 	url?: string;
 }
+
+export type IPackageRepository = { type?: string; url?: string; directory?: string };
+
+export /*bundle*/ interface IDist {
+	integrity?: string;
+	shasum?: string;
+	tarball: string;
+	fileCount?: number;
+	unpackedSize?: number;
+	signatures?: Array<{ keyid: string; sig: string }>;
+	// Legacy field in some registries
+	'npm-signature'?: string;
+}
+
+export /*bundle*/ type FundingType = string | { type?: string; url: string } | Array<{ type?: string; url: string }>;
+
+export type BugsType = string | { url?: string; email?: string };
 
 export /*bundle*/ interface IBeyondPackageManifest extends IPackageManifest {
 	bundlers: BundlersSettingsType;
@@ -20,14 +39,14 @@ export /*bundle*/ interface IPackageManifest extends IPackageExports {
 	description?: string;
 	keywords?: string[];
 	homepage?: string;
-	bugs?: string | { url?: string; email?: string };
+	bugs?: BugsType;
 	license?: string;
 	author?: IPackagePerson | string;
 	contributors?: (IPackagePerson | string)[];
-	funding?: string | { type?: string; url?: string };
+	funding?: FundingType;
 
 	// Repository
-	repository?: string | { type?: string; url?: string; directory?: string };
+	repository?: IPackageRepository | string;
 
 	// Files & publishing
 	files?: string[];
@@ -78,6 +97,11 @@ export /*bundle*/ interface IPackageManifest extends IPackageExports {
 	resolutions?: Record<string, string>; // Yarn
 	pnpm?: Record<string, unknown>;
 	overrides?: Record<string, string | Record<string, string>>; // npm 8+
+
+	deprecated?: string;
+
+	// Fields added by the registry to a version's manifest
+	dist?: IDist;
 
 	// Allow other custom fields
 	[key: string]: unknown;

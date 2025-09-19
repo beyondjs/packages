@@ -1,20 +1,18 @@
-import type { IRegistry, IPackageSpecResponse } from './types';
-import type { Logger } from '@beyond-js/packages/logs';
+import type { IProvider, IPackageManifestResponse, IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import type { IProviderAuth } from '@beyond-js/packages/providers/types';
-import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
-import { ProvidersResponse } from '@beyond-js/packages/providers/response';
-import { InvalidRegistryResponse, RegistryResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
+import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/dependencies/info';
+import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 import { AuthHeaders } from './tools';
 
 /**
- * Registry adapter for git-based dependencies.
+ * Provider adapter for git-based dependencies.
  *
  * - Does not clone repositories.
  * - Resolves package.json via provider raw HTTP endpoints (GitHub/GitLab/Bitbucket).
  * - Auth/headers are resolved per request from ProvidersSettings.
  */
-export class GitProvider implements IRegistry {
+export class GitProvider implements IProvider {
 	#settings: ProvidersSettings;
 
 	readonly #name = 'git';
@@ -63,8 +61,8 @@ export class GitProvider implements IRegistry {
 	 * - owner/repo: the repository coordinates
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
-	async spec(dependency: DependencyInfo, logger?: Logger): Promise<ProvidersResponse<IPackageSpecResponse>> {
-		const { host, owner, repo: repoName } = dependency.git;
+	async manifest(dependency: DependencyInfo): Promise<IPackageManifestResponse> {
+		const repo = (<IGitDependencyInfo>dependency.data).git;
 		const ref = repo.ref ?? 'HEAD';
 		const url = this.#url(repo.host, repo.owner, repo.repo, ref);
 		const headers = this.#headers(repo.host);
@@ -73,46 +71,22 @@ export class GitProvider implements IRegistry {
 		try {
 			response = await fetch(url, { headers });
 		} catch (exc) {
-			logger?.error(exc);
-			return new ProvidersResponse({ error: new InvalidRegistryResponse(0) });
+			return { error: new InvalidProviderResponse(0) };
 		}
 
 		if (response.status === 404) {
-			const notFound: IPackageSpecResponse = {
-				host: repo.host,
-				name: repo.repo,
-				version: ref,
-				found: false
-			};
-			return new ProvidersResponse({ data: notFound });
+			return { found: false };
 		}
 
 		if (!response.ok) {
-			return new ProvidersResponse({ error: new InvalidRegistryResponse(response.status) });
+			return { error: new InvalidProviderResponse(response.status) };
 		}
 
 		try {
-			const value = await response.json();
-			const ok: IPackageSpecResponse = {
-				host: repo.host,
-				name: repo.repo,
-				version: ref,
-				found: true,
-				valid: true,
-				value
-			};
-			return new ProvidersResponse({ data: ok });
+			const manifest: IPackageManifest = await response.json();
+			return { manifest };
 		} catch (exc) {
-			logger?.error(exc);
-			const bad: IPackageSpecResponse = {
-				host: repo.host,
-				name: repo.repo,
-				version: ref,
-				found: true,
-				valid: false,
-				error: new RegistryResponseCouldNotBeParsed()
-			};
-			return new ProvidersResponse({ data: bad });
+			return { error: new ProviderResponseCouldNotBeParsed() };
 		}
 	}
 
@@ -120,13 +94,13 @@ export class GitProvider implements IRegistry {
 	 * Build a tarball request (url + headers) for downloading repository archive at a ref.
 	 * This is optional but handy to keep symmetry with semver tarball usage.
 	 */
-	tarball(dependency: DependencyInfo) {
-		const { host, owner, repo: repoName, ref = 'HEAD' } = dependency;
-
+	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
+		const repo = (<IGitDependencyInfo>dependency.data).git;
 		const ref = repo.ref ?? 'HEAD';
-		const h = repo.host.replace(/^www\./, '').toLowerCase();
-		let url: string;
 
+		const h = repo.host.replace(/^www\./, '').toLowerCase();
+
+		let url: string;
 		if (h === 'github.com') {
 			// codeload provides consistent tarballs
 			url = `https://codeload.github.com/${repo.owner}/${repo.repo}/tar.gz/${ref}`;

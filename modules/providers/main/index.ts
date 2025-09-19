@@ -1,9 +1,8 @@
+import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
 import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import type { IPackageSpecResponse } from './types';
 import type { Logger } from '@beyond-js/packages/logs';
 import { InfoIsType } from '@beyond-js/packages/dependencies/info';
-import { ProvidersResponse } from '@beyond-js/packages/providers/response';
 import { SemverRegistry } from './semver';
 
 export /*bundle*/ class Registries extends Map {
@@ -27,11 +26,11 @@ export /*bundle*/ class Registries extends Map {
 	 * @param logger
 	 * @returns
 	 */
-	async versions(dependency: DependencyInfo, logger?: Logger): Promise<ProvidersResponse<string[]>> {
+	async versions(dependency: DependencyInfo, logger?: Logger): Promise<IPackageVersionsResponse> {
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
-				return await this.#semver.versions(dependency.package, dependency.scope, logger);
+				return await this.#semver.versions(dependency.package);
 			default:
 				throw new Error(`Versions retrieval not supported for dependency type: "${is}"`);
 		}
@@ -45,19 +44,15 @@ export /*bundle*/ class Registries extends Map {
 	 * @param logger
 	 * @returns
 	 */
-	async spec(
-		dependency: DependencyInfo,
-		version: string,
-		logger?: Logger
-	): Promise<ProvidersResponse<IPackageSpecResponse>> {
+	async manifest(dependency: DependencyInfo, version: string, logger?: Logger): Promise<IPackageManifestResponse> {
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
-				return this.#semver.spec(dependency.package, version, dependency.scope, logger);
+				return this.#semver.manifest(dependency, version);
 			case InfoIsType.Git:
-				return this.#git.spec(dependency.git!, logger);
+			// return this.#git.manifest(dependency.git!, logger);
 			case InfoIsType.Url:
-				return this.#url.spec(dependency.url!, logger);
+			// return this.#url.manifest(dependency.url!, logger);
 			default:
 				throw new Error(`Unsupported dependency type: ${is}`);
 		}

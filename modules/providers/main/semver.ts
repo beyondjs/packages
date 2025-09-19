@@ -1,11 +1,14 @@
-import type { IProvider, IPackageManifestResponse } from './types';
-import type { IRepositoryAuth } from '@beyond-js/packages/providers/types';
-import type { Logger } from '@beyond-js/packages/logs';
+import type {
+	IProvider,
+	IPackageVersionsResponse,
+	IPackumentResponse,
+	IPackageManifestResponse,
+	IProviderAuth
+} from '@beyond-js/packages/providers/types';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
+import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { PackageRegistryFetcher } from './fetcher';
 import { Cli } from './cil';
-import { ErrorGettingPackageVersions } from '@beyond-js/packages/providers/errors';
-import { ProvidersResponse } from '@beyond-js/packages/providers/response';
 import { AuthHeaders } from './tools';
 
 /**
@@ -24,7 +27,7 @@ export class SemverRegistry implements IProvider {
 	}
 
 	/** Resolve host/auth for given (optional) scope; fallback to default. */
-	#host(scope?: string): { host: string; auth?: IRepositoryAuth } {
+	#host(scope?: string): { host: string; auth?: IProviderAuth } {
 		const def = this.#settings.default?.host ?? 'registry.npmjs.org';
 		const host = scope ? this.#settings.scopes.get(scope) ?? def : def;
 		const auth = this.#settings.hosts.get(host) ?? this.#settings.default?.auth;
@@ -32,72 +35,64 @@ export class SemverRegistry implements IProvider {
 	}
 
 	/** Build headers from auth (if any). */
-	#headers(auth?: IRepositoryAuth, extra: Record<string, string> = {}): Record<string, string> {
+	#headers(auth?: IProviderAuth, extra: Record<string, string> = {}): Record<string, string> {
 		const base = auth ? AuthHeaders.process(auth) : {};
 		return { ...base, ...extra };
 	}
 
-	tarball(name: string): { url: string; headers: Record<string, string> } {
-		const fullname = name;
-		const scope = name.startsWith('@') ? name.split('/')[0] : void 0;
-		name = name.startsWith('@') ? name.split('/')[1] : name;
-
-		const { host, auth } = this.#host(scope);
-		const headers = this.#headers(auth);
-		const url = `https://${host}/${encodeURIComponent(fullname)}/-/${name}.tgz`;
-		return { url, headers };
-	}
-
-	async versions(name: string, logger?: Logger): Promise<ProvidersResponse<string[]>> {
-		const scope = name.startsWith('@') ? name.split('/')[0] : void 0;
-
+	async versions(pkg: string): Promise<IPackageVersionsResponse> {
+		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
 		const { host, auth } = this.#host(scope);
 		const headers = this.#headers(auth);
 
+		// Use CLI for npmjs.org
 		if (host === 'registry.npmjs.org') {
-			const response = await Cli.versions(name, logger);
-			if (!response.error) return response;
+			const { versions, error } = await Cli.versions(pkg);
+			if (!error) return { versions };
 			// fallback to API on CLI failure
 		}
 
 		// Use API (abbreviated packument) to avoid heavy payloads
-		const response = await PackageRegistryFetcher.specs({ host, headers, logger }, name, true);
-
-		// Error from fetcher → bubble up
-		if (response.error) return new ProvidersResponse({ error: response.error });
-
-		// Not found or invalid → empty list
-		if (!response.found || response.valid === false || !response.value) {
-			return new ProvidersResponse({ data: [] });
-		}
+		const { packument, error, found } = await this.packument(pkg, true);
+		if (error || !found) return { error, found };
 
 		// Extract version keys from packument
-		const packument = response.value;
 		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
+		return { versions };
+	}
 
-		return new ProvidersResponse({ data: versions });
+	async packument?(pkg: string, abbreviated?: boolean): Promise<IPackumentResponse> {
+		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
+		const { host, auth } = this.#host(scope);
+		const headers = this.#headers(auth);
+
+		const url = `https://${host}/${encodeURIComponent(pkg)}`;
+		return await PackageRegistryFetcher.packument({ url, headers }, abbreviated);
 	}
 
 	/**
 	 * Fetch package spec (metadata / package.json) for a concrete version or dist-tag.
 	 * Examples for `version`: "1.2.3", "latest", "beta" (NO ranges).
 	 */
-	async spec(
-		name: string,
-		version: string,
-		scope?: string,
-		abbreviated = false,
-		logger?: Logger
-	): Promise<ProvidersResponse<IPackageManifestResponse>> {
+	async manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse> {
+		const { package: pkg } = dependency;
+		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
 		const { host, auth } = this.#host(scope);
 		const headers = this.#headers(auth);
 
-		const response = await PackageRegistryFetcher.spec({ host, headers, logger }, name, scope);
+		const url = `https://${host}/${encodeURIComponent(pkg)}/${encodeURIComponent(version)}`;
+		return await PackageRegistryFetcher.manifest({ url, headers });
+	}
 
-		if (response.error) {
-			return new ProvidersResponse({ error: response.error });
-		} else {
-			return new ProvidersResponse({ data: response });
-		}
+	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
+		const { package: pkg } = dependency;
+		const fullname = pkg;
+		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
+		const name = pkg.startsWith('@') ? pkg.split('/')[1] : pkg;
+
+		const { host, auth } = this.#host(scope);
+		const headers = this.#headers(auth);
+		const url = `https://${host}/${encodeURIComponent(fullname)}/-/${name}.tgz`;
+		return { url, headers };
 	}
 }

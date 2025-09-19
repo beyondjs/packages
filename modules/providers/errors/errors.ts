@@ -2,8 +2,8 @@ import { ProvidersErrorManager } from './manager';
 
 export /*bundle*/ enum ErrorCodes {
 	internalServerError = 1,
-	invalidRegistryResponse,
-	registryResponseCouldNotBeParsed,
+	invalidProviderResponse,
+	providerResponseCouldNotBeParsed,
 	errorGettingPackageVersions
 }
 
@@ -14,17 +14,17 @@ export /*bundle*/ class InternalServerError extends ProvidersErrorManager {
 	}
 }
 
-export /*bundle*/ class InvalidRegistryResponse extends ProvidersErrorManager {
+export /*bundle*/ class InvalidProviderResponse extends ProvidersErrorManager {
 	constructor(status?: number) {
-		const code = ErrorCodes.invalidRegistryResponse;
+		const code = ErrorCodes.invalidProviderResponse;
 		super(code, 'Error fetching package from NPM repository' + ` with status: ${status}`);
 	}
 }
 
-export /*bundle*/ class RegistryResponseCouldNotBeParsed extends ProvidersErrorManager {
+export /*bundle*/ class ProviderResponseCouldNotBeParsed extends ProvidersErrorManager {
 	constructor() {
-		const code = ErrorCodes.registryResponseCouldNotBeParsed;
-		super(code, `registry response couldn't be parsed`);
+		const code = ErrorCodes.providerResponseCouldNotBeParsed;
+		super(code, `Provider response couldn't be parsed`);
 	}
 }
 
