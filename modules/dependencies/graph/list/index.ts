@@ -1,19 +1,19 @@
-import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { Providers } from '@beyond-js/packages/providers';
 import type { DependenciesNode } from '../node';
 import { DependencyPackage } from './package';
 
 export class DependenciesList extends Map<string, DependencyPackage> {
-	#registries: Registries;
+	#providers: Providers;
 
-	constructor(registries: Registries) {
+	constructor(providers: Providers) {
 		super();
-		this.#registries = registries;
+		this.#providers = providers;
 	}
 
 	async register(node: DependenciesNode) {
 		const { pkg } = node;
 
-		const dependency = this.has(pkg) ? this.get(pkg) : new DependencyPackage(this.#registries, pkg);
+		const dependency = this.has(pkg) ? this.get(pkg) : new DependencyPackage(this.#providers, node.info);
 		!dependency.initialized && (await dependency.initialize());
 
 		const consumer = dependency.register(node);

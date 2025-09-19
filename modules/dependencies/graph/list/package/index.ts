@@ -1,17 +1,18 @@
 import type { DependenciesNode } from '../../node';
-import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { Providers } from '@beyond-js/packages/providers';
 import { Groups } from './groups';
-import { RepositoriesErrorManager } from '@beyond-js/packages/repositories/errors';
+import { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
+import { DependencyInfo, InfoIsType } from '@beyond-js/packages/dependencies/info';
 
 export class DependencyPackage {
-	#registries: Registries;
+	#providers: Providers;
 
-	#pkg: string;
-	get pkg() {
-		return this.#pkg;
+	#info: DependencyInfo;
+	get info() {
+		return this.#info;
 	}
 
-	#versions: string[];
+	#versions?: string[];
 	get versions() {
 		return this.#versions;
 	}
@@ -26,27 +27,30 @@ export class DependencyPackage {
 		return this.#initialized;
 	}
 
-	#error: RepositoriesErrorManager;
+	#error: ProvidersErrorManager;
 	get error() {
 		return this.#error;
 	}
 
-	constructor(registries: Registries, pkg: string) {
-		this.#registries = registries;
-		this.#pkg = pkg;
+	constructor(providers: Providers, info: DependencyInfo) {
+		this.#providers = providers;
+		this.#info = info;
 	}
 
 	async initialize() {
 		if (this.#initialized) return;
-		const response = await this.#registries.npm.versions(this.#pkg);
-		if (response.error) {
+
+		if (this.#info.data.is !== InfoIsType.Semver) return;
+
+		const { error, versions } = await this.#providers.semver.versions(this.#info.package);
+		if (error) {
 			this.#initialized = true;
-			this.#error = response.error;
+			this.#error = error;
 			return;
 		}
 
-		this.#versions = response.data;
-		this.#groups = new Groups(response.data);
+		this.#versions = versions;
+		this.#groups = new Groups(versions);
 		this.#initialized = true;
 	}
 

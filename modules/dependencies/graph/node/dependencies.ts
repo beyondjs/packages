@@ -1,10 +1,10 @@
-import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { Providers } from '@beyond-js/packages/providers';
 import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import type { DependenciesList } from '../list';
 import type { DependenciesNode } from '.';
 
 export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
-	#registries: Registries;
+	#providers: Providers;
 	#node: DependenciesNode;
 	#list: DependenciesList;
 
@@ -26,11 +26,11 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 		return true;
 	}
 
-	constructor(node: DependenciesNode, registries: Registries, list: DependenciesList) {
+	constructor(node: DependenciesNode, providers: Providers, list: DependenciesList) {
 		super();
 
 		this.#node = node;
-		this.#registries = registries;
+		this.#providers = providers;
 		this.#list = list;
 	}
 
@@ -59,7 +59,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 		const Node: typeof DependenciesNode = m.DependenciesNode;
 
 		for (const [name, { version }] of spec) {
-			const node = new Node(this.#registries, this.#list, name, version, this.#node);
+			const node = new Node(this.#providers, this.#list, name, version, this.#node);
 			await node.register();
 			this.set(name, node);
 		}

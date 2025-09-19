@@ -29,8 +29,6 @@ export /*bundle*/ class Providers extends Map {
 	 * Retrieves the available versions for a given dependency.
 	 *
 	 * @param dependency The dependency info as it is defined in package.json
-	 * @param version The version specifier as it is defined in package.json
-	 * @param logger
 	 * @returns
 	 */
 	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {

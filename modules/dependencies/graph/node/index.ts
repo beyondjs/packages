@@ -1,12 +1,13 @@
 import type { ErrorManager } from '@beyond-js/response/main';
-import type { Registries } from '@beyond-js/packages/repositories/registries';
+import type { Providers } from '@beyond-js/packages/providers';
 import type { DependenciesList } from '../list';
+import { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 
 export class DependenciesNode {
-	#registries: Registries;
+	#providers: Providers;
 	#list: DependenciesList;
 
 	#pkg: string;
@@ -17,6 +18,11 @@ export class DependenciesNode {
 	#version: Version;
 	get version() {
 		return this.#version;
+	}
+
+	#info: DependencyInfo;
+	get info() {
+		return this.#info;
 	}
 
 	#parent?: DependenciesNode;
@@ -44,23 +50,18 @@ export class DependenciesNode {
 		return this.#error;
 	}
 
-	constructor(
-		registries: Registries,
-		list: DependenciesList,
-		pkg: string,
-		version: string,
-		parent?: DependenciesNode
-	) {
-		if (!registries || !list || !pkg || !version) {
-			throw new Error('Registries, list, pkg and version are required parameters');
+	constructor(providers: Providers, list: DependenciesList, pkg: string, version: string, parent?: DependenciesNode) {
+		if (!providers || !list || !pkg || !version) {
+			throw new Error('Providers, list, pkg and version are required parameters');
 		}
 
-		this.#registries = registries;
+		this.#providers = providers;
 		this.#list = list;
 		this.#pkg = pkg;
-		this.#parent = parent;
 		this.#version = new Version(version);
-		this.#dependencies = new NodeDependencies(this, registries, list);
+		this.#info = new DependencyInfo(pkg, version);
+		this.#parent = parent;
+		this.#dependencies = new NodeDependencies(this, providers, list);
 
 		this.#version.on('change', this.invalidate.bind(this));
 	}
@@ -97,10 +98,10 @@ export class DependenciesNode {
 		const version = this.#version;
 		if (version.error) return done({ error: version.error });
 
-		const spec = await this.#registries.npm.spec(this.#pkg, this.#version.resolved);
-		if (spec.error) return done({ error: spec.error });
+		const { error, manifest } = await this.#providers.manifest(this.#info, this.#version.resolved);
+		if (error) return done({ error });
 
-		const dependencies = new DependenciesSpec(spec.data.value);
+		const dependencies = new DependenciesSpec(manifest);
 		await this.#dependencies.process(dependencies);
 		return done({});
 	}

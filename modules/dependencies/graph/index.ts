@@ -1,18 +1,18 @@
-import type { Registries } from '@beyond-js/packages/repositories/registries';
-import type { IPackageSpec, IDependenciesSpec } from '@beyond-js/packages/repositories/types';
+import type { Providers } from '@beyond-js/packages/providers';
+import type { IPackageManifest } from '@beyond-js/packages/types';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import { Logger } from '@beyond-js/packages/logs';
 import { DependenciesList } from './list';
 import { DependenciesNode } from './node';
 
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
-	registries: Registries;
-	spec: IPackageSpec;
+	providers: Providers;
+	manifest: IPackageManifest;
 	workspace?: { name: string; version: string }[];
 }
 
 export /*bundle*/ class DependenciesGraph extends DependenciesNode {
-	#spec?: IDependenciesSpec;
+	#manifest?: IPackageManifest;
 
 	#workspace?: { name: string; version: string }[];
 	get workspace() {
@@ -33,14 +33,14 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 		return this.dependencies.completed;
 	}
 
-	constructor({ registries, spec, workspace }: IDependenciesGraphConstructorParams) {
-		if (!registries || !spec) throw new Error('Registries and spec are required parameters');
+	constructor({ providers, manifest, workspace }: IDependenciesGraphConstructorParams) {
+		if (!providers || !manifest) throw new Error('Providers and manifest are required parameters');
 
-		const list = new DependenciesList(registries);
-		const { name, version } = spec;
-		super(registries, list, name, version);
+		const list = new DependenciesList(providers);
+		const { name, version } = manifest;
+		super(providers, list, name, version);
 
-		this.#spec = spec;
+		this.#manifest = manifest;
 		this.#workspace = workspace;
 		this.#list = list;
 		this.#logger = new Logger({ console: true });
@@ -61,10 +61,10 @@ export /*bundle*/ class DependenciesGraph extends DependenciesNode {
 			'peerDependencies'
 		];
 
-		if (deps.every(dep => this.#spec[dep] === void 0)) {
+		if (deps.every(dep => this.#manifest[dep] === void 0)) {
 			await super.process();
 		} else {
-			const dependencies = new DependenciesSpec(this.#spec);
+			const dependencies = new DependenciesSpec(this.#manifest);
 			await this.dependencies.process(dependencies);
 		}
 
