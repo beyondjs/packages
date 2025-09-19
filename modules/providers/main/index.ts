@@ -1,21 +1,28 @@
 import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
 import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import type { Logger } from '@beyond-js/packages/logs';
 import { InfoIsType } from '@beyond-js/packages/dependencies/info';
 import { SemverRegistry } from './semver';
+import { GitProvider } from './git';
 
-export /*bundle*/ class Registries extends Map {
+export /*bundle*/ class Providers extends Map {
 	#semver: SemverRegistry;
 	get semver() {
 		return this.#semver;
 	}
 
+	#git: GitProvider;
+	get git() {
+		return this.#git;
+	}
+
 	constructor(settings: ProvidersSettings) {
 		super();
 		this.#semver = new SemverRegistry(settings);
+		this.#git = new GitProvider(settings);
 
-		super.set('semver', this.#semver);
+		this.set('semver', this.#semver);
+		this.set('git', this.#git);
 	}
 
 	/**
@@ -26,7 +33,7 @@ export /*bundle*/ class Registries extends Map {
 	 * @param logger
 	 * @returns
 	 */
-	async versions(dependency: DependencyInfo, logger?: Logger): Promise<IPackageVersionsResponse> {
+	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
@@ -44,13 +51,13 @@ export /*bundle*/ class Registries extends Map {
 	 * @param logger
 	 * @returns
 	 */
-	async manifest(dependency: DependencyInfo, version: string, logger?: Logger): Promise<IPackageManifestResponse> {
+	async manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse> {
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
-				return this.#semver.manifest(dependency, version);
+				return await this.#semver.manifest(dependency, version);
 			case InfoIsType.Git:
-			// return this.#git.manifest(dependency.git!, logger);
+				return await this.#git.manifest(dependency);
 			case InfoIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:
