@@ -1,4 +1,4 @@
-import type { DependenciesNode } from '../../../node';
+import type { Node } from '../../../node';
 import { Group } from './group';
 import { compare } from 'semver';
 
@@ -10,7 +10,7 @@ export class Groups extends Array<Group> {
 		this.#versions = versions;
 	}
 
-	register(node: DependenciesNode) {
+	register(node: Node) {
 		const done = (group?: Group) => {
 			group = (() => {
 				if (group) return group;
@@ -28,12 +28,12 @@ export class Groups extends Array<Group> {
 		const valid = this.filter(group => group.intersects(node.version.specified));
 		if (!valid.length) return done();
 
-		valid.sort((a, b) => compare(b.max, a.max));
+		valid.sort((a, b) => compare(b.chosen, a.chosen));
 		done(valid[0]);
 	}
 
-	unregister(node: DependenciesNode) {
-		const group = this.find(group => group.find((n: DependenciesNode) => n === node));
+	unregister(node: Node) {
+		const group = this.find(group => group.find((n: Node) => n === node));
 		if (!group) throw new Error('Node in the dependencies tree has not been found in any of its groups');
 
 		group.unregister(node);

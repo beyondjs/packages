@@ -1,30 +1,40 @@
 import * as colors from 'colors';
-import type { DependenciesNode } from '../graph/node';
-import type { DependenciesList } from '../graph/list';
+import type { Node } from '../graph/node';
+import type { Registry } from '../graph/registry';
 
-export /*bundle*/ const tree = function (node: DependenciesNode, prefix = '', isLastChild = true) {
+interface ITreeParams {
+	indent: { prefix: ''; level: 0 };
+	node: { last: boolean };
+}
+
+export /*bundle*/ const tree = function (node: Node, params?: ITreeParams) {
+	params = params || { indent: { prefix: '', level: 0 }, node: { last: false } };
+	let { prefix, level } = params.indent;
+	const { last } = params.node;
+
 	// Print the current node
 	const error = node.error ? ` ERROR [${node.error.text}]`.red : '';
 	const processed = !node.processed ? ' NOT PROCESSED'.yellow : '';
 	const tags = error + processed;
-	const vpkg = `${node.pkg}@${node.version.resolved}`;
+	const vpkg = `${node.package}@${node.version.resolved}`;
 
-	console.log(prefix + (isLastChild ? '└── ' : '├── ') + vpkg + tags);
+	console.log((level ? prefix + (last ? '└── ' : '├── ') : '') + vpkg + tags);
 
-	// Update the prefix for the children
-	prefix += isLastChild ? '    ' : '│   ';
+	// Update the prefix and indent level for the children
+	prefix += level ? '    ' : ' ';
+	level++;
 
 	// Recursively print each child
 	[...node.dependencies.values()].forEach((child, index) => {
-		const isLast = index === node.dependencies.size - 1;
-		this.tree(child, prefix, isLast);
+		const last = index === node.dependencies.size - 1;
+		this.tree(child, { indent: { prefix, level }, node: { last } });
 	});
 };
 
-export /*bundle*/ const packages = function (list: DependenciesList) {
-	list.forEach(dependency => {
+export /*bundle*/ const packages = function (registry: Registry) {
+	registry.packages.forEach(dependency => {
 		let versions: string[] = [];
-		dependency.groups.forEach(group => versions.push(`"${group.max}"`));
-		console.log(dependency.pkg + ': ' + versions.join(', '));
+		dependency.nodes.groups.forEach(group => versions.push(`"${group.chosen}"`));
+		console.log(dependency.info.package + ': ' + versions.join(', '));
 	});
 };

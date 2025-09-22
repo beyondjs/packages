@@ -1,12 +1,12 @@
 import type { Providers } from '@beyond-js/packages/providers';
 import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
-import type { DependenciesList } from '../list';
-import type { DependenciesNode } from '.';
+import type { Registry } from '../registry';
+import type { Node as DependencyNode } from '.';
 
-export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
+export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 	#providers: Providers;
-	#node: DependenciesNode;
-	#list: DependenciesList;
+	#node: DependencyNode;
+	#registry: Registry;
 
 	#processing = false;
 	get processing() {
@@ -26,12 +26,12 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 		return true;
 	}
 
-	constructor(node: DependenciesNode, providers: Providers, list: DependenciesList) {
+	constructor(node: DependencyNode, providers: Providers, packages: Registry) {
 		super();
 
 		this.#node = node;
 		this.#providers = providers;
-		this.#list = list;
+		this.#registry = packages;
 	}
 
 	invalidate() {
@@ -39,7 +39,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 		this.#processed = false;
 
 		this.forEach((node, pkg) => {
-			this.#list.unregister(node);
+			this.#registry.nodes.unregister(node);
 			node.invalidate();
 
 			this.delete(pkg);
@@ -56,10 +56,15 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependenciesNode> {
 		 * Node has to be dynamically required to avoid a cyclical import
 		 */
 		const m = require('./');
-		const Node: typeof DependenciesNode = m.DependenciesNode;
+		const Node: typeof DependencyNode = m.Node;
 
-		for (const [name, { version }] of spec) {
-			const node = new Node(this.#providers, this.#list, name, version, this.#node);
+		for (const [name, { kind, version }] of spec) {
+			const node = new Node({
+				providers: this.#providers,
+				registry: this.#registry,
+				dependency: { kind, package: name, version },
+				parent: this.#node
+			});
 			await node.register();
 			this.set(name, node);
 		}

@@ -1,18 +1,31 @@
 import type { ErrorManager } from '@beyond-js/response/main';
 import type { Providers } from '@beyond-js/packages/providers';
-import type { DependenciesList } from '../list';
+import type { Registry } from '../registry';
+import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
 import { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 
-export class DependenciesNode {
-	#providers: Providers;
-	#list: DependenciesList;
+export interface INodeConstructorParams {
+	providers: Providers;
+	registry: Registry;
+	dependency: { kind: DependencyKind; package: string; version: string };
+	parent?: Node;
+}
 
-	#pkg: string;
-	get pkg() {
-		return this.#pkg;
+export class Node {
+	#providers: Providers;
+	#registry: Registry;
+
+	#kind: DependencyKind;
+	get kind() {
+		return this.#kind;
+	}
+
+	#package: string;
+	get package() {
+		return this.#package;
 	}
 
 	#version: Version;
@@ -25,7 +38,7 @@ export class DependenciesNode {
 		return this.#info;
 	}
 
-	#parent?: DependenciesNode;
+	#parent?: Node;
 	get parent() {
 		return this.#parent;
 	}
@@ -50,18 +63,21 @@ export class DependenciesNode {
 		return this.#error;
 	}
 
-	constructor(providers: Providers, list: DependenciesList, pkg: string, version: string, parent?: DependenciesNode) {
-		if (!providers || !list || !pkg || !version) {
-			throw new Error('Providers, list, pkg and version are required parameters');
+	constructor(params: INodeConstructorParams) {
+		const { providers, registry, dependency, parent } = params;
+		const { kind, package: pkg, version } = dependency;
+
+		if (!providers || !registry || !pkg || !version) {
+			throw new Error('Providers, registry, pkg and version are required parameters');
 		}
 
 		this.#providers = providers;
-		this.#list = list;
-		this.#pkg = pkg;
+		this.#registry = registry;
+		this.#package = pkg;
 		this.#version = new Version(version);
 		this.#info = new DependencyInfo(pkg, version);
 		this.#parent = parent;
-		this.#dependencies = new NodeDependencies(this, providers, list);
+		this.#dependencies = new NodeDependencies(this, providers, registry);
 
 		this.#version.on('change', this.invalidate.bind(this));
 	}
@@ -74,7 +90,7 @@ export class DependenciesNode {
 	}
 
 	async register() {
-		await this.#list.register(this);
+		await this.#registry.nodes.register(this);
 	}
 
 	/**
@@ -93,6 +109,7 @@ export class DependenciesNode {
 			this.#error = error;
 			this.#processing = false;
 			this.#processed = true;
+			console.log('done', this.package, this.version.specified, { error });
 		};
 
 		const version = this.#version;

@@ -1,8 +1,8 @@
-import type { DependenciesNode } from '../../node';
 import type { Providers } from '@beyond-js/packages/providers';
-import { Groups } from './groups';
 import { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
 import { DependencyInfo, InfoIsType } from '@beyond-js/packages/dependencies/info';
+import { PendingPromise } from '@beyond-js/pending-promise/main';
+import { PackageNodes } from './nodes';
 
 export class DependencyPackage {
 	#providers: Providers;
@@ -17,9 +17,9 @@ export class DependencyPackage {
 		return this.#versions;
 	}
 
-	#groups: Groups;
-	get groups() {
-		return this.#groups;
+	#nodes: PackageNodes;
+	get nodes() {
+		return this.#nodes;
 	}
 
 	#initialized = false;
@@ -32,12 +32,21 @@ export class DependencyPackage {
 		return this.#error;
 	}
 
+	#ready: PendingPromise<void>;
+	get ready() {
+		if (this.#ready) return this.#ready;
+		this.#ready = new PendingPromise<void>();
+		this.#initialize().then(() => this.#ready.resolve());
+
+		return this.#ready;
+	}
+
 	constructor(providers: Providers, info: DependencyInfo) {
 		this.#providers = providers;
 		this.#info = info;
 	}
 
-	async initialize() {
+	async #initialize() {
 		if (this.#initialized) return;
 
 		console.log(
@@ -60,18 +69,7 @@ export class DependencyPackage {
 		}
 
 		this.#versions = versions;
-		this.#groups = new Groups(versions);
+		this.#nodes = new PackageNodes(this, versions);
 		this.#initialized = true;
-	}
-
-	register(node: DependenciesNode) {
-		if (!this.#initialized) throw new Error('Dependency not initialized');
-		if (this.#error) throw new Error('Dependency is invalid. Check the .error property');
-
-		return this.#groups.register(node);
-	}
-
-	unregister(node: DependenciesNode) {
-		return this.#groups.unregister(node);
 	}
 }

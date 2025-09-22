@@ -8,9 +8,9 @@ interface IDependencies {
 	overrides?: Record<string, string | Record<string, string>>;
 }
 
-type Kind = 'main' | 'development' | 'peer' | 'optional';
+export /*bundle*/ type DependencyKind = 'main' | 'development' | 'peer' | 'optional';
 
-const priority: Record<Kind, number> = {
+const priority: Record<DependencyKind, number> = {
 	peer: 4,
 	optional: 3,
 	main: 2,
@@ -27,7 +27,7 @@ const priority: Record<Kind, number> = {
  * - raw `overrides`
  * - a list of warnings if the input structure is invalid
  */
-export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; kind: Kind }> {
+export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; kind: DependencyKind }> {
 	#hash?: Hash;
 	get hash(): string {
 		return this.#hash.value;
@@ -46,14 +46,14 @@ export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; 
 	constructor(json: IDependencies) {
 		super();
 
-		const add = (name: string, value: string, kind: Kind) => {
+		const add = (name: string, value: string, kind: DependencyKind) => {
 			const current = this.get(name);
 			if (!current || priority[kind] > priority[current.kind]) {
 				this.set(name, { version: value, kind });
 			}
 		};
 
-		const read = (group: unknown, name: string, kind: Kind) => {
+		const read = (group: unknown, name: string, kind: DependencyKind) => {
 			// Skip undefined or null groups silently (valid case)
 			if (group === void 0 || group === null) return;
 

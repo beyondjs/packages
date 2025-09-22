@@ -1,12 +1,13 @@
-import type { DependenciesNode } from '../../../node';
+import type { Node } from '../../../node';
 import { intersects, maxSatisfying } from 'semver';
 
-export class Group extends Array<DependenciesNode> {
+export class Group extends Array<Node> {
 	#versions: string[];
 
-	#max: string;
-	get max() {
-		return this.#max;
+	// Optional: current chosen version for ideal placement (if you decide)
+	#chosen: string;
+	get chosen() {
+		return this.#chosen;
 	}
 
 	constructor(versions: string[]) {
@@ -24,30 +25,29 @@ export class Group extends Array<DependenciesNode> {
 	#updateMax() {
 		const items = this.map(node => node.version.specified).join(' ');
 
-		// As the versions in the group are all satisfying versions, we can assure that max! is going to be defined
-		const max = maxSatisfying(this.#versions, items)!;
+		const chosen = maxSatisfying(this.#versions, items)!;
 
-		// If max version hasn't changed, just return
-		if (this.#max === max) return;
+		// If chosen version hasn't changed, just return
+		if (this.#chosen === chosen) return;
 
-		this.#max = max;
+		this.#chosen = chosen;
 
-		// Update the new max version to all the nodes in the group
-		this.forEach(node => node.version.resolved !== max && node.version.update({ version: max }));
+		// Update the new chosen version to all the nodes in the group
+		this.forEach(node => node.version.resolved !== chosen && node.version.update({ version: chosen }));
 	}
 
-	register(node: DependenciesNode) {
+	register(node: Node) {
 		const { specified } = node.version;
 		if (!this.intersects(specified)) {
 			throw new Error(`Version "${specified}" doesn't intersect with current group`);
 		}
 
 		this.push(node);
-		node.version.update({ version: this.#max });
+		node.version.update({ version: this.#chosen });
 		this.#updateMax();
 	}
 
-	unregister(node: DependenciesNode) {
+	unregister(node: Node) {
 		this.splice(this.indexOf(node), 1);
 		this.length && this.#updateMax();
 	}
