@@ -1,10 +1,6 @@
-import type { ICollection } from './collection';
-
-export /*bundle*/ type PackageSource = 'npm' | 'github' | 'github-pkg' | 'gitlab' | 'artifactory' | 'url';
-
 export /*bundle*/ interface IPackageData {
 	key: string; // Unique key for the package, e.g., "react@18.2.0" or "github.com/facebook/react@main"
-	host: PackageSource;
+	source: PackageSource;
 
 	name: string; // Full package name with scope if applicable
 	version?: string; // Only for NPM or versioned sources
@@ -14,5 +10,3 @@ export /*bundle*/ interface IPackageData {
 	ref?: string; // Git ref: branch, tag, or commit
 	domain?: string; // For GitHub Packages, Artifactory, etc.
 }
-
-export /*bundle*/ type Packages = ICollection<IPackageData>;

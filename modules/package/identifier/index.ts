@@ -1,4 +1,4 @@
-import type { IGitIdentifier, INpmIdentifier, PackageIdentifierType } from '@beyond-js/packages/repositories/types';
+import type { IGitIdentifier, INpmIdentifier, PackageIdentifierType } from '@beyond-js/packages/types';
 
 export /*bundle*/ class PackageIdentifier {
 	readonly #id: string;

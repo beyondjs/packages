@@ -3,7 +3,7 @@ import { createGunzip } from 'zlib';
 import * as stream from 'stream';
 import * as tar from 'tar-stream';
 import { File } from '@beyond-js/packages/persistence/storage';
-import { Registries } from '@beyond-js/packages/repositories/registries';
+import { Providers } from '@beyond-js/packages/providers';
 
 const { pipeline } = stream.promises;
 const ROOT = 'packages';
@@ -12,7 +12,7 @@ const ROOT = 'packages';
  * Downloads and extracts a tarball into the appropriate storage backend.
  */
 export /*bundle*/ class TarballDownloader {
-	readonly #registries: Registries;
+	readonly #providers: Providers;
 
 	readonly #identifier: PackageIdentifier;
 	get identifier() {
@@ -28,8 +28,8 @@ export /*bundle*/ class TarballDownloader {
 	 * @param identifier - The package identifier object containing its path
 	 * @param url - The URL to the .tar.gz file to download.
 	 */
-	constructor(registries: Registries, identifier: PackageIdentifier, url: string) {
-		this.#registries = registries;
+	constructor(providers: Providers, identifier: PackageIdentifier, url: string) {
+		this.#providers = providers;
 		this.#identifier = identifier;
 		this.#url = url;
 	}

@@ -1,67 +1,51 @@
 import * as sqlite from 'sqlite3';
-import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { promisify } from 'util';
+import { existsSync, mkdirSync } from 'fs';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
-class LocalDB {
+export abstract class DB {
+	#path: string;
 	#db: sqlite.Database;
-	#run: (sql: string, params?: any[]) => Promise<any>;
-	#get: (sql: string, params?: any[]) => Promise<any>;
-	#exec: (sql: string) => Promise<void>;
+
+	_run: (sql: string, params?: any[]) => Promise<any>;
+	_get: (sql: string, params?: any[]) => Promise<any>;
+	_exec: (sql: string) => Promise<void>;
 
 	#ready: PendingPromise<void>;
-
-	constructor() {
-		this.#ready = this.#initialise();
-	}
-
 	get ready(): Promise<void> {
 		return this.#ready;
 	}
 
+	constructor(path: string, file: string) {
+		this.#path = path;
+		this.#ready = new PendingPromise<void>();
+
+		if (!existsSync(path)) mkdirSync(path, { recursive: true });
+		const store = join(path, file);
+		this.#db = new sqlite.Database(store);
+
+		this._run = promisify(this.#db.run.bind(this.#db));
+		this._get = promisify(this.#db.get.bind(this.#db));
+		this._exec = promisify(this.#db.exec.bind(this.#db));
+
+		this._initialise(this.#ready);
+	}
+
+	abstract _initialise(ready: PendingPromise<void>): Promise<void>;
+
 	async run(sql: string, params?: any[]) {
 		await this.#ready;
-		return this.#run(sql, params);
+		return this._run(sql, params);
 	}
 
 	async get(sql: string, params?: any[]) {
 		await this.#ready;
-		return this.#get(sql, params);
+		return this._get(sql, params);
 	}
 
 	async exec(sql: string) {
 		await this.#ready;
-		return this.#exec(sql);
-	}
-
-	#initialise(): PendingPromise<void> {
-		const promise = new PendingPromise<void>();
-
-		const name = 'packages.db';
-		const dir = join(process.cwd(), '.beyond/cache');
-		const store = join(dir, name);
-
-		if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-		this.#db = new sqlite.Database(store);
-		this.#run = promisify(this.#db.run.bind(this.#db));
-		this.#get = promisify(this.#db.get.bind(this.#db));
-		this.#exec = promisify(this.#db.exec.bind(this.#db));
-
-		const collections = ['packages', 'conditionals'];
-
-		let sql = '';
-		collections.forEach(collection => {
-			sql += `CREATE TABLE IF NOT EXISTS ${collection} (id TEXT PRIMARY KEY, data TEXT NOT NULL);\n`;
-		});
-
-		this.#exec(sql)
-			.then(() => promise.resolve())
-			.catch(exc => promise.reject(exc));
-
-		return promise;
+		return this._exec(sql);
 	}
 }
-
-export const db = new LocalDB();

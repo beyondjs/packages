@@ -8,7 +8,6 @@ import type {
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { PackageRegistryFetcher } from './fetcher';
-import { Cli } from './cil';
 import { AuthHeaders } from './tools';
 
 /**
@@ -41,19 +40,8 @@ export class SemverRegistry implements IProvider {
 	}
 
 	async versions(pkg: string): Promise<IPackageVersionsResponse> {
-		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
-		const { host, auth } = this.#host(scope);
-		const headers = this.#headers(auth);
-
-		// Use CLI for npmjs.org
-		if (host === 'registry.npmjs.org') {
-			const { versions, error } = await Cli.versions(pkg);
-			if (!error) return { versions };
-			// fallback to API on CLI failure
-		}
-
 		// Use API (abbreviated packument) to avoid heavy payloads
-		const { packument, error, found } = await this.packument(pkg, true);
+		const { packument, error, found } = await this.packument(pkg);
 		if (error || !found) return { error, found };
 
 		// Extract version keys from packument
@@ -67,7 +55,7 @@ export class SemverRegistry implements IProvider {
 		const headers = this.#headers(auth);
 
 		const url = `https://${host}/${encodeURIComponent(pkg)}`;
-		return await PackageRegistryFetcher.packument({ url, headers }, abbreviated);
+		return await PackageRegistryFetcher.packument({ url, headers });
 	}
 
 	/**

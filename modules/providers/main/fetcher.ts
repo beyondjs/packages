@@ -49,9 +49,8 @@ export /*bundle*/ class PackageRegistryFetcher {
 	 *
 	 * - When `abbreviated` is true, sends Accept: application/vnd.npm.install-v1+json to reduce payload size.
 	 */
-	static async packument(rq: IFetchRq, abbreviated: boolean): Promise<IPackumentResponse> {
-		const base = rq.headers ?? {};
-		const headers = abbreviated ? { ...base, Accept: 'application/vnd.npm.install-v1+json' } : base;
+	static async packument(rq: IFetchRq): Promise<IPackumentResponse> {
+		const headers = { ...(rq.headers ?? {}), Accept: 'application/vnd.npm.install-v1+json' };
 
 		const { url } = rq;
 		let response: Response;
@@ -75,6 +74,7 @@ export /*bundle*/ class PackageRegistryFetcher {
 
 		try {
 			const packument: IPackument = await response.json();
+			console.log('Packument', packument);
 			return { packument, found: true };
 		} catch (exc) {
 			const error = new ProviderResponseCouldNotBeParsed();

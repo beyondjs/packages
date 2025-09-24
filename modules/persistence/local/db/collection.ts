@@ -1,29 +1,38 @@
-import { db } from './db';
-import { ICollection } from '@beyond-js/packages/persistence/types';
+import type { ICollection } from '@beyond-js/packages/persistence/types';
+import type { DB } from './db';
+import { WorspaceDB } from './workspace';
+import { GlobalDB } from './global';
+
+export /*bundle*/ const dbs = {
+	workspace: new WorspaceDB(),
+	global: new GlobalDB()
+};
 
 export class Collection<IItemData> implements ICollection<IItemData> {
 	#name: string;
+	#db: DB;
 
-	constructor(name: string) {
+	constructor(name: string, global = false) {
 		this.#name = name;
+		this.#db = global ? dbs.global : dbs.workspace;
 	}
 
 	async get(params: { id: string }): Promise<IItemData | void> {
 		const { id } = params;
 		const sql = `SELECT data FROM ${this.#name} WHERE id = ?`;
-		const result = await db.get(sql, [id]);
+		const result = await this.#db.get(sql, [id]);
 		return result ? JSON.parse(result.data) : undefined;
 	}
 
 	async set(params: { id: string; data: IItemData }): Promise<void> {
 		const { id, data } = params;
 		const sql = `INSERT OR REPLACE INTO ${this.#name} (id, data) VALUES (?, ?)`;
-		await db.run(sql, [id, JSON.stringify(data)]);
+		await this.#db.run(sql, [id, JSON.stringify(data)]);
 	}
 
 	async delete(params: { id: string }): Promise<void> {
 		const { id } = params;
 		const sql = `DELETE FROM ${this.#name} WHERE id = ?`;
-		await db.run(sql, [id]);
+		await this.#db.run(sql, [id]);
 	}
 }
