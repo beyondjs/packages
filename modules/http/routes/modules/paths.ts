@@ -1,26 +1,24 @@
-import type { IOptions } from './';
+import type { Options } from './options';
 import { createHash } from 'crypto';
-
-function vspecifier(o: IOptions): string {
-	return (o.scope ? `@${o.scope}/` : '') + o.package + `@${o.version}/${o.module}`;
-}
 
 export class Paths {
 	static #base: string = '/m';
 
-	static map(o: IOptions): string {
-		const key = `${vspecifier(o)}:${o.target}:${o.format}:${o.environment}:${o.min}`;
+	static map(options: Options): string {
+		const { identifier, target, format, environment, min } = options;
+		const key = `${identifier}:${target}:${format}:${environment}:${min}`;
+
 		const hash = createHash('sha1').update(key).digest('hex').slice(0, 12);
 		return `${this.#base}/maps/${hash}.map`;
 	}
 
-	static dts(o: IOptions): string {
-		const pre = o.scope ? `@${o.scope}/` : '';
-		return `${this.#base}/${pre}${o.package}@${o.version}/types/${o.module}.d.ts`;
+	static dts(options: Options): string {
+		const { identifier, module } = options;
+		return `${this.#base}/${identifier}/types/${module}.d.ts`;
 	}
 
-	static css(o: IOptions): string {
-		const pre = o.scope ? `@${o.scope}/` : '';
-		return `${this.#base}/${pre}${o.package}@${o.version}/styles/${o.module}.css`;
+	static css(options: Options): string {
+		const { identifier, module } = options;
+		return `${this.#base}/${identifier}/styles/${module}.css`;
 	}
 }

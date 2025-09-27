@@ -1,8 +1,17 @@
+rid:
+  name: rid
+  in: path
+  required: true
+  schema:
+    type: string
+    pattern: '[a-z0-9._-]+'
+  description: Registered registry id (e.g. "verdaccio")
+
 scope:
   name: scope
   in: path
   required: true
-  description: NPM scope sin '@'
+  description: NPM scope without '@'
   schema:
     type: string
     pattern: '[a-z0-9._-]+'
@@ -11,7 +20,7 @@ pkg:
   name: pkg
   in: path
   required: true
-  description: Nombre del paquete
+  description: Package name
   schema:
     type: string
     pattern: '[a-z0-9._-]+'
@@ -20,15 +29,77 @@ version:
   name: version
   in: path
   required: true
-  description: Versión semver o tag
+  description: Semver version or tag
   schema:
     type: string
+
+git-host:
+  name: host
+  in: path
+  required: true
+  schema: { type: string }
+  description: Git host (e.g. github.com, gitlab.com)
+
+git-owner:
+  name: owner
+  in: path
+  required: true
+  schema: { type: string }
+  description: Git organization or user
+
+git-repo:
+  name: repo
+  in: path
+  required: true
+  schema: { type: string }
+  description: Git repository name
+
+git-commit:
+  name: commit
+  in: path
+  required: true
+  schema:
+    type: string
+    pattern: '^[0-9a-fA-F]{7,40}$'
+  description: Git commit hash (7–40 hex chars)
+
+sha256:
+  name: digest
+  in: path
+  required: true
+  description: |
+    Immutable artifact identifier (SHA-256 hash). Two formats are accepted:
+    - Hex: 64 hex chars, prefixed with 'sha256-'
+    - Base64URL without padding: 43 chars, prefixed with 'sha256u-'
+
+    Examples:  
+    • sha256-3f786850e387550fdab836ed7e6dc881de23001b…  
+    • sha256u-2jmj7l5rSw0yVb_vlWAYkK_YBwk
+  schema:
+    type: string
+    oneOf:
+      - pattern: '^sha256-[0-9a-f]{64}$'
+      - pattern: '^sha256u-[A-Za-z0-9_-]{43}$'
+
+registry-host:
+  name: host
+  in: path
+  required: true
+  schema: { type: string }
+  description: Registry host (e.g. npm.pkg.github.com, registry.acme.local)
+
+registry-namespace:
+  name: namespace
+  in: path
+  required: true
+  schema: { type: string }
+  description: Registry namespace/organization (when applicable)
 
 mod:
   name: mod
   in: path
   required: true
-  description: Ruta del módulo dentro del paquete (p. ej. "core/router")
+  description: Module path inside the package (e.g. "core/router")
   schema:
     type: string
 
@@ -36,7 +107,7 @@ target:
   name: target
   in: query
   required: true
-  description: Destino del bundle
+  description: Bundle target environment
   schema:
     type: string
     enum: [browser, node]
@@ -45,7 +116,7 @@ format:
   name: format
   in: query
   required: true
-  description: Formato del bundle
+  description: Bundle format
   schema:
     type: string
     enum: [esm, cjs, system]
@@ -54,7 +125,7 @@ env:
   name: env
   in: query
   required: false
-  description: Modo de compilación
+  description: Build mode
   schema:
     type: string
     enum: [production, development]
@@ -64,7 +135,7 @@ min:
   name: min
   in: query
   required: false
-  description: Minificar salida
+  description: Minify output
   schema:
     type: boolean
     default: true
@@ -73,7 +144,7 @@ sourcemap:
   name: sourcemap
   in: query
   required: false
-  description: Tipo de sourcemap
+  description: Source map type
   schema:
     type: string
     enum: [inline, external, none]
@@ -83,7 +154,7 @@ types:
   name: types
   in: query
   required: false
-  description: Si true, agrega Link header al .d.ts del módulo
+  description: If true, adds a Link header to the module's .d.ts file
   schema:
     type: boolean
     default: false
@@ -92,7 +163,7 @@ css:
   name: css
   in: query
   required: false
-  description: Si true, agrega Link header a la hoja de estilos (e import opcional en ESM)
+  description: If true, adds a Link header to the stylesheet (and optional ESM import)
   schema:
     type: boolean
     default: false

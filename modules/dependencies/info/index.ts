@@ -71,7 +71,12 @@ export /*bundle*/ class DependencyInfo {
 
 		// Tarball data (e.g., "https://.../mypackage.tgz")
 		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
-			this.#data = { is: InfoIsType.Url, url: version };
+			const parsed = new URL(version);
+			const { pathname, hostname } = parsed;
+			const file = parsed.pathname.split('/').pop();
+			const fname = file.replace(/\.tgz$/, '');
+
+			this.#data = { is: InfoIsType.Url, url: version, file, fname, pathname, hostname };
 			return;
 		}
 

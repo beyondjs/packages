@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: BeyondJS CDN API
-  description: BeyondJS CDN API Open API Specification
+  description: OpenAPI Specification for the BeyondJS CDN API
   version: 1.0.0
 servers:
   - url: https://api.cdn.beyondjs.com
@@ -9,10 +9,27 @@ servers:
 paths:
   /:
     $ref: 'paths/home.yaml'
-  /m/@{scope}/{pkg}@{version}/modules/{mod}:
+
+  # NPM (prefixed)
+  /m/npm/@{scope}/{pkg}@{version}/modules/{mod}:
     $ref: 'paths/module-scoped.yaml'
-  /m/{pkg}@{version}/modules/{mod}:
+  /m/npm/{pkg}@{version}/modules/{mod}:
     $ref: 'paths/module-unscoped.yaml'
+
+  # Git (by commit)
+  /m/git/{host}/{owner}/{repo}@{commit}/modules/{mod}:
+    $ref: 'paths/module-git.yaml'
+
+  # Immutable by digest (sha256 / sha256u)
+  /m/digest/{digest}/modules/{mod}:
+    $ref: 'paths/module-by-digest.yaml'
+
+  # External registries (registered id or host), scoped and unscoped
+  /m/{rid}/@{scope}/{pkg}@{version}/modules/{mod}:
+    $ref: 'paths/module-registry-scoped.yaml'
+  /m/{rid}/{pkg}@{version}/modules/{mod}:
+    $ref: 'paths/module-registry-unscoped.yaml'
+
 components:
   parameters:
     $ref: 'components/parameters.yaml'

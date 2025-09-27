@@ -1,9 +1,10 @@
 get:
   tags: [Modules]
-  summary: Serve scoped module bundle
-  description: Returns the JavaScript bundle of the requested module (scoped package path).
+  summary: Serve unscoped module bundle from external registry
+  description:
+    Returns the JavaScript bundle of the requested module from a registered external registry (unscoped package path).
   parameters:
-    - $ref: '../components/parameters.yaml#/scope'
+    - $ref: '../components/parameters.yaml#/rid'
     - $ref: '../components/parameters.yaml#/pkg'
     - $ref: '../components/parameters.yaml#/version'
     - $ref: '../components/parameters.yaml#/mod'

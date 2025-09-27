@@ -1,11 +1,9 @@
 get:
   tags: [Modules]
-  summary: Serve scoped module bundle
-  description: Returns the JavaScript bundle of the requested module (scoped package path).
+  summary: Serve module bundle by SHA-256 digest
+  description: Returns the JavaScript bundle of the requested module, identified immutably by its SHA-256 digest.
   parameters:
-    - $ref: '../components/parameters.yaml#/scope'
-    - $ref: '../components/parameters.yaml#/pkg'
-    - $ref: '../components/parameters.yaml#/version'
+    - $ref: '../components/parameters.yaml#/sha256'
     - $ref: '../components/parameters.yaml#/mod'
     - $ref: '../components/parameters.yaml#/target'
     - $ref: '../components/parameters.yaml#/format'

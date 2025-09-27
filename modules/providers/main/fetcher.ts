@@ -45,11 +45,10 @@ export /*bundle*/ class PackageRegistryFetcher {
 	}
 
 	/**
-	 * Fetch the packument for a package (abbreviated or full).
-	 *
-	 * - When `abbreviated` is true, sends Accept: application/vnd.npm.install-v1+json to reduce payload size.
+	 * Fetch the packument for a package.
 	 */
 	static async packument(rq: IFetchRq): Promise<IPackumentResponse> {
+		// Fetch the packument in abbreviated format (less payload)
 		const headers = { ...(rq.headers ?? {}), Accept: 'application/vnd.npm.install-v1+json' };
 
 		const { url } = rq;

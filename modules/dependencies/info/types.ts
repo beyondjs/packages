@@ -16,7 +16,6 @@ export /*bundle*/ enum InfoIsType {
 	Url = 'url', // Remote .tgz file (e.g., https://host/pkg.tgz)
 	Alias = 'alias', // Package alias (e.g., npm:lib@^1.0.0)
 	File = 'file', // Local file path (e.g., file:../lib)
-	Unknown = 'unknown', // Unrecognized or unsupported format
 	Error = 'error' // Error state, used for failed parsing
 }
 
@@ -68,6 +67,11 @@ export /*bundle*/ interface IUrlDependencyInfo {
 	 * Only present if dependency is a 'url'.
 	 */
 	url: string;
+
+	file: string; // Filename (e.g., 'mypackage.tgz')
+	fname: string; // Filename without extension (e.g., 'mypackage')
+	pathname: string; // URL pathname (e.g., '/path/to/mypackage.tgz')
+	hostname: string; // URL hostname (e.g., 'cdn.example.com')
 }
 
 export /*bundle*/ interface IAliasDependencyInfo {

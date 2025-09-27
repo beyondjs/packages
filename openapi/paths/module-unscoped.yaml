@@ -1,7 +1,7 @@
 get:
   tags: [Modules]
-  summary: Serve conditional module bundle (unscoped)
-  description: Devuelve el bundle JavaScript del módulo solicitado (ruta sin scope).
+  summary: Serve unscoped module bundle
+  description: Returns the JavaScript bundle of the requested module (unscoped package path).
   parameters:
     - $ref: '../components/parameters.yaml#/pkg'
     - $ref: '../components/parameters.yaml#/version'
@@ -14,11 +14,7 @@ get:
     - $ref: '../components/parameters.yaml#/types'
     - $ref: '../components/parameters.yaml#/css'
   responses:
-    '200':
-      $ref: '../components/responses.yaml#/js-bundle'
-    '304':
-      $ref: '../components/responses.yaml#/not-modified'
-    '400':
-      $ref: '../components/responses.yaml#/bad-request'
-    '404':
-      $ref: '../components/responses.yaml#/not-found'
+    '200': { $ref: '../components/responses.yaml#/js-bundle' }
+    '304': { $ref: '../components/responses.yaml#/not-modified' }
+    '400': { $ref: '../components/responses.yaml#/bad-request' }
+    '404': { $ref: '../components/responses.yaml#/not-found' }
