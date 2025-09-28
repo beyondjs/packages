@@ -1,79 +1,76 @@
-import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
+import type { PackageInfoType } from './types';
 import { InfoIsType } from '@beyond-js/packages/dependencies/info';
 
+/**
+ * PackageIdentifier generates a canonical, immutable identifier (ID)
+ * for a resolved package across different origins (semver, git, url).
+ *
+ * ID formats:
+ * - Semver: registry:@scope/name@version
+ * - Git:    git:host/owner/repo@commit
+ * - URL:    digest:<checksum>
+ */
 export /*bundle*/ class PackageIdentifier {
-	#info: DependencyInfo;
-	get info() {
+	/** Original, already-resolved package info (semver/version, git/commit, url/digest). */
+	#info: PackageInfoType;
+	get info(): PackageInfoType {
 		return this.#info;
 	}
 
+	/** Canonical identifier string. */
+	#value: string;
+	get value(): string {
+		return this.#value;
+	}
+
+	/** Require a non-empty string field, otherwise throw. */
+	#require(value: string | undefined, field: string) {
+		value = value?.trim();
+		if (typeof value !== 'string' || !value) {
+			throw new Error(`PackageIdentifier: missing or empty "${field}"`);
+		}
+		return value;
+	}
+
 	/**
-	 * The version string that uniquely identifies the resolved package.
-	 * This is the specific version for semver, the specific commit hash for git, or the digest for url.
+	 * Build a canonical identifier from a strongly-typed PackageInfoType.
+	 * @throws Error if the info object is invalid or missing required fields.
 	 */
-	#resolved: string;
-	get resolved() {
-		return this.#resolved;
-	}
-
-	#error?: { code: string; message: string };
-	get error() {
-		return this.#error;
-	}
-
-	// The id is used to uniquely identify a package version across different registries
-	// Used for caching and storage
-	readonly #id: string;
-	get id() {
-		return this.#id;
-	}
-
-	// The path is used for storage paths, to store package contents
-	readonly #path: string;
-	get path() {
-		return this.#path;
-	}
-
-	constructor(info: DependencyInfo, resolved?: string) {
+	constructor(info: PackageInfoType) {
+		if (!info || !('is' in info)) {
+			throw new Error('PackageIdentifier: invalid `info` argument');
+		}
 		this.#info = info;
 
-		/**
-		 * The resolved version string uniquely identifying the package version.
-		 *
-		 * For semver, this is the specific version (e.g., '1.2.3').
-		 * For git, this is the specific commit hash (e.g., 'a1b2c3d4').
-		 * For url, this is the content digest (e.g., 'abcdef1234567890').
-		 * If not provided, defaults to the original version specifier.
-		 */
-		this.#resolved = resolved;
+		switch (info.is) {
+			case InfoIsType.Semver: {
+				const { hostname, package: pkg, version } = info;
+				// registry:@scope/name@version
+				this.#value = `${hostname}:${pkg}@${version}`;
+				return;
+			}
 
-		if (info.data.is === InfoIsType.Error) return;
+			case InfoIsType.Git: {
+				const hostname = this.#require(info.hostname, 'hostname');
+				const owner = this.#require(info.owner, 'owner');
+				const repo = this.#require(info.repo, 'repo');
+				const commit = this.#require(info.commit, 'commit');
 
-		if (info.data.is === InfoIsType.Semver) {
-			const { package: name, scope } = info;
+				// git:host/owner/repo@commit
+				this.#value = `git:${hostname}/${owner}/${repo}@${commit}`;
+				return;
+			}
 
-			const { hostname } = info.data;
-			const repository = hostname.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+			case InfoIsType.Url: {
+				const digest = this.#require(info.digest, 'digest');
 
-			// ID format: [repository]:[@scope/]name@version
-			// Path format: repository/[@scope/]name/version
-			this.#id = scope ? `${repository}:${scope}/${name}@${resolved}` : `${repository}/${name}@${resolved}`;
-			this.#path = scope ? `${repository}/${scope}/${name}/${resolved}` : `${repository}/${name}/${resolved}`;
-		} else if (info.data.is === InfoIsType.Git) {
-			const { hostname, owner, repo } = info.data;
+				// digest:<checksum>
+				this.#value = `digest:${digest}`;
+				return;
+			}
 
-			this.#id = `git:${hostname}/${owner}/${repo}@${resolved}`;
-			this.#path = `git/${hostname}/${owner}/${repo}/${resolved}`;
-		} else if (info.data.is === InfoIsType.Url) {
-			const { fname, hostname } = info.data;
-
-			this.#id = `tarball:${hostname}/${fname}`;
-			this.#path = `tarball/${hostname}/${fname}`;
-		} else {
-			this.#error = {
-				code: 'INVALID_IDENTIFIER',
-				message: `Invalid package identifier: ${JSON.stringify(info.data.is)}`
-			};
+			default:
+				throw new Error(`PackageIdentifier: unsupported info type "${String((info as any).is)}"`);
 		}
 	}
 }

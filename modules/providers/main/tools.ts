@@ -1,13 +1,13 @@
-import { IProviderAuth } from '@beyond-js/packages/providers/types';
+import { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
 
 export class AuthHeaders {
-	static token = (auth: IProviderAuth) => ({ Authorization: `Bearer ${auth.token}` });
-	static basic = (auth: IProviderAuth) => ({ Authorization: `Basic ${auth.token}` });
-	static userpass = (auth: IProviderAuth) => ({
+	static token = (auth: IProviderAuthData) => ({ Authorization: `Bearer ${auth.token}` });
+	static basic = (auth: IProviderAuthData) => ({ Authorization: `Basic ${auth.token}` });
+	static userpass = (auth: IProviderAuthData) => ({
 		Authorization: `Basic ${Buffer.from(`${auth.user}:${auth.token}`).toString('base64')}`
 	});
 
-	static process(auth: IProviderAuth): Record<string, string> {
+	static process(auth: IProviderAuthData): Record<string, string> {
 		switch (auth.mode) {
 			case 'token':
 				return this.token(auth);

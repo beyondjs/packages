@@ -1,4 +1,5 @@
-import type { IProvider, IPackageManifestResponse, IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IProvider, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
+import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/dependencies/info';
@@ -13,20 +14,14 @@ import { AuthHeaders } from './tools';
  * - Auth/headers are resolved per request from ProvidersSettings.
  */
 export class GitProvider implements IProvider {
-	#settings: ProvidersSettings;
-
 	readonly #name = 'git';
 	get name(): string {
 		return this.#name;
 	}
 
-	constructor(settings: ProvidersSettings) {
-		this.#settings = settings;
-	}
-
 	/** Resolve auth for a given host from settings (host-specific first, then default). */
-	#auth(host: string): IProviderAuth | undefined {
-		return this.#settings.hosts.get(host) ?? this.#settings.default?.auth;
+	#auth(hostname: string): IProviderAuthData {
+		return this.#settings.get({ hostname }).auth;
 	}
 
 	/** Build headers for a given host (auth if present). */

@@ -2,9 +2,9 @@ import type {
 	IProvider,
 	IPackageVersionsResponse,
 	IPackumentResponse,
-	IPackageManifestResponse,
-	IProviderAuth
+	IPackageManifestResponse
 } from '@beyond-js/packages/providers/types';
+import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { PackageRegistryFetcher } from './fetcher';
@@ -26,7 +26,7 @@ export class SemverRegistry implements IProvider {
 	}
 
 	/** Resolve host/auth for given (optional) scope; fallback to default. */
-	#host(scope?: string): { host: string; auth?: IProviderAuth } {
+	#host(scope?: string): { host: string; auth?: IProviderAuthData } {
 		const def = this.#settings.default?.host ?? 'registry.npmjs.org';
 		const host = scope ? this.#settings.scopes.get(scope) ?? def : def;
 		const auth = this.#settings.hosts.get(host) ?? this.#settings.default?.auth;
@@ -34,7 +34,7 @@ export class SemverRegistry implements IProvider {
 	}
 
 	/** Build headers from auth (if any). */
-	#headers(auth?: IProviderAuth, extra: Record<string, string> = {}): Record<string, string> {
+	#headers(auth?: IProviderAuthData, extra: Record<string, string> = {}): Record<string, string> {
 		const base = auth ? AuthHeaders.process(auth) : {};
 		return { ...base, ...extra };
 	}

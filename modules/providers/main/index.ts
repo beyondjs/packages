@@ -18,8 +18,8 @@ export /*bundle*/ class Providers extends Map {
 
 	constructor(settings: ProvidersSettings) {
 		super();
-		this.#semver = new SemverRegistry(settings);
-		this.#git = new GitProvider(settings);
+		this.#semver = new SemverRegistry();
+		this.#git = new GitProvider();
 
 		this.set('semver', this.#semver);
 		this.set('git', this.#git);
