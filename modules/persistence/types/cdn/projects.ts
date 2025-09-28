@@ -1,13 +1,10 @@
 import type { ICollection } from '@beyond-js/packages/persistence/types';
-import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
+import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
 
 export /*bundle*/ interface ICdnProvidersSettings {
-	default: {
-		host: string; // e.g., 'registry.mycompany.com' | 'registry.npmjs.org'
-		auth: IProviderAuthData;
-	};
-	scopes: Record<string, string>; // e.g., {'@myorg': 'registry.mycompany.com', '@internal': 'registry.dev.com'}
-	hosts: Record<string, IProviderAuthData>; // e.g., {'registry.mycompany.com': {mode: 'token', token: 'abcdef}}
+	default?: IProviderData;
+	scopes?: Record<string, IProviderData>;
+	hosts?: Record<string, IProviderData>;
 }
 
 export /*bundle*/ interface IProjectData {

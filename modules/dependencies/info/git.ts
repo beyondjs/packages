@@ -1,11 +1,4 @@
-import type { GitProviderType } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-
-const providers: Partial<Record<GitProviderType, string>> = {
-	github: 'github.com',
-	gitlab: 'gitlab.com',
-	bitbucket: 'bitbucket.org'
-};
 
 /**
  * Git-specific information extracted from the version string.
@@ -13,17 +6,9 @@ const providers: Partial<Record<GitProviderType, string>> = {
  * Identifies the host, repository, owner, and optional ref (branch, tag, or commit).
  */
 export /*bundle*/ class GitInfo {
-	#provider: GitProviderType;
-	get provider() {
-		return this.#provider;
-	}
-
-	/**
-	 * The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
-	 */
-	#hostname: string;
-	get hostname() {
-		return this.#hostname;
+	#baseurl: string;
+	get baseurl() {
+		return this.#baseurl;
 	}
 
 	/**
@@ -62,10 +47,9 @@ export /*bundle*/ class GitInfo {
 			const match = /^(\w+):([^/]+)\/([^#]+)(#(.+))?$/.exec(version);
 			if (!match) return null;
 
-			const [, provider, owner, repo, , ref] = match;
+			const [, baseurl, owner, repo, , ref] = match;
 
-			this.#provider = <GitProviderType>provider;
-			this.#hostname = providers[this.#provider];
+			this.#baseurl = baseurl;
 			this.#owner = owner;
 			this.#repo = repo;
 			this.#ref = ref;
@@ -81,12 +65,7 @@ export /*bundle*/ class GitInfo {
 
 				this.#repo = repo.replace(/\.git$/, '');
 				this.#ref = url.hash ? url.hash.slice(1) : undefined;
-				this.#hostname = url.hostname;
-				this.#provider = (() => {
-					const entries = Object.entries(providers);
-					const found = entries.find(([, value]) => value === this.#hostname)?.[0] ?? void 0;
-					return (found as GitProviderType) ?? 'custom-git';
-				})();
+				this.#baseurl = url.origin;
 			} catch {
 				const code = 'INVALID_GIT_URL';
 				const message = `Invalid git URL format: ${version}`;
@@ -96,10 +75,5 @@ export /*bundle*/ class GitInfo {
 		}
 
 		return null;
-	}
-
-	toJSON() {
-		const { provider, hostname, owner, repo, ref } = this;
-		return { provider, hostname, owner, repo, ref };
 	}
 }

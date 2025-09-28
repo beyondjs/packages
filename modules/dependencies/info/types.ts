@@ -1,3 +1,4 @@
+import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 
 export /*bundle*/ type DependencyInfoType =
@@ -21,18 +22,12 @@ export /*bundle*/ enum InfoIsType {
 
 export /*bundle*/ interface ISemverDependencyInfo {
 	is: InfoIsType.Semver;
-	hostname: string; // Registry host (e.g., 'registry.npmjs.org')
+	provider: IProviderData;
 }
-
-/**
- * Git-based providers (source deps).
- */
-export /*bundle*/ type GitProviderType = 'github' | 'gitlab' | 'bitbucket' | 'custom-git'; // any other git host
 
 export /*bundle*/ interface IGitDependencyInfo {
 	is: InfoIsType.Git;
-	provider: GitProviderType; // The type of Git provider (e.g., 'github', 'gitlab', 'bitbucket', or 'custom-git').
-	hostname: string; // The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
+	provider: IProviderData;
 	owner: string; // The owner or organization of the repository (e.g., 'user' or 'org').
 	repo: string; // The name of the repository (e.g., 'my-lib').
 	ref?: string; // Optional reference (branch, tag, or commit hash).
@@ -40,11 +35,11 @@ export /*bundle*/ interface IGitDependencyInfo {
 
 export /*bundle*/ interface IUrlDependencyInfo {
 	is: InfoIsType.Url;
+	provider: IProviderData;
 	url: string; // Direct URL for tarball
 	file: string; // Filename (e.g., 'mypackage.tgz')
 	fname: string; // Filename without extension (e.g., 'mypackage')
 	pathname: string; // URL pathname (e.g., '/path/to/mypackage.tgz')
-	hostname: string; // URL hostname (e.g., 'cdn.example.com')
 }
 
 export /*bundle*/ interface IAliasDependencyInfo {

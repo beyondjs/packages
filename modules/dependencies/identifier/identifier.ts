@@ -36,6 +36,15 @@ export /*bundle*/ class PackageIdentifier {
 
 	constructor(info: DependencyInfo, resolved?: string) {
 		this.#info = info;
+
+		/**
+		 * The resolved version string uniquely identifying the package version.
+		 *
+		 * For semver, this is the specific version (e.g., '1.2.3').
+		 * For git, this is the specific commit hash (e.g., 'a1b2c3d4').
+		 * For url, this is the content digest (e.g., 'abcdef1234567890').
+		 * If not provided, defaults to the original version specifier.
+		 */
 		this.#resolved = resolved;
 
 		if (info.data.is === InfoIsType.Error) return;
@@ -48,15 +57,13 @@ export /*bundle*/ class PackageIdentifier {
 
 			// ID format: [repository]:[@scope/]name@version
 			// Path format: repository/[@scope/]name/version
-			const version = this.#resolved;
-			this.#id = scope ? `${repository}:${scope}/${name}@${version}` : `${repository}/${name}@${version}`;
-			this.#path = scope ? `${repository}/${scope}/${name}/${version}` : `${repository}/${name}/${version}`;
+			this.#id = scope ? `${repository}:${scope}/${name}@${resolved}` : `${repository}/${name}@${resolved}`;
+			this.#path = scope ? `${repository}/${scope}/${name}/${resolved}` : `${repository}/${name}/${resolved}`;
 		} else if (info.data.is === InfoIsType.Git) {
-			const { hostname, owner, repo, ref } = info.data;
-			const reference = ref ?? 'HEAD';
+			const { hostname, owner, repo } = info.data;
 
-			this.#id = `git:${hostname}/${owner}/${repo}@${reference}`;
-			this.#path = `git/${hostname}/${owner}/${repo}/${reference}`;
+			this.#id = `git:${hostname}/${owner}/${repo}@${resolved}`;
+			this.#path = `git/${hostname}/${owner}/${repo}/${resolved}`;
 		} else if (info.data.is === InfoIsType.Url) {
 			const { fname, hostname } = info.data;
 

@@ -1,4 +1,5 @@
 import type { DependencyInfoType } from './types';
+import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
 import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import { InfoIsType } from './types';
 import { GitInfo } from './git';
@@ -59,15 +60,22 @@ export /*bundle*/ class DependencyInfo {
 
 		// Semver data (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(version) || semver.validRange(version)) {
-			const hostname = settings.scopes.get(this.#scope) ?? settings.default?.host ?? 'registry.npmjs.org';
-			this.#data = { is: InfoIsType.Semver, hostname };
+			const provider = settings.get({ package: pkg });
+			this.#data = { is: InfoIsType.Semver, provider };
 			return;
 		}
 
 		// Git data (shorthand or git+ protocol)
 		const git = new GitInfo(version);
 		if (git) {
-			this.#data = { is: InfoIsType.Git, ...git.toJSON() };
+			const { error, owner, repo, ref } = git;
+			if (error) {
+				this.#data = { is: InfoIsType.Error, error };
+				return;
+			}
+
+			const provider = settings.get({ hostname: git.baseurl });
+			this.#data = { is: InfoIsType.Git, provider, owner, repo, ref };
 			return;
 		}
 
@@ -78,7 +86,8 @@ export /*bundle*/ class DependencyInfo {
 			const file = parsed.pathname.split('/').pop();
 			const fname = file.replace(/\.tgz$/, '');
 
-			this.#data = { is: InfoIsType.Url, url: version, file, fname, pathname, hostname };
+			const provider: IProviderData = settings.get({ hostname });
+			this.#data = { is: InfoIsType.Url, provider, url: version, pathname, file, fname };
 			return;
 		}
 

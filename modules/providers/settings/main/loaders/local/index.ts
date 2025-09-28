@@ -1,35 +1,35 @@
-import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
+import type {
+	IProvidersSettings,
+	IProviderData,
+	IProviderAuthData
+} from '@beyond-js/packages/providers/settings/types';
+import { def } from '../../default';
 import { LocalSettingsFiles } from './files';
+import { TokenTools } from './tools';
 
 /**
  * Load registry and scope configurations from local .npmrc files.
  */
 export class LocalLoader implements IProvidersSettings {
-	// Scopes to registry mapping: the key is the scope and the value is the repository host
-	#scopes: Map<string, string> = new Map();
+	#scopes: Map<string, IProviderData> = new Map();
 	get scopes() {
 		return this.#scopes;
 	}
-
-	// The hosts map: the key is the host and the value is the repository auth type
-	#hosts: Map<string, IProviderAuth> = new Map();
+	#hosts: Map<string, IProviderData> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
-
-	// The default repository host
-	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
+	#default: IProviderData = def;
 	get default() {
 		return this.#default;
-	}
-
-	#normalize(url: string): string {
-		return url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
 	}
 
 	async load(pkg: string, workspace?: string): Promise<void> {
 		const files = new LocalSettingsFiles(pkg, workspace);
 		await files.process();
+
+		const scopes: Map<string, string> = new Map();
+		const hosts: Map<string, IProviderAuthData> = new Map();
 
 		for (const [, { content, origin }] of files) {
 			if (!content) continue;
@@ -44,40 +44,49 @@ export class LocalLoader implements IProvidersSettings {
 
 				let match: RegExpMatchArray | null;
 
-				// 1. Scope to registry mapping: @scope:registry=https://host/
-				match = line.match(/^(@[^:]+):registry=(.+)$/);
+				// 1. Default Registry Base URL: registry=https://host/
+				match = line.match(/^registry=(.+)$/);
 				if (match) {
-					const [, scope, url] = match;
-					const host = this.#normalize(url);
-					this.#scopes.set(scope, host);
-					continue;
+					const url = match[1];
+					this.#default.base = url;
+					this.#default.hostname = url.replace(/^https?:\/\//, '');
 				}
 
-				// 2. Basic auth: _auth=base64 (applies to default host)
-				match = line.match(/^_auth=(.+)$/);
-				if (match) {
-					const token = match[1];
-					this.#default.auth = { mode: 'basic', token, origin };
-					continue;
-				}
-
-				// 3. Auth Token: _authToken=token (applies to default host)
+				// 2. Default Registry Auth Token: _authToken=token
 				match = line.match(/^_authToken=(.+)$/);
 				if (match) {
-					const token = match[1];
-					this.#default.auth = { mode: 'token', token, origin };
+					const token = TokenTools.clean(match[1]);
+					this.#default.origin = origin;
+					this.#default.auth = { mode: 'token', token };
 					continue;
 				}
 
-				// 4. User/pass auth: username=token (applies to default host)
+				// 3. Default Registry Basic Auth: _auth=base64
+				match = line.match(/^_auth=(.+)$/);
+				if (match) {
+					const token = TokenTools.clean(match[1]);
+					this.#default.auth = { mode: 'basic', token };
+					continue;
+				}
+
+				// 4. Default Registry User/pass Auth: username=token
 				match = line.match(/^username=(.+)$/);
 				if (match) {
 					const user = match[1];
 					const passLine = lines.find(l => l.startsWith('password='));
 					if (passLine) {
 						const [, password] = passLine.split(/=(.+)/);
-						this.#default.auth = { mode: 'user-pass', user, token: password, origin };
+						this.#default.origin = origin;
+						this.#default.auth = { mode: 'user-pass', user, token: password };
 					}
+					continue;
+				}
+
+				// 4. Scope to registry mapping: @scope:registry=https://host/
+				match = line.match(/^(@[^:]+):registry=(.+)$/);
+				if (match) {
+					const [, scope, base] = match;
+					scopes.set(scope, base);
 					continue;
 				}
 
@@ -85,11 +94,11 @@ export class LocalLoader implements IProvidersSettings {
 				match = line.match(/^\/\/([^/]+)\/?:_authToken=(.+)$/);
 				if (match) {
 					const [, host, token] = match;
-					this.#hosts.set(host, { mode: 'token', token, origin });
+					hosts.set(host, { mode: 'token', token });
 					continue;
 				}
 
-				// 6. Host-specific user/pass auth: //host/:username=user
+				// 6. Host-specific user/pass Auth: //host/:username=user
 				// and //host/:password=pass
 				// Note: This handles both user and password in the same line
 				match = line.match(/^\/\/([^/]+)\/?:username=(.+)$/);
@@ -100,17 +109,31 @@ export class LocalLoader implements IProvidersSettings {
 
 					// Extract the password part even if it contains '=' characters
 					const [, password] = passLine.split(/=(.+)/);
-					this.#hosts.set(host, { mode: 'user-pass', user, token: password, origin: origin });
+					hosts.set(host, { mode: 'user-pass', user, token: password });
 				}
+			}
 
-				// 7. Default registry override: registry=https://host/
-				match = line.match(/^registry=(.+)$/);
-				if (match) {
-					const url = match[1];
-					const host = this.#normalize(url);
-					this.#default.host = host;
-					continue;
+			// Apply scopes
+			for (const [scope, base] of scopes) {
+				const hostname = base.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+				const data: IProviderData = {
+					origin,
+					base,
+					hostname,
+					auth: { mode: 'none' }
+				};
+				if (hosts.has(hostname)) {
+					const auth = hosts.get(hostname)!;
+					data.auth = { ...auth };
 				}
+				this.#scopes.set(scope, data);
+			}
+
+			// Apply hosts
+			for (const [host, auth] of hosts) {
+				const base = `https://${host}/`;
+				const data: IProviderData = { origin, base, hostname: host, auth: { ...auth } };
+				this.#hosts.set(host, data);
 			}
 		}
 	}

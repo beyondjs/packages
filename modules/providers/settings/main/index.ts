@@ -1,5 +1,5 @@
-import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
-import { TokenTools } from './tools';
+import type { IProvidersSettings, IProviderData } from '@beyond-js/packages/providers/settings/types';
+import { def } from './default';
 
 // Import the loaders
 import { LocalLoader } from './loaders/local';
@@ -20,20 +20,15 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		return this.#options;
 	}
 
-	// Scopes to registry mapping: the key is the scope and the value is the provider host
-	#scopes: Map<string, string> = new Map();
+	#scopes: Map<string, IProviderData> = new Map();
 	get scopes() {
 		return this.#scopes;
 	}
-
-	// The hosts map: the key is the host and the value is the provider auth type
-	#hosts: Map<string, IProviderAuth> = new Map();
+	#hosts: Map<string, IProviderData> = new Map();
 	get hosts() {
 		return this.#hosts;
 	}
-
-	// The default provider host
-	#default: { host: string; auth?: IProviderAuth } = { host: 'registry.npmjs.org' };
+	#default: IProviderData = def;
 	get default() {
 		return this.#default;
 	}
@@ -42,27 +37,44 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		this.#options = options;
 	}
 
+	get({ package: pkg, scope, hostname }: { package?: string; scope?: string; hostname?: string }): IProviderData {
+		// If hostname is provided, return its provider if exists, otherwise return a default unregistered provider
+		if (hostname) {
+			if (this.#hosts.has(hostname)) return this.#hosts.get(hostname);
+			const origin = 'unregistered';
+			const base = `https://${hostname}`;
+			return { origin, base, hostname, auth: { mode: 'none' } };
+		}
+
+		// Check package first
+		if (pkg) {
+			const scope = pkg.split('/')[0];
+			if (this.#scopes.has(scope)) {
+				return this.#scopes.get(scope);
+			}
+		}
+
+		// Check scope first
+		if (scope && this.#scopes.has(scope)) {
+			return this.#scopes.get(scope);
+		}
+
+		// Return default
+		return this.#default;
+	}
+
 	#merge(settings: IProvidersSettings) {
+		// Set default if not already set
+		if (settings.default) this.#default = settings.default;
+
 		// Merge scopes
-		for (const [scope, host] of settings.scopes) {
-			this.#scopes.set(scope, host);
+		for (const [scope, provider] of settings.scopes) {
+			this.#scopes.set(scope, provider);
 		}
 
 		// Merge hosts
-		for (const [host, auth] of settings.hosts) {
-			this.#hosts.set(host, auth);
-			auth.token && (auth.token = TokenTools.clean(auth.token));
-		}
-
-		// Set default if not already set
-		if (settings.default) {
-			const { host, auth } = settings.default;
-			host && (this.#default.host = settings.default.host);
-
-			if (auth) {
-				this.#default.auth = auth;
-				auth.token && (this.#default.auth.token = TokenTools.clean(auth.token));
-			}
+		for (const [host, provider] of settings.hosts) {
+			this.#hosts.set(host, provider);
 		}
 	}
 

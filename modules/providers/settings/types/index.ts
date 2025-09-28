@@ -1,33 +1,47 @@
 /**
  * Represents the origin from which registry settings were loaded.
  */
-export /*bundle*/ type OriginType = 'project-rc' | 'workspace-rc' | 'user-rc' | 'global-rc' | 'env-vars' | 'db';
+export /*bundle*/ type OriginType =
+	| 'default'
+	| 'unregistered'
+	| 'project-rc'
+	| 'workspace-rc'
+	| 'user-rc'
+	| 'global-rc'
+	| 'env-vars'
+	| 'db';
+
+export /*bundle*/ interface IProviderData {
+	// Registry domain, e.g., "registry.npmjs.org"
+	hostname: string;
+
+	// Base endpoint of the registry including protocol, e.g., "https://registry.npmjs.org"
+	base: string;
+
+	// Authentication method used for the provider
+	auth: IProviderAuthData;
+
+	// Source from which the settings were loaded
+	origin: OriginType;
+}
 
 export /*bundle*/ interface IProvidersSettings {
-	// Scopes to registry mapping: the key is the scope and the value is the repository host
-	get scopes(): Map<string, string>;
-
-	// The hosts map: the key is the host and the value is the repository auth type
-	get hosts(): Map<string, IProviderAuth>;
-
-	// The default repository host
-	get default(): { host: string; auth?: IProviderAuth };
+	get scopes(): Map<string, IProviderData>;
+	get hosts(): Map<string, IProviderData>;
+	get default(): IProviderData;
 }
 
 /**
  * Authentication method used for the registry.
  */
 export /*bundle*/ type ProviderAuthMode =
+	| 'none' // No authentication
 	| 'token' // e.g., _authToken=abc123
 	| 'basic' // e.g., _auth=base64
 	| 'user-pass'; // e.g., username + password
 
 export /*bundle*/ interface IProviderAuthData {
 	mode: ProviderAuthMode;
-	token: string;
+	token?: string;
 	user?: string;
-}
-
-export /*bundle*/ interface IProviderAuth extends IProviderAuthData {
-	origin: OriginType;
 }
