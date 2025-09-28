@@ -21,9 +21,9 @@ export /*bundle*/ class GitInfo {
 	/**
 	 * The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
 	 */
-	#host: string;
-	get host() {
-		return this.#host;
+	#hostname: string;
+	get hostname() {
+		return this.#hostname;
 	}
 
 	/**
@@ -65,7 +65,7 @@ export /*bundle*/ class GitInfo {
 			const [, provider, owner, repo, , ref] = match;
 
 			this.#provider = <GitProviderType>provider;
-			this.#host = providers[this.#provider];
+			this.#hostname = providers[this.#provider];
 			this.#owner = owner;
 			this.#repo = repo;
 			this.#ref = ref;
@@ -81,10 +81,10 @@ export /*bundle*/ class GitInfo {
 
 				this.#repo = repo.replace(/\.git$/, '');
 				this.#ref = url.hash ? url.hash.slice(1) : undefined;
-				this.#host = url.hostname;
+				this.#hostname = url.hostname;
 				this.#provider = (() => {
 					const entries = Object.entries(providers);
-					const found = entries.find(([, value]) => value === this.#host)?.[0] ?? void 0;
+					const found = entries.find(([, value]) => value === this.#hostname)?.[0] ?? void 0;
 					return (found as GitProviderType) ?? 'custom-git';
 				})();
 			} catch {
@@ -96,5 +96,10 @@ export /*bundle*/ class GitInfo {
 		}
 
 		return null;
+	}
+
+	toJSON() {
+		const { provider, hostname, owner, repo, ref } = this;
+		return { provider, hostname, owner, repo, ref };
 	}
 }

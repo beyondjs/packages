@@ -1,5 +1,4 @@
-import type { IProviderAuth } from '@beyond-js/packages/providers/types';
-import type { IProvidersSettings } from '../../types';
+import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
 import * as dotenv from 'dotenv';
 
 dotenv.config();

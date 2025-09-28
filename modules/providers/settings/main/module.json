@@ -1,5 +1,5 @@
 {
-	"subpath": "providers/settings",
+	"name": "providers/settings",
 	"bundle": "ts",
 	"files": "*"
 }

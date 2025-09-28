@@ -21,6 +21,7 @@ export /*bundle*/ enum InfoIsType {
 
 export /*bundle*/ interface ISemverDependencyInfo {
 	is: InfoIsType.Semver;
+	hostname: string; // Registry host (e.g., 'registry.npmjs.org')
 }
 
 /**
@@ -30,44 +31,16 @@ export /*bundle*/ type GitProviderType = 'github' | 'gitlab' | 'bitbucket' | 'cu
 
 export /*bundle*/ interface IGitDependencyInfo {
 	is: InfoIsType.Git;
-
-	git?: {
-		/**
-		 * The type of Git provider (e.g., 'github', 'gitlab', 'bitbucket', or 'custom-git').
-		 */
-		provider: GitProviderType;
-
-		/**
-		 * The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
-		 */
-		host: string;
-
-		/**
-		 * The owner or organization of the repository (e.g., 'user' or 'org').
-		 */
-		owner: string;
-
-		/**
-		 * The name of the repository (e.g., 'my-lib').
-		 */
-		repo: string;
-
-		/**
-		 * Optional reference (branch, tag, or commit hash).
-		 */
-		ref?: string;
-	};
+	provider: GitProviderType; // The type of Git provider (e.g., 'github', 'gitlab', 'bitbucket', or 'custom-git').
+	hostname: string; // The host domain of the Git provider (e.g., 'github.com', 'gitlab.com').
+	owner: string; // The owner or organization of the repository (e.g., 'user' or 'org').
+	repo: string; // The name of the repository (e.g., 'my-lib').
+	ref?: string; // Optional reference (branch, tag, or commit hash).
 }
 
 export /*bundle*/ interface IUrlDependencyInfo {
 	is: InfoIsType.Url;
-
-	/**
-	 * Direct URL for tarball
-	 * Only present if dependency is a 'url'.
-	 */
-	url: string;
-
+	url: string; // Direct URL for tarball
 	file: string; // Filename (e.g., 'mypackage.tgz')
 	fname: string; // Filename without extension (e.g., 'mypackage')
 	pathname: string; // URL pathname (e.g., '/path/to/mypackage.tgz')
@@ -76,12 +49,10 @@ export /*bundle*/ interface IUrlDependencyInfo {
 
 export /*bundle*/ interface IAliasDependencyInfo {
 	is: InfoIsType.Alias;
-
 	target: string; // The target package name being aliased (e.g., 'lodash')
 }
 
 export /*bundle*/ interface IDependencyInfoError {
 	is: InfoIsType.Error;
-
 	error: IDiagnostic;
 }

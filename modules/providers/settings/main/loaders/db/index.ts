@@ -1,6 +1,5 @@
-import type { IProviderAuth } from '@beyond-js/packages/providers/types';
+import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
 import type { ICdnProvidersSettings } from '@beyond-js/packages/persistence/types/cdn';
-import type { IProvidersSettings } from '../../types';
 
 /**
  * Interface for the credentials needed to access Firestore-based settings.

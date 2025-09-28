@@ -1,5 +1,4 @@
-import type { IProviderAuth } from '@beyond-js/packages/providers/types';
-import type { IProvidersSettings } from './types';
+import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
 import { TokenTools } from './tools';
 
 // Import the loaders
@@ -59,8 +58,11 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		if (settings.default) {
 			const { host, auth } = settings.default;
 			host && (this.#default.host = settings.default.host);
-			auth && (this.#default.auth = auth);
-			auth?.token && (this.#default.auth.token = TokenTools.clean(auth.token));
+
+			if (auth) {
+				this.#default.auth = auth;
+				auth.token && (this.#default.auth.token = TokenTools.clean(auth.token));
+			}
 		}
 	}
 

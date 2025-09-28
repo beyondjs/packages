@@ -1,5 +1,5 @@
 import type { ICollection } from '@beyond-js/packages/persistence/types';
-import type { IProviderAuthData } from '@beyond-js/packages/providers/types';
+import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
 
 export /*bundle*/ interface ICdnProvidersSettings {
 	default: {

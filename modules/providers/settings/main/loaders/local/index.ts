@@ -1,5 +1,4 @@
-import type { IProviderAuth } from '@beyond-js/packages/providers/types';
-import type { IProvidersSettings } from '../../types';
+import type { IProvidersSettings, IProviderAuth } from '@beyond-js/packages/providers/settings/types';
 import { LocalSettingsFiles } from './files';
 
 /**
@@ -33,6 +32,8 @@ export class LocalLoader implements IProvidersSettings {
 		await files.process();
 
 		for (const [, { content, origin }] of files) {
+			if (!content) continue;
+
 			const lines = content
 				.split('\n')
 				.map(line => line.trim())

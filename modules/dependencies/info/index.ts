@@ -1,7 +1,8 @@
 import type { DependencyInfoType } from './types';
+import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import { InfoIsType } from './types';
-import * as semver from 'semver';
 import { GitInfo } from './git';
+import * as semver from 'semver';
 
 /**
  * Resolves and interprets a dependency version specifier declared in a package.json.
@@ -51,21 +52,22 @@ export /*bundle*/ class DependencyInfo {
 	 * @param version The version specifier as declared in package.json
 	 * @returns
 	 */
-	constructor(pkg: string, version: string) {
+	constructor(pkg: string, version: string, settings: ProvidersSettings) {
 		this.#package = pkg;
 		this.#scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
 		this.#version = version;
 
 		// Semver data (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(version) || semver.validRange(version)) {
-			this.#data = { is: InfoIsType.Semver };
+			const hostname = settings.scopes.get(this.#scope) ?? settings.default?.host ?? 'registry.npmjs.org';
+			this.#data = { is: InfoIsType.Semver, hostname };
 			return;
 		}
 
 		// Git data (shorthand or git+ protocol)
 		const git = new GitInfo(version);
 		if (git) {
-			this.#data = { is: InfoIsType.Git, git };
+			this.#data = { is: InfoIsType.Git, ...git.toJSON() };
 			return;
 		}
 
