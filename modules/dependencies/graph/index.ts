@@ -1,14 +1,15 @@
-import type { Providers } from '@beyond-js/packages/providers';
 import type { IPackageManifest } from '@beyond-js/packages/types';
+import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
+import { Providers } from '@beyond-js/packages/providers';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import { Logger } from '@beyond-js/packages/logs';
 import { Registry } from './registry';
 import { Node } from './node';
 
 export /*bundle*/ interface IDependenciesGraphConstructorParams {
-	providers: Providers;
 	manifest: IPackageManifest;
 	workspace?: { name: string; version: string }[];
+	options: IProvidersSettingsOptions;
 }
 
 export /*bundle*/ class DependenciesGraph extends Node {
@@ -17,6 +18,11 @@ export /*bundle*/ class DependenciesGraph extends Node {
 	#workspace?: { name: string; version: string }[];
 	get workspace() {
 		return this.#workspace;
+	}
+
+	#providers: Providers;
+	get providers() {
+		return this.#providers;
 	}
 
 	#registry: Registry;
@@ -33,15 +39,17 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		return this.dependencies.completed;
 	}
 
-	constructor({ providers, manifest, workspace }: IDependenciesGraphConstructorParams) {
-		if (!providers || !manifest) throw new Error('Providers and manifest are required parameters');
+	constructor({ manifest, workspace, options }: IDependenciesGraphConstructorParams) {
+		if (!manifest) throw new Error('Manifest is a required parameter');
 
+		const providers = new Providers(options);
 		const registry = new Registry(providers);
 		const { name, version } = manifest;
 		super({ providers, registry, dependency: { kind: 'main', package: name, version } });
 
 		this.#manifest = manifest;
 		this.#workspace = workspace;
+		this.#providers = providers;
 		this.#registry = registry;
 		this.#logger = new Logger({ console: true });
 	}

@@ -2,7 +2,7 @@ import type { ErrorManager } from '@beyond-js/response/main';
 import type { Providers } from '@beyond-js/packages/providers';
 import type { Registry } from '../registry';
 import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
-import { DependencyInfo } from '@beyond-js/packages/dependencies/info';
+import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
@@ -75,7 +75,6 @@ export class Node {
 		this.#registry = registry;
 		this.#package = pkg;
 		this.#version = new Version(version);
-		this.#info = new DependencyInfo(pkg, version);
 		this.#parent = parent;
 		this.#dependencies = new NodeDependencies(this, providers, registry);
 
@@ -115,7 +114,8 @@ export class Node {
 		const version = this.#version;
 		if (version.error) return done({ error: version.error });
 
-		const { error, manifest } = await this.#providers.manifest(this.#info, this.#version.resolved);
+		const { specified, resolved } = version;
+		const { error, manifest } = await this.#providers.manifest(this.#package, specified, resolved);
 		if (error) return done({ error });
 
 		const dependencies = new DependenciesSpec(manifest);

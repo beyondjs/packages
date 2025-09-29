@@ -2,6 +2,7 @@ import type { IProviderData } from '@beyond-js/packages/providers/settings/types
 import type { IDiagnostic } from '@beyond-js/packages/types';
 
 export /*bundle*/ type DependencyInfoType =
+	| IUndefinedDependencyInfo
 	| ISemverDependencyInfo
 	| IGitDependencyInfo
 	| IUrlDependencyInfo
@@ -17,7 +18,13 @@ export /*bundle*/ enum InfoIsType {
 	Url = 'url', // Remote .tgz file (e.g., https://host/pkg.tgz)
 	Alias = 'alias', // Package alias (e.g., npm:lib@^1.0.0)
 	File = 'file', // Local file path (e.g., file:../lib)
-	Error = 'error' // Error state, used for failed parsing
+	Error = 'error', // Error state, used for failed parsing
+	Undefined = 'undefined' // Undefined or empty version
+}
+
+export /*bundle*/ interface IUndefinedDependencyInfo {
+	is: InfoIsType.Undefined;
+	provider: IProviderData;
 }
 
 export /*bundle*/ interface ISemverDependencyInfo {

@@ -59,8 +59,9 @@ export /*bundle*/ class DependencyInfo {
 	/**
 	 * Creates a new DependencyInfo instance by parsing the package name and version specifier.
 	 *
-	 * @param pkg The full package name as declared in package.json (with scope if applicable)
-	 * @param version The version specifier as declared in package.json
+	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
+	 * @param version - The version specifier as defined in package.json
+	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
 	 * @returns
 	 */
 	constructor(pkg: string, version: string, settings: ProvidersSettings) {
@@ -74,6 +75,12 @@ export /*bundle*/ class DependencyInfo {
 		}
 
 		this.#version = version;
+
+		// Undefined or empty version
+		if (!version) {
+			this.#data = { is: InfoIsType.Undefined, provider: settings.get({ package: pkg }) };
+			return;
+		}
 
 		// Semver data (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(version) || semver.validRange(version)) {

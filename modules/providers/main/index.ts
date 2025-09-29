@@ -1,10 +1,14 @@
 import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
-import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
+import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
+import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 
 export /*bundle*/ class Providers extends Map {
+	#settings: ProvidersSettings;
+
 	#semver: SemverRegistry;
 	get semver() {
 		return this.#semver;
@@ -15,8 +19,9 @@ export /*bundle*/ class Providers extends Map {
 		return this.#git;
 	}
 
-	constructor() {
+	constructor(options: IProvidersSettingsOptions) {
 		super();
+		this.#settings = new ProvidersSettings(options);
 		this.#semver = new SemverRegistry();
 		this.#git = new GitProvider();
 
@@ -25,30 +30,27 @@ export /*bundle*/ class Providers extends Map {
 	}
 
 	/**
-	 * Retrieves the available versions for a given dependency.
+	 * Retrieves the available versions for a package (only for semver).
 	 *
-	 * @param dependency The dependency info as it is defined in package.json
+	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 * @returns
 	 */
-	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {
-		const { is } = dependency.data;
-		switch (is) {
-			case InfoIsType.Semver:
-				return await this.#semver.versions(dependency);
-			default:
-				throw new Error(`Versions retrieval not supported for dependency type: "${is}"`);
-		}
+	async versions(pkg: string): Promise<IPackageVersionsResponse> {
+		const dependency = new DependencyInfo(pkg, void 0, this.#settings);
+		return await this.#semver.versions(dependency);
 	}
 
 	/**
-	 * Retrieves the package specification for a given dependency.
+	 * Retrieves the package specification for a specific version.
 	 *
-	 * @param dependency The dependency info as it is defined in package.json
-	 * @param version The version as it was resolved in the dependencies tree (only when dependency.is is 'semver')
-	 * @param logger
-	 * @returns
+	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
+	 * @param specifier - The version specifier as defined in package.json
+	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
+	 * @param version - The specific version to retrieve.
 	 */
-	async manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse> {
+	async manifest(pkg: string, specifier: string, version: string): Promise<IPackageManifestResponse> {
+		const dependency = new DependencyInfo(pkg, specifier, this.#settings);
+
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
