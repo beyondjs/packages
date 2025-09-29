@@ -1,0 +1,5 @@
+{
+	"name": "providers/dependency/info",
+	"bundle": "ts",
+	"files": "*"
+}

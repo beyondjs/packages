@@ -30,6 +30,16 @@ export /*bundle*/ class DependencyInfo {
 	}
 
 	/**
+	 * Optional extracted name from the package name (without the scope).
+	 * For '@beyond-js/http', this would be 'http'.
+	 * For 'lodash', this would be 'lodash'.
+	 */
+	#name?: string;
+	get name() {
+		return this.#name;
+	}
+
+	/**
 	 * Raw version string as declared in package.json.
 	 * Examples:
 	 * - '^1.2.0' (semver)
@@ -55,7 +65,14 @@ export /*bundle*/ class DependencyInfo {
 	 */
 	constructor(pkg: string, version: string, settings: ProvidersSettings) {
 		this.#package = pkg;
-		this.#scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
+		if (pkg.startsWith('@')) {
+			const splitted = pkg.split('/');
+			this.#scope = splitted[0];
+			this.#name = splitted[1];
+		} else {
+			this.#name = pkg;
+		}
+
 		this.#version = version;
 
 		// Semver data (e.g., "^1.0.0", "~2.3.4")

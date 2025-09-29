@@ -5,8 +5,7 @@ import type {
 	IPackageManifestResponse
 } from '@beyond-js/packages/providers/types';
 import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
-import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
+import type { DependencyInfo, ISemverDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { PackageRegistryFetcher } from './fetcher';
 import { AuthHeaders } from './tools';
 
@@ -19,15 +18,15 @@ export class SemverRegistry implements IProvider {
 		return this.#name;
 	}
 
-	/** Build headers from auth (if any). */
-	#headers(auth?: IProviderAuthData, extra: Record<string, string> = {}): Record<string, string> {
-		const base = auth ? AuthHeaders.process(auth) : {};
-		return { ...base, ...extra };
+	/** Build headers for a given host (auth if present). */
+	#headers(dependency: DependencyInfo): Record<string, string> {
+		const data = <ISemverDependencyInfo>dependency.data;
+		const { auth } = data.provider;
+		return auth ? AuthHeaders.process(auth) : {};
 	}
 
-	async versions(pkg: string): Promise<IPackageVersionsResponse> {
-		// Use API (abbreviated packument) to avoid heavy payloads
-		const { packument, error, found } = await this.packument(pkg);
+	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {
+		const { packument, error, found } = await this.packument(dependency);
 		if (error || !found) return { error, found };
 
 		// Extract version keys from packument
@@ -35,12 +34,13 @@ export class SemverRegistry implements IProvider {
 		return { versions };
 	}
 
-	async packument?(pkg: string, abbreviated?: boolean): Promise<IPackumentResponse> {
-		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
-		const { host, auth } = this.#host(scope);
-		const headers = this.#headers(auth);
+	async packument?(dependency: DependencyInfo): Promise<IPackumentResponse> {
+		const { package: pkg } = dependency;
+		const data = <ISemverDependencyInfo>dependency.data;
+		const { hostname } = data.provider;
 
-		const url = `https://${host}/${encodeURIComponent(pkg)}`;
+		const url = `https://${hostname}/${encodeURIComponent(pkg)}`;
+		const headers = this.#headers(dependency);
 		return await PackageRegistryFetcher.packument({ url, headers });
 	}
 
@@ -50,23 +50,21 @@ export class SemverRegistry implements IProvider {
 	 */
 	async manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse> {
 		const { package: pkg } = dependency;
-		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
-		const { host, auth } = this.#host(scope);
-		const headers = this.#headers(auth);
+		const data = <ISemverDependencyInfo>dependency.data;
+		const { hostname } = data.provider;
 
-		const url = `https://${host}/${encodeURIComponent(pkg)}/${encodeURIComponent(version)}`;
+		const url = `https://${hostname}/${encodeURIComponent(pkg)}/${encodeURIComponent(version)}`;
+		const headers = this.#headers(dependency);
 		return await PackageRegistryFetcher.manifest({ url, headers });
 	}
 
 	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
-		const { package: pkg } = dependency;
-		const fullname = pkg;
-		const scope = pkg.startsWith('@') ? pkg.split('/')[0] : void 0;
-		const name = pkg.startsWith('@') ? pkg.split('/')[1] : pkg;
+		const { package: pkg, name } = dependency;
+		const data = <ISemverDependencyInfo>dependency.data;
+		const { hostname } = data.provider;
 
-		const { host, auth } = this.#host(scope);
-		const headers = this.#headers(auth);
-		const url = `https://${host}/${encodeURIComponent(fullname)}/-/${name}.tgz`;
+		const url = `https://${hostname}/${encodeURIComponent(pkg)}/-/${name}.tgz`;
+		const headers = this.#headers(dependency);
 		return { url, headers };
 	}
 }

@@ -1,6 +1,6 @@
 import type { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
 import type { IPackageManifest, IPackument } from '@beyond-js/packages/types';
-import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
+import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 
 export /*bundle*/ interface IPackageResponseBase {
 	found?: boolean;
@@ -27,14 +27,14 @@ export /*bundle*/ interface IProvider {
 	 * @param logger - Optional logger for logging purposes.
 	 * @returns
 	 */
-	versions?(pkg: string): Promise<IPackageVersionsResponse>;
+	versions?(dependency: DependencyInfo): Promise<IPackageVersionsResponse>;
 
 	/**
 	 * Retrieves the package specification for a specific version.
 	 *
 	 * @param name - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 */
-	packument?(pkg: string, abbreviated?: boolean): Promise<IPackumentResponse>;
+	packument?(dependency: DependencyInfo, abbreviated?: boolean): Promise<IPackumentResponse>;
 
 	/**
 	 * Retrieves the package specification for a specific version.

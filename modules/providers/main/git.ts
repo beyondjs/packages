@@ -1,6 +1,6 @@
 import type { IProvider, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
-import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/dependencies/info';
+import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 import { AuthHeaders } from './tools';
 

@@ -1,4 +1,4 @@
-import { InfoIsType } from '@beyond-js/packages/dependencies/info';
+import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 
 /**
  * Information for a Semver-based package identifier.

@@ -1,5 +1,5 @@
 // PackagePath.ts
-import { InfoIsType } from '@beyond-js/packages/dependencies/info';
+import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 import type { PackageInfoType } from './types';
 
 /**

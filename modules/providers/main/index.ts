@@ -1,7 +1,6 @@
 import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
-import type { DependencyInfo } from '@beyond-js/packages/dependencies/info';
-import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import { InfoIsType } from '@beyond-js/packages/dependencies/info';
+import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 
@@ -35,7 +34,7 @@ export /*bundle*/ class Providers extends Map {
 		const { is } = dependency.data;
 		switch (is) {
 			case InfoIsType.Semver:
-				return await this.#semver.versions(dependency.package);
+				return await this.#semver.versions(dependency);
 			default:
 				throw new Error(`Versions retrieval not supported for dependency type: "${is}"`);
 		}

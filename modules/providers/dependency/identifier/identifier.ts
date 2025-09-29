@@ -1,5 +1,5 @@
 import type { PackageInfoType } from './types';
-import { InfoIsType } from '@beyond-js/packages/dependencies/info';
+import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 
 /**
  * PackageIdentifier generates a canonical, immutable identifier (ID)
