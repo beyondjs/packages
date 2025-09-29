@@ -16,7 +16,7 @@ export /*bundle*/ class Providers extends Map {
 		return this.#git;
 	}
 
-	constructor(settings: ProvidersSettings) {
+	constructor() {
 		super();
 		this.#semver = new SemverRegistry();
 		this.#git = new GitProvider();

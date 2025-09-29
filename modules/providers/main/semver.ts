@@ -14,23 +14,9 @@ import { AuthHeaders } from './tools';
  * Registry adapter for semver-based dependencies resolved against npm-compatible registries.
  */
 export class SemverRegistry implements IProvider {
-	#settings: ProvidersSettings;
-
 	readonly #name = 'semver';
 	get name(): string {
 		return this.#name;
-	}
-
-	constructor(settings: ProvidersSettings) {
-		this.#settings = settings;
-	}
-
-	/** Resolve host/auth for given (optional) scope; fallback to default. */
-	#host(scope?: string): { host: string; auth?: IProviderAuthData } {
-		const def = this.#settings.default?.host ?? 'registry.npmjs.org';
-		const host = scope ? this.#settings.scopes.get(scope) ?? def : def;
-		const auth = this.#settings.hosts.get(host) ?? this.#settings.default?.auth;
-		return { host, auth };
 	}
 
 	/** Build headers from auth (if any). */

@@ -1,7 +1,5 @@
 import type { IProvider, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
-import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
-import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/dependencies/info';
 import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 import { AuthHeaders } from './tools';
@@ -19,14 +17,10 @@ export class GitProvider implements IProvider {
 		return this.#name;
 	}
 
-	/** Resolve auth for a given host from settings (host-specific first, then default). */
-	#auth(hostname: string): IProviderAuthData {
-		return this.#settings.get({ hostname }).auth;
-	}
-
 	/** Build headers for a given host (auth if present). */
-	#headers(host: string): Record<string, string> {
-		const auth = this.#auth(host);
+	#headers(dependency: DependencyInfo): Record<string, string> {
+		const data = <IGitDependencyInfo>dependency.data;
+		const { auth } = data.provider;
 		return auth ? AuthHeaders.process(auth) : {};
 	}
 
@@ -57,10 +51,12 @@ export class GitProvider implements IProvider {
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
 	async manifest(dependency: DependencyInfo): Promise<IPackageManifestResponse> {
-		const repo = (<IGitDependencyInfo>dependency.data).git;
-		const ref = repo.ref ?? 'HEAD';
-		const url = this.#url(repo.host, repo.owner, repo.repo, ref);
-		const headers = this.#headers(repo.host);
+		const data = <IGitDependencyInfo>dependency.data;
+		const { provider, owner, repo } = data;
+		const { hostname } = provider;
+		const ref = data.ref ?? 'HEAD';
+		const url = this.#url(hostname, owner, repo, ref);
+		const headers = this.#headers(dependency);
 
 		let response: Response;
 		try {
@@ -90,26 +86,30 @@ export class GitProvider implements IProvider {
 	 * This is optional but handy to keep symmetry with semver tarball usage.
 	 */
 	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
-		const repo = (<IGitDependencyInfo>dependency.data).git;
-		const ref = repo.ref ?? 'HEAD';
+		const data = <IGitDependencyInfo>dependency.data;
+		const { provider, owner, repo } = data;
+		const { hostname } = provider;
+		const ref = data.ref ?? 'HEAD';
 
-		const h = repo.host.replace(/^www\./, '').toLowerCase();
+		const url: string = (() => {
+			const h = hostname.replace(/^www\./, '').toLowerCase();
 
-		let url: string;
-		if (h === 'github.com') {
-			// codeload provides consistent tarballs
-			url = `https://codeload.github.com/${repo.owner}/${repo.repo}/tar.gz/${ref}`;
-		} else if (h === 'gitlab.com') {
-			// GitLab project archive (tar.gz)
-			url = `https://gitlab.com/${repo.owner}/${repo.repo}/-/archive/${ref}/${repo.repo}-${ref}.tar.gz`;
-		} else if (h === 'bitbucket.org') {
-			// Bitbucket tarball
-			url = `https://bitbucket.org/${repo.owner}/${repo.repo}/get/${ref}.tar.gz`;
-		} else {
-			// Fallback (may vary per provider)
-			url = `https://${repo.host}/${repo.owner}/${repo.repo}/archive/${ref}.tar.gz`;
-		}
+			if (h === 'github.com') {
+				// codeload provides consistent tarballs
+				return `https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
+			} else if (h === 'gitlab.com') {
+				// GitLab project archive (tar.gz)
+				return `https://gitlab.com/${owner}/${repo}/-/archive/${ref}/${repo}-${ref}.tar.gz`;
+			} else if (h === 'bitbucket.org') {
+				// Bitbucket tarball
+				return `https://bitbucket.org/${owner}/${repo}/get/${ref}.tar.gz`;
+			} else {
+				// Fallback (may vary per provider)
+				return `https://${hostname}/${owner}/${repo}/archive/${ref}.tar.gz`;
+			}
+		})();
 
-		return { url, headers: this.#headers(repo.host) };
+		const headers = this.#headers(dependency);
+		return { url, headers };
 	}
 }

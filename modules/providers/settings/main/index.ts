@@ -6,12 +6,23 @@ import { LocalLoader } from './loaders/local';
 import { VarsSettingsLoader } from './loaders/vars';
 import { DbSettingsLoader, type CdnCredentials } from './loaders/db';
 
+/**
+ * Options for retrieving provider settings.
+ */
+interface IGetOptions {
+	package?: string; // Full package name including scope (e.g. @beyond-js/widgets)
+	scope?: string; // Package scope (e.g. @beyond-js)
+	hostname?: string; // Registry hostname (e.g. registry.npmjs.org)
+}
+
+export /*bundle*/ interface ICdnProviderSettingsOptions {
+	credentials: CdnCredentials; // Credentials for CDN-based settings
+}
+
 export /*bundle*/ interface IProvidersSettingsOptions {
 	path?: string; // Optional context path for local settings
 	workspace?: string; // Optional workspace for local settings
-	cdn?: {
-		credentials: CdnCredentials; // Credentials for CDN-based settings
-	};
+	cdn?: ICdnProviderSettingsOptions;
 }
 
 export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
@@ -33,11 +44,20 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		return this.#default;
 	}
 
+	#loaded = false;
+	get loaded() {
+		return this.#loaded;
+	}
+
 	constructor(options: IProvidersSettingsOptions = {}) {
 		this.#options = options;
 	}
 
-	get({ package: pkg, scope, hostname }: { package?: string; scope?: string; hostname?: string }): IProviderData {
+	get({ package: pkg, scope, hostname }: IGetOptions): IProviderData {
+		if (!this.#loaded) {
+			throw new Error('Providers settings have not been loaded yet. Call the load() method first.');
+		}
+
 		// If hostname is provided, return its provider if exists, otherwise return a default unregistered provider
 		if (hostname) {
 			if (this.#hosts.has(hostname)) return this.#hosts.get(hostname);
@@ -95,5 +115,7 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		const db = new DbSettingsLoader();
 		cdn && (await db.load(cdn.credentials));
 		this.#merge(db);
+
+		this.#loaded = true;
 	}
 }

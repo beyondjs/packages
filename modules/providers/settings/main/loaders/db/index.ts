@@ -1,5 +1,6 @@
 import type { IProvidersSettings, IProviderData } from '@beyond-js/packages/providers/settings/types';
 import type { ICdnProvidersSettings } from '@beyond-js/packages/persistence/types/cdn';
+import type { ICdnProviderSettingsOptions } from '../..';
 import { def } from '../../default';
 
 /**
