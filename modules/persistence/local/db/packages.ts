@@ -1,5 +1,4 @@
 import { Collection } from './collection';
-import type { IPackageData } from '@beyond-js/packages/persistence/types';
+import type { IPackageManifestData } from '@beyond-js/packages/persistence/types';
 
-export /*bundle*/ const packages: Collection<IPackageData> = new Collection('Packages', true);
-export /*bundle*/ const dependencies: Collection<IPackageData> = new Collection('Dependencies');
+export /*bundle*/ const manifests: Collection<IPackageManifestData> = new Collection('PackageManifests', true);

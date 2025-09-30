@@ -6,8 +6,17 @@ import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 
+export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions {
+	project: { name: string; token?: string };
+}
+
 export /*bundle*/ class Providers extends Map {
 	#settings: ProvidersSettings;
+
+	#project: { name: string; token?: string };
+	get project() {
+		return this.#project;
+	}
 
 	#semver: SemverRegistry;
 	get semver() {
@@ -19,9 +28,12 @@ export /*bundle*/ class Providers extends Map {
 		return this.#git;
 	}
 
-	constructor(options: IProvidersSettingsOptions) {
+	constructor(options: IProvidersOptions) {
 		super();
+
 		this.#settings = new ProvidersSettings(options);
+		this.#project = options.project;
+
 		this.#semver = new SemverRegistry();
 		this.#git = new GitProvider();
 
