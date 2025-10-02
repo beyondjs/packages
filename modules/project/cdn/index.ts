@@ -43,6 +43,6 @@ export /*bundle*/ class Project {
 		const response = await db.projects.get({ id });
 
 		this.#dependencies = new Dependencies();
-		this.#packages = new Packages(this);
+		this.#packages = new PackageProviders(this);
 	}
 }

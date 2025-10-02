@@ -8,7 +8,7 @@ export class PackageProviders {
 
 	constructor(project: Project) {
 		const { workspace, path } = project;
-		this.#providers = new Providers({ workspace, path });
+		this.#providers = new Providers({ workspace: workspace.path, path });
 	}
 
 	/**
