@@ -1,0 +1,5 @@
+{
+	"name": "workspace",
+	"bundle": "ts",
+	"files": "*"
+}

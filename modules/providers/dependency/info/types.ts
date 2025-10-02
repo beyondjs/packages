@@ -30,6 +30,12 @@ export /*bundle*/ interface IUndefinedDependencyInfo {
 export /*bundle*/ interface ISemverDependencyInfo {
 	is: InfoIsType.Semver;
 	provider: IProviderData;
+
+	/**
+	 * Indicates if the version is a range (e.g., '^1.0.0', '~2.3.4') or a specific version (e.g., '1.2.3').
+	 * Always false for non-semver types (git, url, alias).
+	 */
+	range: boolean;
 }
 
 export /*bundle*/ interface IGitDependencyInfo {

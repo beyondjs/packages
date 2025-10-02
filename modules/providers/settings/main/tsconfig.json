@@ -4,6 +4,7 @@
 		"module": "esnext",
 		"moduleResolution": "node",
 		"noImplicitAny": true,
+		"skipLibCheck": true,
 		"types": ["@types/node"]
 	}
 }

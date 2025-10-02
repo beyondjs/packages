@@ -20,6 +20,7 @@ export class Manifest {
 	}
 
 	constructor(finder: ModuleManifestsFinder, file: FileData) {
+		void finder;
 		this.#file = file;
 
 		const config = new Config(file.dirname, { '/static': 'object' });

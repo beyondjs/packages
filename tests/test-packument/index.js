@@ -7,9 +7,9 @@ BEE('http://localhost:1110', { inspect: 4000 });
 (async () => {
 	const { ProvidersSettings } = await bimport('@beyond-js/packages/providers/settings');
 	const { Providers } = await bimport('@beyond-js/packages/providers');
-	const { DependencyInfo } = await bimport('@beyond-js/packages/dependencies/info');
+	const { DependencyInfo } = await bimport('@beyond-js/packages/providers/dependency/info');
 
-	// Process the settings for the `my-package` and the workspace set in the current working directory
+	// Process the settings for `my-package` and the workspace set in the current working directory
 	const cwd = process.cwd();
 	const options = { workspace: cwd, path: join(cwd, 'my-package') };
 	const settings = new ProvidersSettings(options);
@@ -30,8 +30,7 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	// Get manifest for one of the versions directly from the 'semver' provider
 	await (async () => {
 		console.log(`Getting manifest for package "${pkg}@${version}" directly from 'semver' provider`.green);
-		const dependency = new DependencyInfo(pkg, version);
-		const { error, manifest } = await semver.manifest(dependency, version);
+		const { error, manifest } = await semver.manifest(dependency, version, version);
 
 		if (error) {
 			console.error(`Error fetching manifest for package "${pkg}" version "${version}":`, error);

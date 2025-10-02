@@ -2,9 +2,9 @@ import type { Manifest } from './';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { IManifestModuleSpec, IManifestSpec } from '@beyond-js/packages/types';
 import type { IModuleManifestInfo } from '@beyond-js/packages/module/spec';
+import type { Config } from '@beyond-js/config/main';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
-import { Config } from '@beyond-js/config/main';
 import { equal } from '@beyond-js/equal/main';
 
 interface IDone {

@@ -1,4 +1,4 @@
-import type { IDiagnostic, IPackageJSON } from '@beyond-js/packages/types';
+import type { IDiagnostic, IPackageManifest } from '@beyond-js/packages/types';
 import { WatcherClient } from '@beyond-js/watchers/client';
 import { Config } from '@beyond-js/config/main';
 import Attributes from './attributes';
@@ -19,6 +19,11 @@ interface IDone {
 }
 
 export /*bundle*/ class Package extends Attributes {
+	#path: string;
+	get path() {
+		return this.#path;
+	}
+
 	#options: IOptions;
 
 	#watcher: WatcherClient;
@@ -85,6 +90,7 @@ export /*bundle*/ class Package extends Attributes {
 		config.data = 'package.json';
 		super(config);
 
+		this.#path = path;
 		this.#options = options;
 
 		// As the modules are subscribed to the events of the package, then
@@ -110,7 +116,7 @@ export /*bundle*/ class Package extends Attributes {
 		};
 
 		// Process the attributes of the package
-		const config: IPackageJSON | {} = !valid || !value ? {} : value;
+		const config: IPackageManifest | {} = !valid || !value ? {} : value;
 		const changed = super.process(config);
 		if (!changed || !valid) return done({ changed });
 

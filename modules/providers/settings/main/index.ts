@@ -4,7 +4,7 @@ import { def } from './default';
 // Import the loaders
 import { LocalLoader } from './loaders/local';
 import { VarsSettingsLoader } from './loaders/vars';
-import { DbSettingsLoader, type CdnCredentials } from './loaders/db';
+import { DbSettingsLoader } from './loaders/db';
 
 /**
  * Options for retrieving provider settings.
@@ -16,7 +16,7 @@ interface IGetOptions {
 }
 
 export /*bundle*/ interface ICdnProviderSettingsOptions {
-	credentials: CdnCredentials; // Credentials for CDN-based settings
+	project: string; // The project id
 }
 
 export /*bundle*/ interface IProvidersSettingsOptions {
@@ -113,7 +113,7 @@ export /*bundle*/ class ProvidersSettings implements IProvidersSettings {
 		this.#merge(vars);
 
 		const db = new DbSettingsLoader();
-		cdn && (await db.load(cdn.credentials));
+		cdn && (await db.load(cdn.project));
 		this.#merge(db);
 
 		this.#loaded = true;

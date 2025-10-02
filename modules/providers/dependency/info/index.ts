@@ -10,35 +10,36 @@ import * as semver from 'semver';
  * Determines the data type (semver, git, etc.) and extracts relevant metadata.
  */
 export /*bundle*/ class DependencyInfo {
+	#package: string;
 	/**
 	 * Full package name as defined in package.json.
 	 * Includes scope if applicable (e.g., '@beyond-js/http', 'lodash').
 	 */
-	#package: string;
 	get package() {
 		return this.#package;
 	}
 
+	#scope?: string;
 	/**
 	 * Optional extracted scope from the package name (with the '@').
 	 * For '@beyond-js/http', this would be '@beyond-js'.
 	 * Omitted for unscoped packages.
 	 */
-	#scope?: string;
 	get scope() {
 		return this.#scope;
 	}
 
+	#name?: string;
 	/**
 	 * Optional extracted name from the package name (without the scope).
 	 * For '@beyond-js/http', this would be 'http'.
 	 * For 'lodash', this would be 'lodash'.
 	 */
-	#name?: string;
 	get name() {
 		return this.#name;
 	}
 
+	#version: string;
 	/**
 	 * Raw version string as declared in package.json.
 	 * Examples:
@@ -46,7 +47,6 @@ export /*bundle*/ class DependencyInfo {
 	 * - 'github:user/repo#v1.0.0' (git)
 	 * - 'https://cdn.example.com/pkg.tgz' (tarball)
 	 */
-	#version: string;
 	get version() {
 		return this.#version;
 	}
@@ -65,6 +65,10 @@ export /*bundle*/ class DependencyInfo {
 	 * @returns
 	 */
 	constructor(pkg: string, version: string, settings: ProvidersSettings) {
+		if (!pkg || typeof pkg !== 'string') throw new Error('Invalid package name');
+		if (!version || typeof version !== 'string') throw new Error('Invalid version specifier');
+		if (!settings) throw new Error('Providers settings instance is required');
+
 		this.#package = pkg;
 		if (pkg.startsWith('@')) {
 			const splitted = pkg.split('/');
@@ -85,7 +89,11 @@ export /*bundle*/ class DependencyInfo {
 		// Semver data (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(version) || semver.validRange(version)) {
 			const provider = settings.get({ package: pkg });
-			this.#data = { is: InfoIsType.Semver, provider };
+
+			// Determine if the version is not a specific version
+			const range = semver.valid(version) ? false : true;
+
+			this.#data = { is: InfoIsType.Semver, range, provider };
 			return;
 		}
 

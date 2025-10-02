@@ -1,16 +1,6 @@
 import type { IProvidersSettings, IProviderData } from '@beyond-js/packages/providers/settings/types';
-import type { ICdnProvidersSettings } from '@beyond-js/packages/persistence/types/cdn';
-import type { ICdnProviderSettingsOptions } from '../..';
+import type { IProjectData } from '@beyond-js/packages/persistence/types/cdn';
 import { def } from '../../default';
-
-/**
- * Interface for the credentials needed to access Firestore-based settings.
- */
-export interface CdnCredentials {
-	account: string;
-	project: string;
-	token: string; // Access token to authenticate the request
-}
 
 /**
  * Firestore-based repository settings loader.
@@ -29,28 +19,31 @@ export class DbSettingsLoader implements IProvidersSettings {
 		return this.#default;
 	}
 
-	async load(credentials: CdnCredentials): Promise<void> {
+	async load(project: string): Promise<void> {
 		const origin = 'db';
-		if (!credentials || !credentials.account || !credentials.project || !credentials.token) {
-			throw new Error('Invalid credentials provided for Firestore settings loader');
-		}
+		if (!project) throw new Error('Project ID is required to load CDN provider settings');
 
-		// TODO: Load document from Firestore collection using `credentials.account` and `credentials.project`
-		// Verify permissions using `credentials.token`
-		// Expected document structure:
-		const data: ICdnProvidersSettings = {};
+		const { projects } = await import('@beyond-js/packages/persistence/cdn/db');
+		const response = await projects.data({ id: project });
+
+		// @TODO: handle errors
+		if (!response.error) return;
+		if (response.data.error || !response.data.exists) return;
+
+		const data: IProjectData = response.data.data;
+		const settings = data.providers;
 
 		// Apply default
-		if (data.default) this.#default = { ...data.default, origin };
+		if (settings.default) this.#default = { ...settings.default, origin };
 
 		// Apply scopes
-		const scopes = data.scopes || {};
+		const scopes = settings.scopes || {};
 		for (const scope in scopes) {
 			this.#scopes.set(scope, { ...scopes[scope], origin });
 		}
 
 		// Apply hosts
-		const hosts = data.hosts || {};
+		const hosts = settings.hosts || {};
 		for (const host in hosts || {}) {
 			this.#hosts.set(host, { ...hosts[host], origin });
 		}
