@@ -1,7 +1,8 @@
 import type {
 	IPackageVersionsResponse,
 	IPackumentResponse,
-	IPackageManifestResponse
+	IPackageManifestResponse,
+	IPackageProvider
 } from '@beyond-js/packages/providers/types';
 import type { DependencyInfo, ISemverDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { PackageRegistryFetcher } from './fetcher';
@@ -10,7 +11,7 @@ import { AuthHeaders } from './tools';
 /**
  * Registry adapter for semver-based dependencies resolved against npm-compatible registries.
  */
-export class SemverRegistry {
+export class SemverRegistry implements IPackageProvider {
 	readonly #name = 'semver';
 	get name(): string {
 		return this.#name;

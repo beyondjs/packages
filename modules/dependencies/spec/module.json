@@ -1,5 +1,5 @@
 {
-	"name": "dependencies/spec",
+	"name": "project/dependencies/spec",
 	"bundle": "ts",
 	"files": "*"
 }

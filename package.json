@@ -40,7 +40,7 @@
 		"@beyond-js/api-server": "~0.0.4",
 		"@beyond-js/response": "~0.0.3",
 		"@beyond-js/dynamic-processor": "~1.0.8",
-		"@beyond-js/finder": "~1.0.6",
+		"@beyond-js/finder": "~1.0.8",
 		"@beyond-js/file": "~1.0.6",
 		"@beyond-js/watchers": "~1.0.7",
 		"@beyond-js/config": "~1.0.2",

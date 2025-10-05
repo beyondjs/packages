@@ -1,4 +1,5 @@
 import type { ModuleManifestsFinder } from '../finder';
+import type { IFinderItemCtor } from '@beyond-js/finder/collection';
 import type { FileData } from '@beyond-js/file/data';
 import { Config } from '@beyond-js/config/main';
 import { ManifestModules } from './modules';
@@ -30,3 +31,5 @@ export class Manifest {
 		this.#static = <Config>config.get('/static');
 	}
 }
+
+const _assert: IFinderItemCtor = Manifest;

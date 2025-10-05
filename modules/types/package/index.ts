@@ -26,12 +26,30 @@ export /*bundle*/ type FundingType = string | { type?: string; url: string } | A
 
 export type BugsType = string | { url?: string; email?: string };
 
-export /*bundle*/ interface IBeyondPackageManifest extends IPackageManifest {
-	bundlers: BundlersSettingsType;
-	modules: string | { path: string };
+export /*bundle*/ interface IPackageDependencies {
+	dependencies?: Record<string, string>;
+	devDependencies?: Record<string, string>;
+	peerDependencies?: Record<string, string>;
+	optionalDependencies?: Record<string, string>;
+	bundleDependencies?: string[]; // legacy alias
+	bundledDependencies?: string[]; // alias
+	peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 }
 
-export /*bundle*/ interface IPackageManifest extends IPackageExports {
+export /*bundle*/ interface IBeyondPackageManifest extends IPackageManifest {
+	bundlers: BundlersSettingsType;
+	beyond: {
+		modules: string | { path: string };
+		distributions: {
+			name: string;
+			platform: string;
+			port?: number;
+			ports: { inspect: number; host: number };
+		}[];
+	};
+}
+
+export /*bundle*/ interface IPackageManifest extends IPackageExports, IPackageDependencies {
 	// Metadata
 	name?: string;
 	version?: string;
@@ -66,15 +84,6 @@ export /*bundle*/ interface IPackageManifest extends IPackageExports {
 	// Scripts & config
 	scripts?: Record<string, string>;
 	config?: Record<string, unknown>;
-
-	// Dependencies
-	dependencies?: Record<string, string>;
-	devDependencies?: Record<string, string>;
-	peerDependencies?: Record<string, string>;
-	optionalDependencies?: Record<string, string>;
-	bundleDependencies?: string[]; // legacy alias
-	bundledDependencies?: string[]; // alias
-	peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 
 	// Platform constraints
 	engines?: Record<string, string>;

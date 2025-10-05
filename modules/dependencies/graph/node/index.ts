@@ -1,22 +1,29 @@
 import type { ErrorManager } from '@beyond-js/response/main';
-import type { Providers } from '@beyond-js/packages/providers';
-import type { Registry } from '../registry';
 import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
+import type { IProject } from '@beyond-js/packages/project/types';
+import type { Registry } from '../registry';
 import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 
 export interface INodeConstructorParams {
-	providers: Providers;
+	project: IProject;
 	registry: Registry;
 	dependency: { kind: DependencyKind; package: string; version: string };
 	parent?: Node;
 }
 
 export class Node {
-	#providers: Providers;
+	#project: IProject;
+	get project() {
+		return this.#project;
+	}
+
 	#registry: Registry;
+	get registry() {
+		return this.#registry;
+	}
 
 	#kind: DependencyKind;
 	get kind() {
@@ -64,19 +71,19 @@ export class Node {
 	}
 
 	constructor(params: INodeConstructorParams) {
-		const { providers, registry, dependency, parent } = params;
+		const { project, registry, dependency, parent } = params;
 		const { kind, package: pkg, version } = dependency;
 
-		if (!providers || !registry || !pkg || !version) {
-			throw new Error('Providers, registry, pkg and version are required parameters');
+		if (!project || !pkg || !version) {
+			throw new Error('Project, pkg and version are required parameters');
 		}
 
-		this.#providers = providers;
+		this.#project = project;
 		this.#registry = registry;
 		this.#package = pkg;
 		this.#version = new Version(version);
 		this.#parent = parent;
-		this.#dependencies = new NodeDependencies(this, providers, registry);
+		this.#dependencies = new NodeDependencies(this);
 
 		this.#version.on('change', this.invalidate.bind(this));
 	}
@@ -115,7 +122,7 @@ export class Node {
 		if (version.error) return done({ error: version.error });
 
 		const { specified, resolved } = version;
-		const { error, manifest } = await this.#providers.manifest(this.#package, specified, resolved);
+		const { error, manifest } = await this.#project.packages.manifest(this.#package, specified, resolved);
 		if (error) return done({ error });
 
 		const dependencies = new DependenciesSpec(manifest);

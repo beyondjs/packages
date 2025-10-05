@@ -1,15 +1,15 @@
-import type { Providers } from '@beyond-js/packages/providers';
+import type { IProject } from '@beyond-js/packages/project/types';
 import type { Registry } from './';
 import type { Node } from '../node';
 import { DependencyPackage } from './package';
 
 export class Nodes {
+	#project: IProject;
 	#registry: Registry;
-	#providers: Providers;
 	#nodes: Map<string, Node>;
 
-	constructor(providers: Providers, registry: Registry) {
-		this.#providers = providers;
+	constructor(project: IProject, registry: Registry) {
+		this.#project = project;
 		this.#registry = registry;
 		this.#nodes = new Map();
 	}
@@ -20,7 +20,7 @@ export class Nodes {
 		const { package: pkg } = node;
 		const dependency = this.#registry.packages.has(pkg)
 			? this.#registry.packages.get(pkg)
-			: new DependencyPackage(this.#providers, node.info);
+			: new DependencyPackage(this.#project, node.info);
 
 		// Ensure the package is initialized (versions are fetched)
 		await dependency.ready;

@@ -1,4 +1,4 @@
-import type { IPackageManifestResponse } from '@beyond-js/packages/providers/types';
+import type { IPackageManifestResponse, IPackageProvider } from '@beyond-js/packages/providers/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
@@ -11,7 +11,7 @@ import { AuthHeaders } from './tools';
  * - Resolves package.json via provider raw HTTP endpoints (GitHub/GitLab/Bitbucket).
  * - Auth/headers are resolved per request from ProvidersSettings.
  */
-export class GitProvider {
+export class GitProvider implements IPackageProvider {
 	readonly #name = 'git';
 	get name(): string {
 		return this.#name;

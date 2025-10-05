@@ -1,12 +1,9 @@
-import type { Providers } from '@beyond-js/packages/providers';
 import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
-import type { Registry } from '../registry';
+import type { IProject } from '@beyond-js/packages/project/types';
 import type { Node as DependencyNode } from '.';
 
 export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
-	#providers: Providers;
 	#node: DependencyNode;
-	#registry: Registry;
 
 	#processing = false;
 	get processing() {
@@ -26,12 +23,9 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		return true;
 	}
 
-	constructor(node: DependencyNode, providers: Providers, packages: Registry) {
+	constructor(node: DependencyNode) {
 		super();
-
 		this.#node = node;
-		this.#providers = providers;
-		this.#registry = packages;
 	}
 
 	invalidate() {
@@ -39,7 +33,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		this.#processed = false;
 
 		this.forEach((node, pkg) => {
-			this.#registry.nodes.unregister(node);
+			this.#node.registry.nodes.unregister(node);
 			node.invalidate();
 
 			this.delete(pkg);
@@ -60,8 +54,8 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 
 		for (const [name, { kind, version }] of spec) {
 			const node = new Node({
-				providers: this.#providers,
-				registry: this.#registry,
+				project: this.#node.project,
+				registry: this.#node.registry,
 				dependency: { kind, package: name, version },
 				parent: this.#node
 			});

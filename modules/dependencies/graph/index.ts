@@ -1,34 +1,12 @@
 import type { IPackageManifest } from '@beyond-js/packages/types';
-import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
-import { Providers } from '@beyond-js/packages/providers';
+import type { IProject } from '@beyond-js/packages/project/types';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import { Logger } from '@beyond-js/packages/logs';
 import { Registry } from './registry';
 import { Node } from './node';
 
-export /*bundle*/ interface IDependenciesGraphConstructorParams {
-	manifest: IPackageManifest;
-	workspace?: { name: string; version: string }[];
-	options: IProvidersSettingsOptions;
-}
-
 export /*bundle*/ class DependenciesGraph extends Node {
-	#manifest?: IPackageManifest;
-
-	#workspace?: { name: string; version: string }[];
-	get workspace() {
-		return this.#workspace;
-	}
-
-	#providers: Providers;
-	get providers() {
-		return this.#providers;
-	}
-
-	#registry: Registry;
-	get registry() {
-		return this.#registry;
-	}
+	#project: IProject;
 
 	#logger: Logger;
 	get logger(): Logger {
@@ -39,18 +17,16 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		return this.dependencies.completed;
 	}
 
-	constructor({ manifest, workspace, options }: IDependenciesGraphConstructorParams) {
-		if (!manifest) throw new Error('Manifest is a required parameter');
+	constructor(project: IProject) {
+		if (!project.processed) {
+			throw new Error('The project must be processed before creating the dependencies graph');
+		}
 
-		const providers = new Providers(options);
-		const registry = new Registry(providers);
-		const { name, version } = manifest;
-		super({ providers, registry, dependency: { kind: 'main', package: name, version } });
+		const { name, version } = project;
+		const registry = new Registry(project);
+		super({ project, registry, dependency: { kind: 'main', package: name, version } });
 
-		this.#manifest = manifest;
-		this.#workspace = workspace;
-		this.#providers = providers;
-		this.#registry = registry;
+		this.#project = project;
 		this.#logger = new Logger({ console: true });
 	}
 
@@ -69,10 +45,10 @@ export /*bundle*/ class DependenciesGraph extends Node {
 			'peerDependencies'
 		];
 
-		if (deps.every(dep => this.#manifest[dep] === void 0)) {
+		if (deps.every(dep => this.#project.dependencies.spec[dep] === void 0)) {
 			await super.process();
 		} else {
-			const dependencies = new DependenciesSpec(this.#manifest);
+			const dependencies = new DependenciesSpec(this.#project.dependencies.spec);
 			await this.dependencies.process(dependencies);
 		}
 

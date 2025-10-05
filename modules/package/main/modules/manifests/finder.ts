@@ -1,4 +1,4 @@
-import type { IBeyondPackageJSON } from '@beyond-js/packages/types';
+import type { IBeyondPackageManifest } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
 import type { WatcherClient } from '@beyond-js/watchers/client';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
@@ -10,7 +10,7 @@ import { join } from 'path';
 /**
  * Collection of modules of the package
  */
-export class ModuleManifestsFinder extends FinderCollection<Manifest> {
+export class ModuleManifestsFinder extends FinderCollection<typeof Manifest> {
 	get dp() {
 		return 'package.module-manifests.finder';
 	}
@@ -37,21 +37,23 @@ export class ModuleManifestsFinder extends FinderCollection<Manifest> {
 
 		if (!require(this.#config, 'package-config')) return false;
 
-		const config = <IBeyondPackageJSON>this.#config.value;
-		if (!this.#config.valid || !config.modules) {
+		const config = <IBeyondPackageManifest>this.#config.value;
+		const modules = config.beyond?.modules;
+
+		if (!this.#config.valid || !modules) {
 			this.configure();
 			return;
 		}
 
 		const path = (() => {
-			if (typeof config.modules === 'string') {
+			if (typeof modules === 'string') {
 				// config.path is the path of the package.json file
-				// When config.modules is a string, it is relative to the package.json file
-				return join(this.#config.path, config.modules);
-			} else if (typeof config.modules === 'object' && config.modules.path) {
-				// config.modules is an object with a path property
+				// When modules is a string, it is relative to the package.json file
+				return join(this.#config.path, modules);
+			} else if (typeof modules === 'object' && modules.path) {
+				// modules is an object with a path property
 				// The path is relative to the package.json file
-				return join(this.#config.path, config.modules.path);
+				return join(this.#config.path, modules.path);
 			} else {
 				const code = 'INVALID_TYPE';
 				const message =

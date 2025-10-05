@@ -1,5 +1,5 @@
 {
-	"name": "dependencies/graph",
+	"name": "project/dependencies/graph",
 	"bundle": "ts",
 	"files": "*"
 }

@@ -1,11 +1,11 @@
-import type { Providers } from '@beyond-js/packages/providers';
+import type { IProject } from '@beyond-js/packages/project/types';
 import { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
 import { DependencyInfo, InfoIsType } from '@beyond-js/packages/providers/dependency/info';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 import { PackageNodes } from './nodes';
 
 export class DependencyPackage {
-	#providers: Providers;
+	#project: IProject;
 
 	#info: DependencyInfo;
 	get info() {
@@ -41,8 +41,8 @@ export class DependencyPackage {
 		return this.#ready;
 	}
 
-	constructor(providers: Providers, info: DependencyInfo) {
-		this.#providers = providers;
+	constructor(project: IProject, info: DependencyInfo) {
+		this.#project = project;
 		this.#info = info;
 	}
 
@@ -61,7 +61,7 @@ export class DependencyPackage {
 		if (this.#info.data.is !== InfoIsType.Semver) return;
 
 		// Retrieve the versions of the package
-		const { error, versions } = await this.#providers.semver.versions(this.#info);
+		const { error, versions } = await this.#project.semver.versions(this.#info);
 		if (error) {
 			this.#initialized = true;
 			this.#error = error;

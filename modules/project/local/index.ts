@@ -1,29 +1,32 @@
-import { Dependencies } from './dependencies';
-import { PackageProviders } from './package-providers';
-import { db } from '@beyond-js/packages/persistence/db';
+import type { IProject } from '@beyond-js/packages/project/types';
+import type { Workspace } from '@beyond-js/packages/workspace';
+import type { Package } from '@beyond-js/packages/package';
+import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { ProjectDependencies } from './dependencies';
+import { PackageProviders } from './providers';
 
-export /*bundle*/ interface IProjectOptions {
-	local: { path: string };
-	cdn: { project: string };
-}
-
-export /*bundle*/ class Project {
-	#workspace: string;
+export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
+	#workspace: Workspace;
 	get workspace() {
 		return this.#workspace;
 	}
 
-	#path: string;
-	get path() {
-		return this.#path;
+	#pkg: Package;
+	get pkg() {
+		return this.#pkg;
 	}
 
-	#options: IProjectOptions;
-	get options() {
-		return this.#options;
+	#name: string;
+	get name() {
+		return this.#name;
 	}
 
-	#dependencies: Dependencies;
+	#version: string;
+	get version() {
+		return this.#version;
+	}
+
+	#dependencies: ProjectDependencies;
 	get dependencies() {
 		return this.#dependencies;
 	}
@@ -33,13 +36,25 @@ export /*bundle*/ class Project {
 		return this.#packages;
 	}
 
-	constructor(workspace: Workspace, pkg: string) {
+	constructor(workspace: Workspace, name: string, version: string) {
+		super();
 		this.#workspace = workspace;
-		this.#path = this.#workspace.packages.get(pkg);
+		this.#name = name;
+		this.#version = version;
+
+		this.#dependencies = new ProjectDependencies(this);
+		this.#packages = new PackageProviders(this);
 	}
 
-	async initialize() {
-		this.#dependencies = new Dependencies();
-		this.#packages = new PackageProviders(this);
+	_process() {
+		const pkg = [...this.#workspace.packages.values()].find(
+			({ name, version }) => name === this.#name && version === this.#version
+		);
+
+		if (!pkg) {
+			throw new Error(`The package ${this.#name}@${this.#version} does not exist in the workspace`);
+		}
+
+		this.#pkg = pkg;
 	}
 }

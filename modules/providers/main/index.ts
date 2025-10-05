@@ -1,4 +1,9 @@
-import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
+import type {
+	IPackageVersionsResponse,
+	IPackageManifestResponse,
+	IPackageProvider,
+	IPackageProviders
+} from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
 import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
 import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
@@ -8,18 +13,11 @@ import { GitProvider } from './git';
 
 export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions {}
 
-export /*bundle*/ class Providers extends Map {
+export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> implements IPackageProviders {
 	#settings: ProvidersSettings;
 
 	#semver: SemverRegistry;
-	get semver() {
-		return this.#semver;
-	}
-
 	#git: GitProvider;
-	get git() {
-		return this.#git;
-	}
 
 	constructor(options: IProvidersOptions) {
 		super();
@@ -61,6 +59,26 @@ export /*bundle*/ class Providers extends Map {
 				return await this.#semver.manifest(dependency, version);
 			case InfoIsType.Git:
 				return await this.#git.manifest(dependency);
+			case InfoIsType.Url:
+			// return this.#url.manifest(dependency.url!, logger);
+			default:
+				throw new Error(`Unsupported dependency type: ${is}`);
+		}
+	}
+
+	/**
+	 * Build a tarball request (url + headers) for downloading repository archive at a ref.
+	 * This is optional but handy to keep symmetry with semver tarball usage.
+	 */
+	tarball(pkg: string, specifier: string, version: string): { url: string; headers: Record<string, string> } {
+		const dependency = new DependencyInfo(pkg, specifier, this.#settings);
+
+		const { is } = dependency.data;
+		switch (is) {
+			case InfoIsType.Semver:
+				return this.#semver.tarball(dependency);
+			case InfoIsType.Git:
+				return this.#git.tarball(dependency);
 			case InfoIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:

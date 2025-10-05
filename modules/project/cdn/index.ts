@@ -4,17 +4,12 @@ import { db } from '@beyond-js/packages/persistence/db';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
 export /*bundle*/ class Project {
-	#id: string;
-	get id() {
-		return this.#id;
-	}
-
 	#dependencies: Dependencies;
 	get dependencies() {
 		return this.#dependencies;
 	}
 
-	#packages: Packages;
+	#packages: PackageProviders;
 	get packages() {
 		return this.#packages;
 	}
@@ -29,7 +24,7 @@ export /*bundle*/ class Project {
 		return this.#error;
 	}
 
-	constructor(id: string) {
+	constructor() {
 		this.#initialize()
 			.then(this.#ready.resolve)
 			.catch(error => {

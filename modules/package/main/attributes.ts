@@ -1,4 +1,4 @@
-import type { IPackageJSON } from '@beyond-js/packages/types';
+import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -23,30 +23,56 @@ export default class extends DynamicProcessor() {
 		return this.#config.path;
 	}
 
-	#values: IPackageJSON = {};
+	#manifest: IPackageManifest = {};
+	get manifest() {
+		return this.#manifest;
+	}
+
+	// Package attributes, shortcuts to the manifest properties
 	get name() {
-		return this.#values.name;
+		return this.#manifest.name;
 	}
 	get version() {
-		return this.#values.version;
+		return this.#manifest.version;
 	}
 	get vname() {
-		return `${this.#values.name}@${this.#values.version}`;
+		return `${this.#manifest.name}@${this.#manifest.version}`;
 	}
 	get description() {
-		return this.#values.description;
+		return this.#manifest.description;
 	}
 	get keywords() {
-		return this.#values.keywords;
+		return this.#manifest.keywords;
 	}
 	get author() {
-		return this.#values.author;
+		return this.#manifest.author;
 	}
 	get license() {
-		return this.#values.license;
+		return this.#manifest.license;
 	}
 	get repository() {
-		return this.#values.repository;
+		return this.#manifest.repository;
+	}
+	get dependencies() {
+		return this.#manifest.dependencies;
+	}
+	get devDependencies() {
+		return this.#manifest.devDependencies;
+	}
+	get peerDependencies() {
+		return this.#manifest.peerDependencies;
+	}
+	get optionalDependencies() {
+		return this.#manifest.optionalDependencies;
+	}
+	get bundledDependencies() {
+		return this.#manifest.bundledDependencies;
+	}
+	get bundleDependencies() {
+		return this.#manifest.bundleDependencies;
+	}
+	get peerDependenciesMeta() {
+		return this.#manifest.peerDependenciesMeta;
 	}
 
 	async _begin() {
@@ -64,12 +90,12 @@ export default class extends DynamicProcessor() {
 		this.#id = createHash('md5').update(this.path).digest('hex').toString();
 	}
 
-	process(config: IPackageJSON): boolean {
+	process(config: IPackageManifest): boolean {
 		const { name, version, description, keywords, author, license, repository } = config;
 		const values = { name, version, description, keywords, author, license, repository };
 
-		if (equal(values, this.#values)) return false;
-		this.#values = values;
+		if (equal(values, this.#manifest)) return false;
+		this.#manifest = values;
 		return true;
 	}
 }

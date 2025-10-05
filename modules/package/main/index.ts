@@ -100,8 +100,6 @@ export /*bundle*/ class Package extends Attributes {
 	}
 
 	_process() {
-		const { warnings, errors, valid, value } = this.config;
-
 		const done = ({ changed, errors, warnings }: IDone) => {
 			errors = errors ? errors : [];
 			warnings = warnings ? warnings : [];
@@ -116,14 +114,15 @@ export /*bundle*/ class Package extends Attributes {
 		};
 
 		// Process the attributes of the package
+		const { warnings, errors, valid, value } = this.config;
 		const config: IPackageManifest | {} = !valid || !value ? {} : value;
 		const changed = super.process(config);
-		if (!changed || !valid) return done({ changed });
+		if (!changed || !valid) return done({ changed, errors, warnings });
 
 		if (!this.name || !this.version) {
 			const code = 'PACKAGE_NAME_VERSION_MISSING';
 			const message = `The package.json file must contain the 'name' and 'version' properties.`;
-			return done({ changed, errors: [{ code, message }] });
+			return done({ changed, errors: [{ code, message }], warnings });
 		}
 	}
 

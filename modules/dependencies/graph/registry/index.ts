@@ -1,4 +1,4 @@
-import type { Providers } from '@beyond-js/packages/providers';
+import type { IProject } from '@beyond-js/packages/project/types';
 import { DependencyPackage } from './package';
 import { Nodes } from './nodes';
 
@@ -13,8 +13,8 @@ export class Registry {
 		return this.#nodes;
 	}
 
-	constructor(providers: Providers) {
+	constructor(project: IProject) {
 		this.#packages = new Map();
-		this.#nodes = new Nodes(providers, this);
+		this.#nodes = new Nodes(project, this);
 	}
 }
