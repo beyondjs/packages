@@ -1,7 +1,7 @@
 import type { IProject } from '@beyond-js/packages/project/types';
-import type { Registry } from './';
-import type { Node } from '../node';
-import { DependencyPackage } from './package';
+import type { Registry } from '../';
+import type { Node } from '../../node';
+import { DependencyPackage } from '../package';
 
 export class Nodes {
 	#project: IProject;
@@ -20,7 +20,7 @@ export class Nodes {
 		const { package: pkg } = node;
 		const dependency = this.#registry.packages.has(pkg)
 			? this.#registry.packages.get(pkg)
-			: new DependencyPackage(this.#project, node.info);
+			: new DependencyPackage(this.#project, pkg);
 
 		// Ensure the package is initialized (versions are fetched)
 		await dependency.ready;

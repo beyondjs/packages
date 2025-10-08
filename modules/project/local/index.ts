@@ -1,3 +1,4 @@
+import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import type { IProject } from '@beyond-js/packages/project/types';
 import type { Workspace } from '@beyond-js/packages/workspace';
 import type { Package } from '@beyond-js/packages/package';
@@ -44,6 +45,10 @@ export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
 
 		this.#dependencies = new ProjectDependencies(this);
 		this.#packages = new PackageProviders(this);
+	}
+
+	_prepared(require: RequireType) {
+		this.#workspace.packages.forEach(pkg => require(pkg, pkg.path));
 	}
 
 	_process() {

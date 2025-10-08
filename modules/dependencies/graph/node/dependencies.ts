@@ -1,5 +1,4 @@
 import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
-import type { IProject } from '@beyond-js/packages/project/types';
 import type { Node as DependencyNode } from '.';
 
 export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
@@ -56,6 +55,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 			const node = new Node({
 				project: this.#node.project,
 				registry: this.#node.registry,
+				logger: this.#node.logger,
 				dependency: { kind, package: name, version },
 				parent: this.#node
 			});

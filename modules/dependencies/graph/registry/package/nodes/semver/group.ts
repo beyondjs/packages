@@ -1,4 +1,4 @@
-import type { Node } from '../../../node';
+import type { Node } from '../../../../node';
 import { intersects, maxSatisfying } from 'semver';
 
 export class Group extends Array<Node> {

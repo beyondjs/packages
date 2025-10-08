@@ -2,6 +2,7 @@ import type { ErrorManager } from '@beyond-js/response/main';
 import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
 import type { IProject } from '@beyond-js/packages/project/types';
 import type { Registry } from '../registry';
+import type { Logger } from '@beyond-js/packages/logs';
 import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
@@ -10,6 +11,7 @@ import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 export interface INodeConstructorParams {
 	project: IProject;
 	registry: Registry;
+	logger: Logger;
 	dependency: { kind: DependencyKind; package: string; version: string };
 	parent?: Node;
 }
@@ -23,6 +25,11 @@ export class Node {
 	#registry: Registry;
 	get registry() {
 		return this.#registry;
+	}
+
+	#logger: Logger;
+	get logger() {
+		return this.#logger;
 	}
 
 	#kind: DependencyKind;
@@ -72,7 +79,7 @@ export class Node {
 
 	constructor(params: INodeConstructorParams) {
 		const { project, registry, dependency, parent } = params;
-		const { kind, package: pkg, version } = dependency;
+		const { package: pkg, version } = dependency;
 
 		if (!project || !pkg || !version) {
 			throw new Error('Project, pkg and version are required parameters');
@@ -80,6 +87,7 @@ export class Node {
 
 		this.#project = project;
 		this.#registry = registry;
+		this.#logger = params.logger;
 		this.#package = pkg;
 		this.#version = new Version(version);
 		this.#parent = parent;
@@ -115,9 +123,13 @@ export class Node {
 			this.#error = error;
 			this.#processing = false;
 			this.#processed = true;
-			console.log('done', this.package, this.version.specified, { error });
+
+			const message = `Node ${this.#package}@${this.#version.specified} processed`;
+			error ? this.#logger.error(`${message} with errors: ${error.code}`, error) : this.#logger.info(message);
 		};
 
+		// When the node is registered (registry.nodes.register(...)), the version is resolved,
+		// so it is already processed at this point.
 		const version = this.#version;
 		if (version.error) return done({ error: version.error });
 
