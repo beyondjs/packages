@@ -80,14 +80,14 @@ export default class extends DynamicProcessor() {
 
 		const { config } = this;
 		await config.initialise();
+
+		this.#id = createHash('md5').update(this.path).digest('hex').toString();
 	}
 
 	constructor(config: Config) {
 		super();
 		super.setup(new Map([['config', { child: config }]]));
-
 		this.#config = config;
-		this.#id = createHash('md5').update(this.path).digest('hex').toString();
 	}
 
 	process(config: IPackageManifest): boolean {

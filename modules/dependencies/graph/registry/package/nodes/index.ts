@@ -5,8 +5,6 @@ import { SemverNodes } from './semver';
 import { FixedNodes } from './fixed';
 
 export /*bundle*/ class PackageNodes {
-	#package: DependencyPackage;
-
 	#semver: SemverNodes;
 	get semver() {
 		return this.#semver;
@@ -18,8 +16,6 @@ export /*bundle*/ class PackageNodes {
 	}
 
 	constructor(pkg: DependencyPackage) {
-		this.#package = pkg;
-
 		this.#semver = new SemverNodes(pkg);
 		this.#fixed = new FixedNodes(pkg);
 	}

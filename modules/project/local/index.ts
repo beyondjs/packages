@@ -7,6 +7,10 @@ import { ProjectDependencies } from './dependencies';
 import { PackageProviders } from './providers';
 
 export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
+	get dp() {
+		return 'project';
+	}
+
 	#workspace: Workspace;
 	get workspace() {
 		return this.#workspace;
@@ -43,8 +47,7 @@ export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
 		this.#name = name;
 		this.#version = version;
 
-		this.#dependencies = new ProjectDependencies(this);
-		this.#packages = new PackageProviders(this);
+		super.setup(new Map([['workspace', { child: workspace }]]));
 	}
 
 	_prepared(require: RequireType) {
@@ -57,9 +60,14 @@ export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
 		);
 
 		if (!pkg) {
-			throw new Error(`The package ${this.#name}@${this.#version} does not exist in the workspace`);
+			[...this.#workspace.packages.values()].forEach(p => {
+				console.log(`Available package: ${p.processed} = ${p.version} in ${p.path}`);
+			});
+			throw new Error(`The package "${this.#name}@${this.#version}" does not exist in the workspace`);
 		}
 
 		this.#pkg = pkg;
+		this.#dependencies = new ProjectDependencies(this);
+		this.#packages = new PackageProviders(this);
 	}
 }

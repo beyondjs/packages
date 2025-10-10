@@ -1,4 +1,3 @@
-import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { IProject } from '@beyond-js/packages/project/types';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import { Logger } from '@beyond-js/packages/logs';
@@ -24,10 +23,11 @@ export /*bundle*/ class DependenciesGraph extends Node {
 
 		const { name, version } = project;
 		const registry = new Registry(project);
-		super({ project, registry, dependency: { kind: 'main', package: name, version } });
+		const logger = new Logger({ console: true });
+		super({ project, registry, logger, dependency: { kind: 'main', package: name, version } });
 
 		this.#project = project;
-		this.#logger = new Logger({ console: true });
+		this.#logger = logger;
 	}
 
 	async process() {

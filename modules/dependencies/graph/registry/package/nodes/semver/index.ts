@@ -5,7 +5,11 @@ import { compare } from 'semver';
 
 export class SemverNodes {
 	#package: DependencyPackage;
+
 	#groups: Group[] = [];
+	get groups() {
+		return this.#groups;
+	}
 
 	constructor(pkg: DependencyPackage) {
 		this.#package = pkg;

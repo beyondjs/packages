@@ -35,6 +35,10 @@ export class Nodes {
 
 		const dependency = this.#registry.packages.get(node.package);
 		dependency.nodes.unregister(node);
-		!dependency.nodes.groups.length && this.#registry.packages.delete(node.package);
+
+		// If the package has no more nodes, remove it from the registry
+		if (!dependency.nodes.semver.groups.length && !dependency.nodes.fixed.size) {
+			this.#registry.packages.delete(node.package);
+		}
 	}
 }
