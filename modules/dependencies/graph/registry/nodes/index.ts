@@ -18,16 +18,15 @@ export class Nodes {
 		this.#nodes.set(node.package, node);
 
 		const { package: pkg } = node;
-		const dependency = this.#registry.packages.has(pkg)
-			? this.#registry.packages.get(pkg)
-			: new DependencyPackage(this.#project, pkg);
+		const dependency = (() => {
+			if (this.#registry.packages.has(pkg)) return this.#registry.packages.get(pkg);
 
-		// Ensure the package is initialized (versions are fetched)
-		await dependency.ready;
+			const dependency = new DependencyPackage(pkg, this.#project);
+			this.#registry.packages.set(pkg, dependency);
+			return dependency;
+		})();
 
-		const consumer = dependency.nodes.register(node);
-		this.#registry.packages.set(pkg, dependency);
-		return consumer;
+		await dependency.nodes.register(node);
 	}
 
 	unregister(node: Node) {
@@ -37,10 +36,5 @@ export class Nodes {
 		const dependency = this.#registry.packages.get(node.package);
 		dependency.nodes.unregister(node);
 		!dependency.nodes.groups.length && this.#registry.packages.delete(node.package);
-	}
-
-	recalculate() {
-		// Build matrix of versions
-		this.#nodes.forEach(node => {});
 	}
 }

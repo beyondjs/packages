@@ -1,5 +1,4 @@
 import type { IProject } from '@beyond-js/packages/project/types';
-import { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
 import { PackageNodes } from './nodes';
 import { PackageSemverVersions } from './versions';
 

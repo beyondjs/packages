@@ -11,12 +11,14 @@ export class SemverNodes {
 		this.#package = pkg;
 	}
 
-	register(node: Node) {
+	async register(node: Node) {
+		await this.#package.versions.ready;
+
 		const done = (group?: Group) => {
 			group = (() => {
 				if (group) return group;
 
-				group = new Group(this.#versions);
+				group = new Group(this.#package.versions.value);
 				this.#groups.push(group);
 				return group;
 			})();

@@ -4,7 +4,7 @@ import { intersects, maxSatisfying } from 'semver';
 export class Group extends Array<Node> {
 	#versions: string[];
 
-	// Optional: current chosen version for ideal placement (if you decide)
+	// Current chosen version
 	#chosen: string;
 	get chosen() {
 		return this.#chosen;
