@@ -95,7 +95,7 @@ export default class extends DynamicProcessor() {
 		const values = { name, version, description, keywords, author, license, repository };
 
 		if (equal(values, this.#manifest)) return false;
-		this.#manifest = values;
+		this.#manifest = config;
 		return true;
 	}
 }

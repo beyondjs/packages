@@ -22,7 +22,7 @@ export class DependenciesInstaller {
 		this.#installing = true;
 
 		const graph = new DependenciesGraph(this.#project);
-		await graph.install();
+		await graph.process();
 
 		this.#installing = false;
 	}
@@ -31,7 +31,7 @@ export class DependenciesInstaller {
 		this.#updating = true;
 
 		const graph = new DependenciesGraph(this.#project);
-		await graph.update();
+		await graph.process();
 
 		this.#updating = false;
 	}

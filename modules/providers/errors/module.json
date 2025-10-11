@@ -1,6 +1,0 @@
-{
-	"name": "providers/errors",
-	"platforms": ["node"],
-	"bundle": "ts",
-	"files": "*"
-}

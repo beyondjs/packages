@@ -1,10 +1,10 @@
 import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
-import type { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
 import type { IPackageManifest, IPackument } from '@beyond-js/packages/types';
+import type { IDiagnostic } from '@beyond-js/packages/types';
 
 export /*bundle*/ interface IPackageResponseBase {
 	found?: boolean;
-	error?: ProvidersErrorManager;
+	error?: IDiagnostic;
 }
 
 export /*bundle*/ interface IPackumentResponse extends IPackageResponseBase {

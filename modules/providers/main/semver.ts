@@ -4,7 +4,8 @@ import type {
 	IPackageManifestResponse,
 	IPackageProvider
 } from '@beyond-js/packages/providers/types';
-import type { DependencyInfo, ISemverDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { ISemverDependencyData } from '@beyond-js/packages/providers/dependency/parser';
 import { PackageRegistryFetcher } from './fetcher';
 import { AuthHeaders } from './tools';
 
@@ -19,9 +20,9 @@ export class SemverRegistry implements IPackageProvider {
 
 	/** Build headers for a given host (auth if present). */
 	#headers(dependency: DependencyInfo): Record<string, string> {
-		const data = <ISemverDependencyInfo>dependency.data;
-		const { auth } = data.provider;
-		return auth ? AuthHeaders.process(auth) : {};
+		const data = <ISemverDependencyData>dependency.data;
+		const { auth } = dependency.provider;
+		return auth.mode !== 'none' ? AuthHeaders.process(auth) : {};
 	}
 
 	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {
@@ -35,8 +36,8 @@ export class SemverRegistry implements IPackageProvider {
 
 	async packument?(dependency: DependencyInfo): Promise<IPackumentResponse> {
 		const { package: pkg } = dependency;
-		const data = <ISemverDependencyInfo>dependency.data;
-		const { hostname } = data.provider;
+		const data = <ISemverDependencyData>dependency.data;
+		const { hostname } = dependency.provider;
 
 		const url = `https://${hostname}/${encodeURIComponent(pkg)}`;
 		const headers = this.#headers(dependency);
@@ -49,8 +50,8 @@ export class SemverRegistry implements IPackageProvider {
 	 */
 	async manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse> {
 		const { package: pkg } = dependency;
-		const data = <ISemverDependencyInfo>dependency.data;
-		const { hostname } = data.provider;
+		const data = <ISemverDependencyData>dependency.data;
+		const { hostname } = dependency.provider;
 
 		const url = `https://${hostname}/${encodeURIComponent(pkg)}/${encodeURIComponent(version)}`;
 		const headers = this.#headers(dependency);
@@ -59,8 +60,8 @@ export class SemverRegistry implements IPackageProvider {
 
 	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
 		const { package: pkg, name } = dependency;
-		const data = <ISemverDependencyInfo>dependency.data;
-		const { hostname } = data.provider;
+		const data = <ISemverDependencyData>dependency.data;
+		const { hostname } = dependency.provider;
 
 		const url = `https://${hostname}/${encodeURIComponent(pkg)}/-/${name}.tgz`;
 		const headers = this.#headers(dependency);

@@ -1,7 +1,7 @@
 import type { IPackageManifestResponse, IPackageProvider } from '@beyond-js/packages/providers/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
-import type { DependencyInfo, IGitDependencyInfo } from '@beyond-js/packages/providers/dependency/info';
-import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
+import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { IGitDependencyData } from '@beyond-js/packages/providers/dependency/parser';
 import { AuthHeaders } from './tools';
 
 /**
@@ -19,8 +19,8 @@ export class GitProvider implements IPackageProvider {
 
 	/** Build headers for a given host (auth if present). */
 	#headers(dependency: DependencyInfo): Record<string, string> {
-		const data = <IGitDependencyInfo>dependency.data;
-		const { auth } = data.provider;
+		const data = <IGitDependencyData>dependency.data;
+		const { auth } = dependency.provider;
 		return auth ? AuthHeaders.process(auth) : {};
 	}
 
@@ -51,9 +51,9 @@ export class GitProvider implements IPackageProvider {
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
 	async manifest(dependency: DependencyInfo): Promise<IPackageManifestResponse> {
-		const data = <IGitDependencyInfo>dependency.data;
-		const { provider, owner, repo } = data;
-		const { hostname } = provider;
+		const data = <IGitDependencyData>dependency.data;
+		const { owner, repo } = data;
+		const { hostname } = dependency.provider;
 		const ref = data.ref ?? 'HEAD';
 		const url = this.#url(hostname, owner, repo, ref);
 		const headers = this.#headers(dependency);
@@ -62,7 +62,9 @@ export class GitProvider implements IPackageProvider {
 		try {
 			response = await fetch(url, { headers });
 		} catch (exc) {
-			return { error: new InvalidProviderResponse(0) };
+			const code = 'NETWORK_ERROR';
+			const message = 'Network error occurred';
+			return { error: { code, message } };
 		}
 
 		if (response.status === 404) {
@@ -70,14 +72,18 @@ export class GitProvider implements IPackageProvider {
 		}
 
 		if (!response.ok) {
-			return { error: new InvalidProviderResponse(response.status) };
+			const code = 'INVALID_PROVIDER_RESPONSE';
+			const message = `Invalid response from provider: ${response.status}`;
+			return { error: { code, message } };
 		}
 
 		try {
 			const manifest: IPackageManifest = await response.json();
 			return { manifest };
 		} catch (exc) {
-			return { error: new ProviderResponseCouldNotBeParsed() };
+			const code = 'PROVIDER_RESPONSE_NOT_PARSABLE';
+			const message = 'The provider response could not be parsed as JSON';
+			return { error: { code, message } };
 		}
 	}
 
@@ -86,9 +92,9 @@ export class GitProvider implements IPackageProvider {
 	 * This is optional but handy to keep symmetry with semver tarball usage.
 	 */
 	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> } {
-		const data = <IGitDependencyInfo>dependency.data;
-		const { provider, owner, repo } = data;
-		const { hostname } = provider;
+		const data = <IGitDependencyData>dependency.data;
+		const { owner, repo } = data;
+		const { hostname } = dependency.provider;
 		const ref = data.ref ?? 'HEAD';
 
 		const url: string = (() => {

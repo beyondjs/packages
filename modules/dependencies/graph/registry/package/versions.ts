@@ -1,5 +1,5 @@
 import type { DependencyPackage } from './';
-import type { ProvidersErrorManager } from '@beyond-js/packages/providers/errors';
+import type { IDiagnostic } from '@beyond-js/packages/types';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
 export class PackageSemverVersions {
@@ -10,7 +10,7 @@ export class PackageSemverVersions {
 		return this.#value;
 	}
 
-	#error: ProvidersErrorManager;
+	#error: IDiagnostic;
 	get error() {
 		return this.#error;
 	}

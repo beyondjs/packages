@@ -38,19 +38,11 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		// in the process of the dependencies graph
 		this.version.update({ version: this.version.specified });
 
-		// Process the dependencies of the root node of the graph
-		const deps: ['dependencies', 'devDependencies', 'peerDependencies'] = [
-			'dependencies',
-			'devDependencies',
-			'peerDependencies'
-		];
-
-		if (deps.every(dep => this.#project.dependencies.spec[dep] === void 0)) {
-			await super.process();
-		} else {
-			const dependencies = new DependenciesSpec(this.#project.dependencies.spec);
-			await this.dependencies.process(dependencies);
-		}
+		// Process the root node dependencies
+		// We could have used super.process() if had wanted to process an external dependency directly
+		// (eg: react, lodash, etc). But we are processing the dependencies of a project.
+		const dependencies = new DependenciesSpec(this.#project.dependencies.spec);
+		await this.dependencies.process(dependencies);
 
 		let i = 0;
 		while (!this.completed) {

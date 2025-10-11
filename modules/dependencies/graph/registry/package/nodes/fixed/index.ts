@@ -1,6 +1,6 @@
 import type { DependencyPackage } from '../..';
 import type { Node } from '../../../../node';
-import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
+import { DependencyIsType } from '@beyond-js/packages/providers/dependency/parser';
 
 export class FixedNodes extends Map<string, Array<Node>> {
 	#package: DependencyPackage;
@@ -12,10 +12,10 @@ export class FixedNodes extends Map<string, Array<Node>> {
 
 	async register(node: Node) {
 		let key: string;
-		if (node.info.data.is === InfoIsType.Git) {
+		if (node.data.is === DependencyIsType.Git) {
 			// Get the commit version
-			const { ref } = node.info.data;
-			const key = ''; // node.info.data.key;
+			const { ref } = node.data;
+			const key = ''; // node.data.key;
 
 			const { project } = this.#package;
 			const commit = 'the commit'; // await project.packages.commit(this.#package.name, ref);
@@ -24,20 +24,20 @@ export class FixedNodes extends Map<string, Array<Node>> {
 			this.get(key)!.push(node);
 
 			throw new Error('Not implemented');
-		} else if (node.info.data.is === InfoIsType.Url) {
+		} else if (node.data.is === DependencyIsType.Url) {
 			throw new Error('Not implemented');
-		} else if (node.info.data.is === InfoIsType.Alias) {
+		} else if (node.data.is === DependencyIsType.Alias) {
 			throw new Error('Not implemented');
 		}
 	}
 
 	unregister(node: Node) {
 		let key: string;
-		if (node.info.data.is === InfoIsType.Git) {
-			const key = ''; // node.info.data.key;
-		} else if (node.info.data.is === InfoIsType.Url) {
+		if (node.data.is === DependencyIsType.Git) {
+			const key = ''; // node.data.key;
+		} else if (node.data.is === DependencyIsType.Url) {
 			throw new Error('Not implemented');
-		} else if (node.info.data.is === InfoIsType.Alias) {
+		} else if (node.data.is === DependencyIsType.Alias) {
 			throw new Error('Not implemented');
 		}
 

@@ -1,9 +1,9 @@
-import type { ErrorManager } from '@beyond-js/response/main';
 import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
 import type { IProject } from '@beyond-js/packages/project/types';
 import type { Registry } from '../registry';
 import type { Logger } from '@beyond-js/packages/logs';
-import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import { DependencyParser } from '@beyond-js/packages/providers/dependency/parser';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
@@ -47,9 +47,9 @@ export class Node {
 		return this.#version;
 	}
 
-	#info: DependencyInfo;
-	get info() {
-		return this.#info;
+	#parsed: DependencyParser;
+	get data() {
+		return this.#parsed.data;
 	}
 
 	#parent?: Node;
@@ -72,7 +72,7 @@ export class Node {
 		return this.#processed;
 	}
 
-	#error: ErrorManager;
+	#error: IDiagnostic;
 	get error() {
 		return this.#error;
 	}
@@ -91,6 +91,7 @@ export class Node {
 		this.#package = pkg;
 		this.#version = new Version(version);
 		this.#parent = parent;
+		this.#parsed = new DependencyParser(pkg, version);
 		this.#dependencies = new NodeDependencies(this);
 
 		this.#version.on('change', this.invalidate.bind(this));
@@ -119,7 +120,7 @@ export class Node {
 		this.#processing = true;
 		this.#error = void 0;
 
-		const done = ({ error }: { error?: ErrorManager }) => {
+		const done = ({ error }: { error?: IDiagnostic }) => {
 			this.#error = error;
 			this.#processing = false;
 			this.#processed = true;
@@ -136,6 +137,13 @@ export class Node {
 		const { specified, resolved } = version;
 		const { error, manifest } = await this.#project.packages.manifest(this.#package, specified, resolved);
 		if (error) return done({ error });
+
+		console.log('manifest', manifest);
+		if (!manifest) {
+			const code = 'PACKAGE_MANIFEST_UNAVAILABLE';
+			const message = `The manifest for package "${this.#package}@${this.#version.resolved}" is not available`;
+			return done({ error: { code, message } });
+		}
 
 		const dependencies = new DependenciesSpec(manifest);
 		await this.#dependencies.process(dependencies);

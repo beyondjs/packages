@@ -4,7 +4,7 @@ import type { PropertyObjectType } from '@beyond-js/config/main';
 import { Config } from '@beyond-js/config/main';
 import { Package } from '@beyond-js/packages/package';
 import { equal } from '@beyond-js/equal/main';
-import { isAbsolute, resolve, relative, sep, posix } from 'path';
+import { isAbsolute, resolve, relative, dirname, basename, sep, posix } from 'path';
 
 interface IProcessDone {
 	errors?: IDiagnostic[];
@@ -75,7 +75,8 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 			packages.forEach(path => {
 				if (this.#packages.has(path)) return;
 
-				const pkg = new Package(path);
+				const fulldir = resolve(this.#path, path);
+				const pkg = new Package(fulldir);
 				this.#packages.set(path, pkg);
 			});
 		};
@@ -117,7 +118,9 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 			// Normalize package paths using 'path' module, resolving them against the workspace path
 			// Normilized path must be relative to the workspace path
 			const abs = resolve(this.#path, path);
-			const normalized = relative(this.#path, abs).split(sep).join(posix.sep);
+
+			let normalized = relative(this.#path, abs).split(sep).join(posix.sep);
+			basename(normalized) === 'package.json' && (normalized = dirname(normalized));
 
 			output.add(normalized);
 		});

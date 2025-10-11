@@ -1,6 +1,5 @@
-import type { IPackument, IPackageManifest } from '@beyond-js/packages/types';
+import type { IPackument, IPackageManifest, IDiagnostic } from '@beyond-js/packages/types';
 import type { IPackageManifestResponse, IPackumentResponse } from '@beyond-js/packages/providers/types';
-import { InvalidProviderResponse, ProviderResponseCouldNotBeParsed } from '@beyond-js/packages/providers/errors';
 
 interface IFetchRq {
 	url: string;
@@ -17,7 +16,7 @@ export /*bundle*/ class PackageRegistryFetcher {
 			response = await fetch(url, { headers });
 		} catch (exc) {
 			// Network or request-level error
-			const error = new InvalidProviderResponse(0);
+			const error: IDiagnostic = { code: 'NETWORK_ERROR', message: 'Network error occurred' };
 			return { error };
 		}
 
@@ -30,8 +29,9 @@ export /*bundle*/ class PackageRegistryFetcher {
 
 		// Any non-200 and non-404 response
 		if (!ok) {
-			const error = new InvalidProviderResponse(status);
-			return { error };
+			const code = 'INVALID_PROVIDER_RESPONSE';
+			const message = `Invalid response from provider: ${status}`;
+			return { error: { code, message } };
 		}
 
 		try {
@@ -39,8 +39,9 @@ export /*bundle*/ class PackageRegistryFetcher {
 			return { manifest, found: true };
 		} catch (exc) {
 			// Response was 200 OK, but the JSON could not be parsed
-			const error = new ProviderResponseCouldNotBeParsed();
-			return { error };
+			const code = 'PROVIDER_RESPONSE_NOT_PARSABLE';
+			const message = 'The provider response could not be parsed as JSON';
+			return { error: { code, message } };
 		}
 	}
 
@@ -56,8 +57,9 @@ export /*bundle*/ class PackageRegistryFetcher {
 		try {
 			response = await fetch(url, { headers });
 		} catch (exc) {
-			const error = new InvalidProviderResponse(0);
-			return { error };
+			const code = 'NETWORK_ERROR';
+			const message = 'Network error occurred';
+			return { error: { code, message } };
 		}
 
 		const { ok, status } = response;
@@ -67,8 +69,9 @@ export /*bundle*/ class PackageRegistryFetcher {
 		}
 
 		if (!ok) {
-			const error = new InvalidProviderResponse(status);
-			return { error };
+			const code = 'INVALID_PROVIDER_RESPONSE';
+			const message = `Invalid response from provider: ${status}`;
+			return { error: { code, message } };
 		}
 
 		try {
@@ -76,8 +79,9 @@ export /*bundle*/ class PackageRegistryFetcher {
 			console.log('Packument', packument);
 			return { packument, found: true };
 		} catch (exc) {
-			const error = new ProviderResponseCouldNotBeParsed();
-			return { error };
+			const code = 'PROVIDER_RESPONSE_NOT_PARSABLE';
+			const message = 'The provider response could not be parsed as JSON';
+			return { error: { code, message } };
 		}
 	}
 }

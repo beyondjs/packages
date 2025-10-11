@@ -14,7 +14,7 @@ export class ProjectDependencies implements IProjectDependencies {
 			bundledDependencies,
 			bundleDependencies,
 			peerDependenciesMeta
-		} = this.#project.pkg?.manifest || {};
+		} = this.#project.package?.manifest || {};
 
 		return {
 			dependencies,

@@ -116,7 +116,7 @@ export /*bundle*/ class Package extends Attributes {
 		// Process the attributes of the package
 		const { warnings, errors, valid, value } = this.config;
 		const config: IPackageManifest | {} = !valid || !value ? {} : value;
-		console.log('Package config value:', valid, errors, value);
+
 		const changed = super.process(config);
 		if (!changed || !valid) return done({ changed, errors, warnings });
 

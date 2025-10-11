@@ -11,7 +11,7 @@ export class PackageProviders implements IPackageProviders {
 	#providers: PackageProvidersBase;
 
 	constructor(project: Project) {
-		const { workspace, pkg } = project;
+		const { workspace, package: pkg } = project;
 		this.#providers = new PackageProvidersBase({ workspace: workspace.path, path: pkg.path });
 	}
 

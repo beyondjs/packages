@@ -1,4 +1,4 @@
-import type { ErrorManager } from '@beyond-js/response/main';
+import type { IDiagnostic } from '@beyond-js/packages/types';
 import { EventEmitter } from 'events';
 
 export class Version extends EventEmitter {
@@ -12,7 +12,7 @@ export class Version extends EventEmitter {
 		return this.#resolved;
 	}
 
-	#error: ErrorManager;
+	#error: IDiagnostic;
 	get error() {
 		return this.#error;
 	}
@@ -23,7 +23,7 @@ export class Version extends EventEmitter {
 		this.#resolved = resolved;
 	}
 
-	update({ version, error }: { version?: string; error?: ErrorManager }) {
+	update({ version, error }: { version?: string; error?: IDiagnostic }) {
 		const changed = ((this.#resolved || this.#error) && this.#resolved !== version) || this.#error !== error;
 
 		this.#resolved = version;
