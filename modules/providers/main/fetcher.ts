@@ -76,7 +76,6 @@ export /*bundle*/ class PackageRegistryFetcher {
 
 		try {
 			const packument: IPackument = await response.json();
-			console.log('Packument', packument);
 			return { packument, found: true };
 		} catch (exc) {
 			const code = 'PROVIDER_RESPONSE_NOT_PARSABLE';

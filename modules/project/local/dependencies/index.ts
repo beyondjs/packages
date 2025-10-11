@@ -32,6 +32,10 @@ export class ProjectDependencies implements IProjectDependencies {
 		return this.#installer;
 	}
 
+	get print() {
+		return this.#installer.print;
+	}
+
 	constructor(project: Project) {
 		this.#project = project;
 		this.#installer = new DependenciesInstaller(this.#project);

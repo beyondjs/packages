@@ -1,24 +1,24 @@
 import * as colors from 'colors';
-import type { Node } from '../graph/node';
-import type { Registry } from '../graph/registry';
+import type { Node, Registry } from '@beyond-js/packages/dependencies/graph';
 
 interface ITreeParams {
 	indent: { prefix: ''; level: 0 };
 	node: { last: boolean };
 }
 
-export /*bundle*/ const tree = function (node: Node, params?: ITreeParams) {
+export /*bundle*/ const tree = function (node: Node, params?: ITreeParams, output?: { text: string }) {
 	params = params || { indent: { prefix: '', level: 0 }, node: { last: false } };
 	let { prefix, level } = params.indent;
 	const { last } = params.node;
 
 	// Print the current node
-	const error = node.error ? ` ERROR [${node.error.text}]`.red : '';
+	const error = node.error ? ` ERROR [${node.error.message}]`.red : '';
 	const processed = !node.processed ? ' NOT PROCESSED'.yellow : '';
 	const tags = error + processed;
 	const vpkg = `${node.package}@${node.version.resolved}`;
 
-	console.log((level ? prefix + (last ? '└── ' : '├── ') : '') + vpkg + tags);
+	output = output || { text: '' };
+	output.text += (level ? prefix + (last ? '└── ' : '├── ') : '') + vpkg + tags + '\n';
 
 	// Update the prefix and indent level for the children
 	prefix += level ? '    ' : ' ';
@@ -27,14 +27,21 @@ export /*bundle*/ const tree = function (node: Node, params?: ITreeParams) {
 	// Recursively print each child
 	[...node.dependencies.values()].forEach((child, index) => {
 		const last = index === node.dependencies.size - 1;
-		this.tree(child, { indent: { prefix, level }, node: { last } });
+		this.tree(child, { indent: { prefix, level }, node: { last }, output });
 	});
+
+	return output.text;
 };
 
 export /*bundle*/ const packages = function (registry: Registry) {
+	let output = '';
+
 	registry.packages.forEach(dependency => {
 		let versions: string[] = [];
-		dependency.nodes.groups.forEach(group => versions.push(`"${group.chosen}"`));
-		console.log(dependency.info.package + ': ' + versions.join(', '));
+		const { semver, fixed } = dependency.nodes;
+		semver.groups.forEach(group => versions.push(`"${group.chosen}"`));
+		output += dependency.name + ': ' + versions.join(', ') + '\n';
 	});
+
+	return output;
 };

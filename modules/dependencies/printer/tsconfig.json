@@ -4,6 +4,6 @@
 		"module": "es2020",
 		"target": "es2018",
 		"moduleResolution": "node",
-		"types": []
+		"types": ["@types/node"]
 	}
 }

@@ -2,7 +2,7 @@ import type { IProject } from '@beyond-js/packages/project/types';
 import { DependencyPackage } from './package';
 import { Nodes } from './nodes';
 
-export class Registry {
+export /*bundle*/ class Registry {
 	#packages: Map<string, DependencyPackage>;
 	get packages() {
 		return this.#packages;

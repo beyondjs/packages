@@ -8,7 +8,6 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	const { Workspace } = await bimport('@beyond-js/packages/workspace');
 	const { Project } = await bimport('@beyond-js/packages/project/local');
 	const { Logger } = await bimport('@beyond-js/packages/logs');
-	const printer = await bimport('@beyond-js/packages/dependencies/printer');
 
 	await Logger.init();
 
@@ -19,16 +18,10 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	console.log('Project is ready'.green);
 
 	// Process project dependencies
+	console.log('\nProcessing dependencies graph:'.green, project.vname.bold.green);
 	await project.dependencies.install();
 
-	// const manifest = { name: 'my-testing-package-name', version: '1.0.0', dependencies };
-	// const graph = new DependenciesGraph({ providers, manifest });
-
-	// console.log('\nProcessing dependencies graph...\n'.green, graph.package);
-	// await graph.process();
-
-	// console.log('\nDependencies graph has been processed\n'.green);
-
-	// // printer.packages(graph.registry);
-	// printer.tree(graph);
+	console.log('\nDependencies graph has been processed'.green);
+	console.log('Dependencies tree:\n'.green);
+	console.log(project.dependencies.print.tree);
 })().catch(exc => console.error(exc.stack));

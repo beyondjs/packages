@@ -16,7 +16,7 @@ export interface INodeConstructorParams {
 	parent?: Node;
 }
 
-export class Node {
+export /*bundle*/ class Node {
 	#project: IProject;
 	get project() {
 		return this.#project;
@@ -40,6 +40,15 @@ export class Node {
 	#package: string;
 	get package() {
 		return this.#package;
+	}
+
+	// The scope of the package (if any, otherwise undefined)
+	get scope() {
+		return this.#parsed.scope;
+	}
+	// The name of the package without scope
+	get name() {
+		return this.#parsed.name;
 	}
 
 	#version: Version;
@@ -138,7 +147,6 @@ export class Node {
 		const { error, manifest } = await this.#project.packages.manifest(this.#package, specified, resolved);
 		if (error) return done({ error });
 
-		console.log('manifest', manifest);
 		if (!manifest) {
 			const code = 'PACKAGE_MANIFEST_UNAVAILABLE';
 			const message = `The manifest for package "${this.#package}@${this.#version.resolved}" is not available`;

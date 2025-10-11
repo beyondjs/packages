@@ -32,6 +32,10 @@ export /*bundle*/ class Project extends DynamicProcessor() implements IProject {
 		return this.#version;
 	}
 
+	get vname() {
+		return `${this.#name}@${this.#version}`;
+	}
+
 	#dependencies: ProjectDependencies;
 	get dependencies() {
 		return this.#dependencies;
