@@ -1,8 +1,8 @@
 import type {
-	IPackageVersionsResponse,
 	IPackageManifestResponse,
 	IPackageProvider,
-	IPackageProviders
+	IPackageProviders,
+	IPackumentResponse
 } from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
 import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
@@ -53,16 +53,16 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	}
 
 	/**
-	 * Retrieves the available versions for a package (only for semver).
+	 * Retrieves the packument for a specific package (only for semver).
 	 *
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 * @returns
 	 */
-	async versions(pkg: string): Promise<IPackageVersionsResponse> {
+	async packument(pkg: string): Promise<IPackumentResponse> {
 		await this.#ready;
 
 		const dependency = new DependencyInfo(pkg, void 0, this.#settings);
-		return await this.#semver.versions(dependency);
+		return await this.#semver.packument(dependency);
 	}
 
 	/**

@@ -1,4 +1,4 @@
-import type { IPackageVersionsResponse, IPackageManifestResponse, IPackageProvider } from './provider';
+import type { IPackageVersionsResponse, IPackageManifestResponse, IPackumentResponse } from './provider';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
 
 export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions {}
@@ -10,7 +10,15 @@ export /*bundle*/ interface IPackageProviders {
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 * @returns
 	 */
-	versions(pkg: string): Promise<IPackageVersionsResponse>;
+	packument?(pkg: string): Promise<IPackumentResponse>;
+
+	/**
+	 * Retrieves the available versions for a package (only for semver).
+	 *
+	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
+	 * @returns
+	 */
+	versions?(pkg: string): Promise<IPackageVersionsResponse>;
 
 	/**
 	 * Retrieves the package specification for a specific version.

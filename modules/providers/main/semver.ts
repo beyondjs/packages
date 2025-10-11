@@ -25,15 +25,6 @@ export class SemverRegistry implements IPackageProvider {
 		return auth.mode !== 'none' ? AuthHeaders.process(auth) : {};
 	}
 
-	async versions(dependency: DependencyInfo): Promise<IPackageVersionsResponse> {
-		const { packument, error, found } = await this.packument(dependency);
-		if (error || !found) return { error, found };
-
-		// Extract version keys from packument
-		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
-		return { versions };
-	}
-
 	async packument?(dependency: DependencyInfo): Promise<IPackumentResponse> {
 		const { package: pkg } = dependency;
 		const data = <ISemverDependencyData>dependency.data;

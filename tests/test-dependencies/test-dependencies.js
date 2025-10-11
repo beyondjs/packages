@@ -22,6 +22,6 @@ BEE('http://localhost:1110', { inspect: 4000 });
 	await project.dependencies.install();
 
 	console.log('\nDependencies graph has been processed'.green);
-	console.log('Dependencies tree:\n'.green);
+	console.log('\nDependencies tree:'.green);
 	console.log(project.dependencies.print.tree);
 })().catch(exc => console.error(exc.stack));

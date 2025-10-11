@@ -12,6 +12,11 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		return this.#logger;
 	}
 
+	#processed = false;
+	get processed() {
+		return this.#processed;
+	}
+
 	get completed(): boolean {
 		return this.dependencies.completed;
 	}
@@ -54,5 +59,7 @@ export /*bundle*/ class DependenciesGraph extends Node {
 			// processing the nodes
 			await this.dependencies.reprocess();
 		}
+
+		this.#processed = this.completed;
 	}
 }

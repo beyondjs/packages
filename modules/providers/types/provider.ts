@@ -21,11 +21,6 @@ export /*bundle*/ interface IPackageManifestResponse extends IPackageResponseBas
 
 export /*bundle*/ interface IPackageProvider {
 	/**
-	 * Retrieves the available versions for a package (only for semver).
-	 */
-	versions?(dependency: DependencyInfo): Promise<IPackageVersionsResponse>;
-
-	/**
 	 * Retrieves the packument for a specific package (only for semver).
 	 */
 	packument?(dependency: DependencyInfo): Promise<IPackumentResponse>;

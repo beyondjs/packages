@@ -1,8 +1,8 @@
 import type { Project } from './';
 import type {
-	IPackageManifestResponse,
 	IPackageProviders,
-	IPackageVersionsResponse
+	IPackageVersionsResponse,
+	IPackageManifestResponse
 } from '@beyond-js/packages/providers/types';
 import { PackageProviders as PackageProvidersBase } from '@beyond-js/packages/providers';
 import { db } from '@beyond-js/packages/persistence/db';
@@ -22,8 +22,12 @@ export class PackageProviders implements IPackageProviders {
 	 * @returns
 	 */
 	async versions(pkg: string): Promise<IPackageVersionsResponse> {
-		const { error, found, versions } = await this.#providers.versions(pkg);
-		return { error, found, versions };
+		const { packument, error, found } = await this.#providers.packument(pkg);
+		if (error || !found) return { error, found };
+
+		// Extract version keys from packument
+		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
+		return { versions };
 	}
 
 	/**

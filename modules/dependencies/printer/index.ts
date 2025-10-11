@@ -2,7 +2,7 @@ import * as colors from 'colors';
 import type { Node, Registry } from '@beyond-js/packages/dependencies/graph';
 
 interface ITreeParams {
-	indent: { prefix: ''; level: 0 };
+	indent: { prefix: string; level: number };
 	node: { last: boolean };
 }
 
@@ -27,7 +27,7 @@ export /*bundle*/ const tree = function (node: Node, params?: ITreeParams, outpu
 	// Recursively print each child
 	[...node.dependencies.values()].forEach((child, index) => {
 		const last = index === node.dependencies.size - 1;
-		this.tree(child, { indent: { prefix, level }, node: { last }, output });
+		tree(child, { indent: { prefix, level }, node: { last } }, output);
 	});
 
 	return output.text;
