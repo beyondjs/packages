@@ -1,11 +1,10 @@
 import type {
-	IPackageVersionsResponse,
 	IPackumentResponse,
 	IPackageManifestResponse,
 	IPackageProvider
 } from '@beyond-js/packages/providers/types';
-import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
-import type { ISemverDependencyData } from '@beyond-js/packages/providers/dependency/parser';
+import type { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
+import type { ISemverDependencyData } from '@beyond-js/packages/providers/parser';
 import { PackageRegistryFetcher } from './fetcher';
 import { AuthHeaders } from './tools';
 

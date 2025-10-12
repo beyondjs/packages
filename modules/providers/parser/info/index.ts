@@ -1,7 +1,7 @@
 import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
-import type { DependencyDataType } from '@beyond-js/packages/providers/dependency/parser';
+import type { DependencyDataType } from '@beyond-js/packages/providers/parser';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import { DependencyParser, DependencyIsType } from '@beyond-js/packages/providers/dependency/parser';
+import { DependencyParser, DependencyIsType } from '@beyond-js/packages/providers/parser';
 
 export /*bundle*/ type DependencyInfoType = DependencyDataType & { provider?: IProviderData };
 

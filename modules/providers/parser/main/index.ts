@@ -8,6 +8,20 @@ import * as semver from 'semver';
  * Determines the data type (semver, git, etc.) and extracts relevant metadata.
  */
 export /*bundle*/ class DependencyParser {
+	#identifier: string;
+	/**
+	 * Unique identifier for the dependency
+	 *
+	 * Examples:
+	 * - 'semver:@beyond-js/http'
+	 * - 'git:github:user/repo#ref'
+	 * - 'url:https://cdn.example.com/pkg.tgz'
+	 * - undefined for the rest of types
+	 */
+	get identifier() {
+		return this.#identifier;
+	}
+
 	#package: string;
 	/**
 	 * Full package name as defined in package.json.
@@ -87,6 +101,7 @@ export /*bundle*/ class DependencyParser {
 			// Determine if the version is not a specific version
 			const range = semver.valid(version) ? false : true;
 
+			this.#identifier = `semver:${pkg}`;
 			this.#data = { is: DependencyIsType.Semver, range };
 			return;
 		}
@@ -100,6 +115,7 @@ export /*bundle*/ class DependencyParser {
 				return;
 			}
 
+			this.#identifier = `git:${baseurl}/${owner}/${repo}${ref ? `#${ref}` : ''}`;
 			this.#data = { is: DependencyIsType.Git, baseurl, owner, repo, ref };
 			return;
 		}
@@ -107,10 +123,11 @@ export /*bundle*/ class DependencyParser {
 		// Tarball data (e.g., "https://.../mypackage.tgz")
 		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
 			const parsed = new URL(version);
-			const { pathname, hostname } = parsed;
+			const { hostname, pathname } = parsed;
 			const file = parsed.pathname.split('/').pop();
 			const fname = file.replace(/\.tgz$/, '');
 
+			this.#identifier = `url:${hostname}${pathname}`;
 			this.#data = { is: DependencyIsType.Url, hostname, url: version, pathname, file, fname };
 			return;
 		}

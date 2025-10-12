@@ -5,10 +5,12 @@ const BEE = require('@beyond-js/bee');
 BEE('http://localhost:1110', { inspect: 4000 });
 
 (async () => {
+	const { db } = await bimport('@beyond-js/packages/persistence/db');
 	const { Workspace } = await bimport('@beyond-js/packages/workspace');
 	const { Project } = await bimport('@beyond-js/packages/project/local');
 	const { Logger } = await bimport('@beyond-js/packages/logs');
 
+	await db.init({ cdn: false });
 	await Logger.init();
 
 	const workspace = new Workspace(__dirname);

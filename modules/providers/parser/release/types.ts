@@ -1,11 +1,11 @@
-import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
+import { DependencyIsType } from '@beyond-js/packages/providers/parser';
 
 /**
  * Information for a Semver-based package identifier.
  * Example: @scope/pkg@1.2.3 from a given registry.
  */
 export interface ISemverInfo {
-	is: InfoIsType.Semver;
+	is: DependencyIsType.Semver;
 	hostname: string; // registry hostname (e.g. registry.npmjs.org)
 	package: string; // package name including scope (e.g. @beyond-js/widgets)
 	version: string; // resolved version (e.g. "1.2.3")
@@ -16,7 +16,7 @@ export interface ISemverInfo {
  * Example: git/github.com/owner/repo@<commit>.
  */
 export interface IGitInfo {
-	is: InfoIsType.Git;
+	is: DependencyIsType.Git;
 	hostname: string; // git host (e.g. github.com)
 	owner: string; // repository owner
 	repo: string; // repository name
@@ -28,7 +28,7 @@ export interface IGitInfo {
  * Identified by a digest hash of its content.
  */
 export interface IUrlInfo {
-	is: InfoIsType.Url;
+	is: DependencyIsType.Url;
 	digest: string; // content hash (e.g. "sha256-abcdef1234567890")
 }
 

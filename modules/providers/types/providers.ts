@@ -10,15 +10,17 @@ export /*bundle*/ interface IPackageProviders {
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 * @returns
 	 */
-	packument?(pkg: string): Promise<IPackumentResponse>;
+	packument?(pkg: string, specifier: string): Promise<IPackumentResponse>;
 
 	/**
 	 * Retrieves the available versions for a package (only for semver).
 	 *
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
+	 * @param specifier - The version specifier as defined in package.json
+	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
 	 * @returns
 	 */
-	versions?(pkg: string): Promise<IPackageVersionsResponse>;
+	versions?(pkg: string, specifier: string): Promise<IPackageVersionsResponse>;
 
 	/**
 	 * Retrieves the package specification for a specific version.

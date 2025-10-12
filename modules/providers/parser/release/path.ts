@@ -1,5 +1,5 @@
 // PackagePath.ts
-import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
+import { DependencyIsType } from '@beyond-js/packages/providers/parser';
 import type { PackageInfoType } from './types';
 
 /**
@@ -44,7 +44,7 @@ export /*bundle*/ class PackagePath {
 		this.#info = info;
 
 		switch (info.is) {
-			case InfoIsType.Semver: {
+			case DependencyIsType.Semver: {
 				const hostname = this.#require(info.hostname, 'hostname');
 				const pkg = this.#require(info.package, 'package'); // includes scope when present
 				const version = this.#require(info.version, 'version');
@@ -54,7 +54,7 @@ export /*bundle*/ class PackagePath {
 				return;
 			}
 
-			case InfoIsType.Git: {
+			case DependencyIsType.Git: {
 				const host = this.#require(info.hostname, 'hostname');
 				const owner = this.#require(info.owner, 'owner');
 				const repo = this.#require(info.repo, 'repo');
@@ -65,7 +65,7 @@ export /*bundle*/ class PackagePath {
 				return;
 			}
 
-			case InfoIsType.Url: {
+			case DependencyIsType.Url: {
 				const digest = this.#require(info.digest, 'digest');
 
 				// digest/<checksum>

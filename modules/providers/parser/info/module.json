@@ -1,0 +1,5 @@
+{
+	"name": "providers/parser/info",
+	"bundle": "ts",
+	"files": "*"
+}

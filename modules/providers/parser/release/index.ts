@@ -1,5 +1,5 @@
 import type { PackageInfoType } from './types';
-import { InfoIsType } from '@beyond-js/packages/providers/dependency/info';
+import { DependencyIsType } from '@beyond-js/packages/providers/parser';
 
 /**
  * PackageIdentifier builds an id for a resolved package (semver, git, url)
@@ -56,7 +56,7 @@ export /*bundle*/ class PackageIdentifier {
 	 */
 	static #build(info: PackageInfoType): string {
 		switch (info.is) {
-			case InfoIsType.Semver: {
+			case DependencyIsType.Semver: {
 				// expect: hostname, package, version
 				const host = (info as any).hostname ?? 'registry';
 				const pkg = (info as any).package;
@@ -67,7 +67,7 @@ export /*bundle*/ class PackageIdentifier {
 				return `${host}:${pkg}@${ver}`;
 			}
 
-			case InfoIsType.Git: {
+			case DependencyIsType.Git: {
 				const host = (info as any).hostname;
 				const owner = (info as any).owner;
 				const repo = (info as any).repo;
@@ -78,7 +78,7 @@ export /*bundle*/ class PackageIdentifier {
 				return `git:${host}/${owner}/${repo}@${commit}`;
 			}
 
-			case InfoIsType.Url: {
+			case DependencyIsType.Url: {
 				const digest = (info as any).digest;
 				if (!digest) {
 					throw new Error('PackageIdentifier: url needs digest');
@@ -107,7 +107,7 @@ export /*bundle*/ class PackageIdentifier {
 			if (!m) throw new Error(`PackageIdentifier.parse: bad git id "${s}"`);
 			const [, hostname, owner, repo, commit] = m;
 			return {
-				is: InfoIsType.Git,
+				is: DependencyIsType.Git,
 				hostname,
 				owner,
 				repo,
@@ -120,7 +120,7 @@ export /*bundle*/ class PackageIdentifier {
 			const digest = s.slice(7);
 			if (!digest) throw new Error(`PackageIdentifier.parse: bad digest id "${s}"`);
 			return {
-				is: InfoIsType.Url,
+				is: DependencyIsType.Url,
 				digest
 			} as PackageInfoType;
 		}
@@ -133,7 +133,7 @@ export /*bundle*/ class PackageIdentifier {
 				throw new Error(`PackageIdentifier.parse: bad semver id "${s}"`);
 			}
 			return {
-				is: InfoIsType.Semver,
+				is: DependencyIsType.Semver,
 				hostname,
 				package: pkg,
 				version

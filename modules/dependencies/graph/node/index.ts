@@ -3,7 +3,7 @@ import type { IProject } from '@beyond-js/packages/project/types';
 import type { Registry } from '../registry';
 import type { Logger } from '@beyond-js/packages/logs';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import { DependencyParser } from '@beyond-js/packages/providers/dependency/parser';
+import { DependencyParser } from '@beyond-js/packages/providers/parser';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';

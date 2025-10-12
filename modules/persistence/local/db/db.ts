@@ -5,7 +5,6 @@ import { existsSync, mkdirSync } from 'fs';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
 export abstract class DB {
-	#path: string;
 	#db: sqlite.Database;
 
 	_run: (sql: string, params?: any[]) => Promise<any>;
@@ -18,7 +17,6 @@ export abstract class DB {
 	}
 
 	constructor(path: string, file: string) {
-		this.#path = path;
 		this.#ready = new PendingPromise<void>();
 
 		if (!existsSync(path)) mkdirSync(path, { recursive: true });

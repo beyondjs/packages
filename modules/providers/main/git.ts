@@ -1,7 +1,7 @@
 import type { IPackageManifestResponse, IPackageProvider } from '@beyond-js/packages/providers/types';
 import type { IPackageManifest } from '@beyond-js/packages/types';
-import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
-import type { IGitDependencyData } from '@beyond-js/packages/providers/dependency/parser';
+import type { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
+import type { IGitDependencyData } from '@beyond-js/packages/providers/parser';
 import { AuthHeaders } from './tools';
 
 /**

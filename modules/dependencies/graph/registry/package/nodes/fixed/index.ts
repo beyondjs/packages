@@ -1,6 +1,6 @@
 import type { DependencyPackage } from '../..';
 import type { Node } from '../../../../node';
-import { DependencyIsType } from '@beyond-js/packages/providers/dependency/parser';
+import { DependencyIsType } from '@beyond-js/packages/providers/parser';
 
 export class FixedNodes extends Map<string, Array<Node>> {
 	#package: DependencyPackage;

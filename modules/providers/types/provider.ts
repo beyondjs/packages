@@ -1,4 +1,4 @@
-import type { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
+import type { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
 import type { IPackageManifest, IPackument } from '@beyond-js/packages/types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 

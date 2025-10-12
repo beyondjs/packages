@@ -6,8 +6,8 @@ import type {
 } from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
 import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import { DependencyInfo } from '@beyond-js/packages/providers/dependency/info';
-import { DependencyIsType } from '@beyond-js/packages/providers/dependency/parser';
+import { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
+import { DependencyIsType } from '@beyond-js/packages/providers/parser';
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
@@ -16,6 +16,9 @@ export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions 
 
 export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> implements IPackageProviders {
 	#settings: ProvidersSettings;
+	get settings() {
+		return this.#settings;
+	}
 
 	#semver: SemverRegistry;
 	#git: GitProvider;
