@@ -114,8 +114,12 @@ export class LocalLoader implements IProvidersSettings {
 			}
 
 			// Apply scopes
-			for (const [scope, base] of scopes) {
-				const hostname = base.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+			for (const [scope, hostname] of scopes) {
+				const base = hostname
+					.replace(/^https?:\/\//, '')
+					.replace(/^www\./, '')
+					.replace(/\/+$/, '')
+					.toLowerCase();
 				const data: IProviderData = {
 					origin,
 					base,

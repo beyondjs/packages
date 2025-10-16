@@ -9,6 +9,8 @@ export class AuthHeaders {
 
 	static process(auth: IProviderAuthData): Record<string, string> {
 		switch (auth.mode) {
+			case 'none':
+				return {};
 			case 'token':
 				return this.token(auth);
 			case 'basic':

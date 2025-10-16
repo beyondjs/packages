@@ -1,25 +1,25 @@
-import type { DependencyDataType } from './types';
-import { DependencyIsType } from './types';
+import type { DependencySourceType } from './types';
+import { DependencySourceIsType } from './types';
 import { GitInfo } from './git';
 import * as semver from 'semver';
 
 /**
  * Resolves and interprets a dependency version specifier declared in a package.json.
- * Determines the data type (semver, git, etc.) and extracts relevant metadata.
+ * Determines the source type (semver, git, etc.) and extracts relevant metadata.
  */
-export /*bundle*/ class DependencyParser {
-	#identifier: string;
+export /*bundle*/ class DependencySource {
+	#id: string;
 	/**
-	 * Unique identifier for the dependency
+	 * Unique id for the dependency
 	 *
 	 * Examples:
 	 * - 'semver:@beyond-js/http'
 	 * - 'git:github:user/repo#ref'
 	 * - 'url:https://cdn.example.com/pkg.tgz'
-	 * - undefined for the rest of types
+	 * - undefined for the rest of sources
 	 */
-	get identifier() {
-		return this.#identifier;
+	get id() {
+		return this.#id;
 	}
 
 	#package: string;
@@ -51,7 +51,7 @@ export /*bundle*/ class DependencyParser {
 		return this.#name;
 	}
 
-	#version: string;
+	#spec: string;
 	/**
 	 * Raw version string as declared in package.json.
 	 * Examples:
@@ -59,11 +59,11 @@ export /*bundle*/ class DependencyParser {
 	 * - 'github:user/repo#v1.0.0' (git)
 	 * - 'https://cdn.example.com/pkg.tgz' (tarball)
 	 */
-	get version() {
-		return this.#version;
+	get spec() {
+		return this.#spec;
 	}
 
-	#data: DependencyDataType;
+	#data: DependencySourceType;
 	get data() {
 		return this.#data;
 	}
@@ -72,11 +72,11 @@ export /*bundle*/ class DependencyParser {
 	 * Creates a new DependencyInfo instance by parsing the package name and version specifier.
 	 *
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
-	 * @param version - The version specifier as defined in package.json
+	 * @param spec - The version specifier as defined in package.json
 	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
 	 * @returns
 	 */
-	constructor(pkg: string, version: string) {
+	constructor(pkg: string, spec: string) {
 		if (!pkg || typeof pkg !== 'string') throw new Error('Invalid package name');
 
 		this.#package = pkg;
@@ -88,63 +88,60 @@ export /*bundle*/ class DependencyParser {
 			this.#name = pkg;
 		}
 
-		this.#version = version;
+		this.#spec = spec;
 
-		// Undefined or empty version
-		if (!version) {
-			this.#data = { is: DependencyIsType.Undefined };
-			return;
-		}
+		// Undefined or empty spec
+		if (!spec) throw new Error('Dependency specificaction cannot be undefined');
 
-		// Semver data (e.g., "^1.0.0", "~2.3.4")
-		if (semver.valid(version) || semver.validRange(version)) {
+		// Semver source (e.g., "^1.0.0", "~2.3.4")
+		if (semver.valid(spec) || semver.validRange(spec)) {
 			// Determine if the version is not a specific version
-			const range = semver.valid(version) ? false : true;
+			const range = semver.valid(spec) ? false : true;
 
-			this.#identifier = `semver:${pkg}`;
-			this.#data = { is: DependencyIsType.Semver, range };
+			this.#id = `semver:${pkg}`;
+			this.#data = { is: DependencySourceIsType.Semver, range };
 			return;
 		}
 
-		// Git data (shorthand or git+ protocol)
-		const git = new GitInfo(version);
+		// Git source (shorthand or git+ protocol)
+		const git = new GitInfo(spec);
 		if (git) {
 			const { error, baseurl, owner, repo, ref } = git;
 			if (error) {
-				this.#data = { is: DependencyIsType.Error, error };
+				this.#data = { is: DependencySourceIsType.Error, error };
 				return;
 			}
 
-			this.#identifier = `git:${baseurl}/${owner}/${repo}${ref ? `#${ref}` : ''}`;
-			this.#data = { is: DependencyIsType.Git, baseurl, owner, repo, ref };
+			this.#id = `git:${baseurl}/${owner}/${repo}${ref ? `#${ref}` : ''}`;
+			this.#data = { is: DependencySourceIsType.Git, baseurl, owner, repo, ref };
 			return;
 		}
 
-		// Tarball data (e.g., "https://.../mypackage.tgz")
-		if (version.endsWith('.tgz') && /^https?:\/\//.test(version)) {
-			const parsed = new URL(version);
+		// Tarball source (e.g., "https://.../mypackage.tgz")
+		if (spec.endsWith('.tgz') && /^https?:\/\//.test(spec)) {
+			const parsed = new URL(spec);
 			const { hostname, pathname } = parsed;
 			const file = parsed.pathname.split('/').pop();
 			const fname = file.replace(/\.tgz$/, '');
 
-			this.#identifier = `url:${hostname}${pathname}`;
-			this.#data = { is: DependencyIsType.Url, hostname, url: version, pathname, file, fname };
+			this.#id = `url:${hostname}${pathname}`;
+			this.#data = { is: DependencySourceIsType.Url, hostname, url: spec, pathname, file, fname };
 			return;
 		}
 
-		// Alias data (e.g., "npm:lodash@^4.17.0")
-		if (version.startsWith('npm:')) {
-			const [, target] = version.split(':');
-			this.#data = { is: DependencyIsType.Alias, target };
+		// Alias source (e.g., "npm:lodash@^4.17.0")
+		if (spec.startsWith('npm:')) {
+			const [, target] = spec.split(':');
+			this.#data = { is: DependencySourceIsType.Alias, target };
 			return;
 		}
 
 		// Fallback: invalid or unsupported version specifier
 		this.#data = {
-			is: DependencyIsType.Error,
+			is: DependencySourceIsType.Error,
 			error: {
 				code: 'INVALID_SPECIFIER',
-				message: `The version specifier '${version}' is not recognized.`
+				message: `The version specifier '${spec}' is not recognized.`
 			}
 		};
 	}

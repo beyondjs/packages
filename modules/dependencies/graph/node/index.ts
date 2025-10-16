@@ -3,7 +3,7 @@ import type { IProject } from '@beyond-js/packages/project/types';
 import type { Registry } from '../registry';
 import type { Logger } from '@beyond-js/packages/logs';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import { DependencyParser } from '@beyond-js/packages/providers/parser';
+import { DependencySource } from '@beyond-js/packages/dependency-source';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
@@ -41,14 +41,13 @@ export /*bundle*/ class Node {
 	get package() {
 		return this.#package;
 	}
-
-	// The scope of the package (if any, otherwise undefined)
 	get scope() {
-		return this.#parsed.scope;
+		return this.#source.scope;
 	}
-	// The name of the package without scope
-	get name() {
-		return this.#parsed.name;
+
+	#source: DependencySource;
+	get source() {
+		return this.#source;
 	}
 
 	#version: Version;
@@ -56,17 +55,12 @@ export /*bundle*/ class Node {
 		return this.#version;
 	}
 
-	#parsed: DependencyParser;
-	get data() {
-		return this.#parsed.data;
-	}
-
 	#parent?: Node;
 	get parent() {
 		return this.#parent;
 	}
 
-	#dependencies;
+	#dependencies: NodeDependencies;
 	get dependencies() {
 		return this.#dependencies;
 	}
@@ -100,7 +94,7 @@ export /*bundle*/ class Node {
 		this.#package = pkg;
 		this.#version = new Version(version);
 		this.#parent = parent;
-		this.#parsed = new DependencyParser(pkg, version);
+		this.#source = new DependencySource(pkg, version);
 		this.#dependencies = new NodeDependencies(this);
 
 		this.#version.on('change', this.invalidate.bind(this));
@@ -113,16 +107,19 @@ export /*bundle*/ class Node {
 		this.#dependencies.invalidate();
 	}
 
-	async register() {
-		await this.#registry.nodes.register(this);
+	async register(update: boolean) {
+		await this.#registry.nodes.register(this, update);
 	}
 
 	/**
 	 * Fetches the package dependencies and processes them.
 	 * If the node is already processed or being processed, it throws an error.
+	 *
+	 * @param update - If true, forces the update of existing dependencies.
+	 *
 	 * @returns
 	 */
-	async process(): Promise<void> {
+	async process({ update }: { update: boolean }): Promise<void> {
 		if (this.#processing || this.#processed) {
 			throw new Error('Node is already processed or it is being processed');
 		}
@@ -143,8 +140,8 @@ export /*bundle*/ class Node {
 		const version = this.#version;
 		if (version.error) return done({ error: version.error });
 
-		const { specified, resolved } = version;
-		const { error, manifest } = await this.#project.packages.manifest(this.#package, specified, resolved);
+		const { resolved } = version;
+		const { error, manifest } = await this.#project.packages.manifest(this.#source, resolved);
 		if (error) return done({ error });
 
 		if (!manifest) {
@@ -154,22 +151,22 @@ export /*bundle*/ class Node {
 		}
 
 		const dependencies = new DependenciesSpec(manifest);
-		await this.#dependencies.process(dependencies);
+		await this.#dependencies.process(dependencies, update);
 		return done({});
 	}
 
-	async reprocess() {
+	async reprocess(update: boolean) {
 		if (this.#processing) {
 			throw new Error('Node is already being processed');
 		}
 
 		if (!this.#processed) {
-			await this.process();
+			await this.process({ update });
 			return;
 		}
 
 		this.#processing = true;
-		await this.#dependencies.reprocess();
+		await this.#dependencies.reprocess(update);
 		this.#processing = false;
 	}
 }

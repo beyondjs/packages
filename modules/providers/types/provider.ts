@@ -1,4 +1,5 @@
-import type { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
+import type { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
+import type { DependencySourceRelease } from '@beyond-js/packages/dependency-source/release';
 import type { IPackageManifest, IPackument } from '@beyond-js/packages/types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 
@@ -21,17 +22,17 @@ export /*bundle*/ interface IPackageManifestResponse extends IPackageResponseBas
 
 export /*bundle*/ interface IPackageProvider {
 	/**
-	 * Retrieves the packument for a specific package (only for semver).
+	 * Retrieves the packument for a specific package (only for semver)
 	 */
-	packument?(dependency: DependencyInfo): Promise<IPackumentResponse>;
+	packument?(dependency: DependencySourceProvider): Promise<IPackumentResponse>;
 
 	/**
-	 * Retrieves the package specification for a specific version.
+	 * Retrieves the package specification for a specific release
 	 */
-	manifest(dependency: DependencyInfo, version: string): Promise<IPackageManifestResponse>;
+	manifest(dependency: DependencySourceRelease): Promise<IPackageManifestResponse>;
 
 	/**
-	 * Builds a download URL for a package given its scope and name.
+	 * Builds a download URL for a package given its scope and name
 	 */
-	tarball(dependency: DependencyInfo): { url: string; headers: Record<string, string> };
+	tarball(dependency: DependencySourceProvider, release?: string): { url: string; headers: Record<string, string> };
 }

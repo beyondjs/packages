@@ -40,7 +40,7 @@ export /*bundle*/ const packages = function (registry: Registry) {
 		let versions: string[] = [];
 		const { semver, fixed } = dependency.nodes;
 		semver.groups.forEach(group => versions.push(`"${group.chosen}"`));
-		output += dependency.name + ': ' + versions.join(', ') + '\n';
+		output += dependency.source.name + ': ' + versions.join(', ') + '\n';
 	});
 
 	return output;

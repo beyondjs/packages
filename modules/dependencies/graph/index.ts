@@ -35,7 +35,7 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		this.#logger = logger;
 	}
 
-	async process() {
+	async process({ update }: { update: boolean }) {
 		this.#logger.info('Initializing dependencies graph');
 
 		// The root node version is the version of the package for which dependencies are being processed
@@ -47,7 +47,7 @@ export /*bundle*/ class DependenciesGraph extends Node {
 		// We could have used super.process() if had wanted to process an external dependency directly
 		// (eg: react, lodash, etc). But we are processing the dependencies of a project.
 		const dependencies = new DependenciesSpec(this.#project.dependencies.spec);
-		await this.dependencies.process(dependencies);
+		await this.dependencies.process(dependencies, update);
 
 		let i = 0;
 		while (!this.completed) {
@@ -57,7 +57,7 @@ export /*bundle*/ class DependenciesGraph extends Node {
 
 			// The graph may not have been completely processed due to invalidations that occur while
 			// processing the nodes
-			await this.dependencies.reprocess();
+			await this.dependencies.reprocess(update);
 		}
 
 		this.#processed = this.completed;

@@ -38,6 +38,9 @@ export class DependenciesInstaller {
 
 		const graph = new DependenciesGraph(this.#project);
 		await graph.process();
+
+		// @to-do: Install the dependencies that are not installed yet
+
 		this.#done(graph);
 	}
 

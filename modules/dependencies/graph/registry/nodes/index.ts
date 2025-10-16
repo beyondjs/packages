@@ -14,31 +14,32 @@ export class Nodes {
 		this.#nodes = new Map();
 	}
 
-	async register(node: Node) {
+	async register(node: Node, update: boolean) {
 		this.#nodes.set(node.package, node);
 
-		const { package: pkg } = node;
+		const { source } = node;
 		const dependency = (() => {
-			if (this.#registry.packages.has(pkg)) return this.#registry.packages.get(pkg);
+			if (this.#registry.packages.has(source.id)) return this.#registry.packages.get(source.id);
 
-			const dependency = new DependencyPackage(pkg, this.#project);
-			this.#registry.packages.set(pkg, dependency);
+			const dependency = new DependencyPackage(this.#project, source);
+			this.#registry.packages.set(source.id, dependency);
 			return dependency;
 		})();
 
-		await dependency.nodes.register(node);
+		await dependency.nodes.register(node, update);
 	}
 
 	unregister(node: Node) {
-		if (!this.#nodes.has(node.package)) throw new Error(`The node "${node.package}" is not registered`);
-		this.#nodes.delete(node.package);
+		const { source } = node;
+		if (!this.#nodes.has(source.id)) throw new Error(`Node package with id "${source.id}" not found on registry`);
+		this.#nodes.delete(source.id);
 
-		const dependency = this.#registry.packages.get(node.package);
+		const dependency = this.#registry.packages.get(source.id);
 		dependency.nodes.unregister(node);
 
 		// If the package has no more nodes, remove it from the registry
 		if (!dependency.nodes.semver.groups.length && !dependency.nodes.fixed.size) {
-			this.#registry.packages.delete(node.package);
+			this.#registry.packages.delete(source.id);
 		}
 	}
 }

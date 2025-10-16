@@ -33,7 +33,7 @@ export class Group extends Array<Node> {
 		this.#chosen = chosen;
 
 		// Update the new chosen version to all the nodes in the group
-		this.forEach(node => node.version.resolved !== chosen && node.version.update({ version: chosen }));
+		this.forEach(node => node.version.update({ version: chosen }));
 	}
 
 	register(node: Node) {

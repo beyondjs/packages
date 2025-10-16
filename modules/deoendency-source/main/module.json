@@ -1,5 +1,5 @@
 {
-	"name": "providers/parser/info",
+	"name": "dependency-source",
 	"bundle": "ts",
 	"files": "*"
 }

@@ -39,7 +39,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		});
 	}
 
-	async process(spec: DependenciesSpec) {
+	async process(spec: DependenciesSpec, update: boolean) {
 		if (this.#processing || this.#processed) {
 			throw new Error('Dependencies are already processed or they are being processed');
 		}
@@ -59,19 +59,19 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 				dependency: { kind, package: name, version },
 				parent: this.#node
 			});
-			await node.register();
+			await node.register(update);
 			this.set(name, node);
 		}
 
 		for (const node of this.values()) {
-			await node.process();
+			await node.process({ update });
 		}
 
 		this.#processing = false;
 		this.#processed = true;
 	}
 
-	async reprocess() {
+	async reprocess(update: boolean) {
 		if (!this.#processed) {
 			throw new Error('Dependencies must be previously processed to be able to reprocess them');
 		}
@@ -81,7 +81,7 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 
 		this.#processing = true;
 		for (const node of [...this.values()]) {
-			await node.reprocess();
+			await node.reprocess(update);
 		}
 		this.#processing = false;
 	}

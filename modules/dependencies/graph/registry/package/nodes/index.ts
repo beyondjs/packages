@@ -1,6 +1,6 @@
 import type { DependencyPackage } from '..';
 import type { Node } from '../../../node';
-import { DependencyIsType } from '@beyond-js/packages/providers/parser';
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import { SemverNodes } from './semver';
 import { FixedNodes } from './fixed';
 
@@ -20,23 +20,31 @@ export /*bundle*/ class PackageNodes {
 		this.#fixed = new FixedNodes(pkg);
 	}
 
-	async register(node: Node) {
-		if (node.data.is === DependencyIsType.Semver) {
-			await this.#semver.register(node);
-		} else if ([DependencyIsType.Git, DependencyIsType.Url, DependencyIsType.Alias].includes(node.data.is)) {
-			await this.#fixed.register(node);
+	async register(node: Node, update: boolean) {
+		const { is } = node.source.data;
+
+		if (is === DependencySourceIsType.Semver) {
+			await this.#semver.register(node, update);
+		} else if (
+			[DependencySourceIsType.Git, DependencySourceIsType.Url, DependencySourceIsType.Alias].includes(is)
+		) {
+			await this.#fixed.register(node, update);
 		} else {
-			throw new Error(`Unsupported node type: ${node.data.is}`);
+			throw new Error(`Unsupported node type: ${is}`);
 		}
 	}
 
 	unregister(node: Node) {
-		if (node.data.is === DependencyIsType.Semver) {
+		const { is } = node.source.data;
+
+		if (is === DependencySourceIsType.Semver) {
 			this.#semver.unregister(node);
-		} else if ([DependencyIsType.Git, DependencyIsType.Url, DependencyIsType.Alias].includes(node.data.is)) {
+		} else if (
+			[DependencySourceIsType.Git, DependencySourceIsType.Url, DependencySourceIsType.Alias].includes(is)
+		) {
 			this.#fixed.unregister(node);
 		} else {
-			throw new Error(`Unsupported node type: ${node.data.is}`);
+			throw new Error(`Unsupported node type: ${is}`);
 		}
 	}
 }

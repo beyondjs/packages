@@ -5,9 +5,11 @@ import type {
 	IPackumentResponse
 } from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
+import { DependencySource } from '@beyond-js/packages/dependency-source';
 import { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
-import { DependencyIsType } from '@beyond-js/packages/providers/parser';
+import { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
+import { DependencySourceRelease } from '@beyond-js/packages/dependency-source/release';
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
@@ -64,30 +66,30 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	async packument(pkg: string): Promise<IPackumentResponse> {
 		await this.#ready;
 
-		const dependency = new DependencyInfo(pkg, void 0, this.#settings);
+		const source = new DependencySource(pkg, '0.0.0');
+		const dependency = new DependencySourceProvider(source, this.#settings);
 		return await this.#semver.packument(dependency);
 	}
 
 	/**
 	 * Retrieves the package specification for a specific version.
 	 *
-	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
-	 * @param specifier - The version specifier as defined in package.json
-	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
-	 * @param version - The specific version to retrieve.
+	 * @param source - Package source specification
+	 * @param release - Package release version
 	 */
-	async manifest(pkg: string, specifier: string, version: string): Promise<IPackageManifestResponse> {
+	async manifest(source: DependencySource, release: string): Promise<IPackageManifestResponse> {
 		await this.#ready;
 
-		const dependency = new DependencyInfo(pkg, specifier, this.#settings);
+		const provider = new DependencySourceProvider(source, this.#settings);
+		const dependency = new DependencySourceRelease(provider, release);
 
-		const { is } = dependency.data;
+		const { is } = source.data;
 		switch (is) {
-			case DependencyIsType.Semver:
-				return await this.#semver.manifest(dependency, version);
-			case DependencyIsType.Git:
+			case DependencySourceIsType.Semver:
+				return await this.#semver.manifest(dependency);
+			case DependencySourceIsType.Git:
 				return await this.#git.manifest(dependency);
-			case DependencyIsType.Url:
+			case DependencySourceIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:
 				throw new Error(`Unsupported dependency type: ${is}`);
@@ -95,23 +97,26 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	}
 
 	/**
-	 * Build a tarball request (url + headers) for downloading repository archive at a ref.
-	 * This is optional but handy to keep symmetry with semver tarball usage.
+	 * Build a tarball request (url + headers) for downloading package release archive
+	 *
+	 * @param source - Package source specification
+	 * @param release - Package release version (only for semver)
 	 */
-	tarball(pkg: string, specifier: string, version: string): { url: string; headers: Record<string, string> } {
+	tarball(source: DependencySource, release?: string): { url: string; headers: Record<string, string> } {
+		// As this method is sync, cannot wait for class being ready (await this.#ready)
 		if (!this.#initialized) {
 			throw new Error('Providers not initialized. Await the ".ready" promise before using this method');
 		}
 
-		const dependency = new DependencyInfo(pkg, specifier, this.#settings);
+		const dependency = new DependencySourceProvider(source, this.#settings);
 
-		const { is } = dependency.data;
+		const { is } = source.data;
 		switch (is) {
-			case DependencyIsType.Semver:
-				return this.#semver.tarball(dependency);
-			case DependencyIsType.Git:
-				return this.#git.tarball(dependency);
-			case DependencyIsType.Url:
+			case DependencySourceIsType.Semver:
+				return this.#semver.tarball(dependency, release);
+			case DependencySourceIsType.Git:
+				return this.#git.tarball(dependency, release);
+			case DependencySourceIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:
 				throw new Error(`Unsupported dependency type: ${is}`);

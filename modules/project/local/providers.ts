@@ -4,7 +4,8 @@ import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond
 import type { IPackageData } from '@beyond-js/packages/persistence/types';
 import { PackageProviders as PackageProvidersBase } from '@beyond-js/packages/providers';
 import { db } from '@beyond-js/packages/persistence/db';
-import { DependencyInfo } from '@beyond-js/packages/providers/parser/info';
+import { DependencySource } from '@beyond-js/packages/dependency-source';
+import { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
 
 export class PackageProviders implements IPackageProviders {
 	#providers: PackageProvidersBase;
@@ -18,15 +19,14 @@ export class PackageProviders implements IPackageProviders {
 	 * Retrieves the available versions for a package (only for semver).
 	 *
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
-	 * @param specifier - The version specifier as defined in package.json
-	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
 	 * @returns
 	 */
-	async versions(pkg: string, specifier: string): Promise<IPackageVersionsResponse> {
-		if (!pkg || !specifier) throw new Error('Package name and specifier are required');
+	async versions(pkg: string): Promise<IPackageVersionsResponse> {
+		if (!pkg) throw new Error('Package parameter is required');
 
 		await this.#providers.ready;
-		const parsed = new DependencyInfo(pkg, specifier, this.#providers.settings);
+		const source = new DependencySource(pkg, '0.0.0');
+		const { provider } = new DependencySourceProvider(source, this.#providers.settings);
 
 		const { packument, error, found } = await this.#providers.packument(pkg);
 		if (error || !found) return { error, found };
@@ -34,8 +34,8 @@ export class PackageProviders implements IPackageProviders {
 		// Extract version keys from packument
 		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
 
-		const id = parsed.identifier;
-		const { auth } = parsed.provider;
+		const { id } = source;
+		const { auth } = provider;
 		const data: IPackageData = { id, public: auth.mode === 'none', versions };
 
 		db.packages.set({ id, data });
@@ -45,25 +45,21 @@ export class PackageProviders implements IPackageProviders {
 	/**
 	 * Retrieves the package specification for a specific version.
 	 *
-	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
-	 * @param specifier - The version specifier as defined in package.json
-	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
-	 * @param version - The specific version to retrieve.
+	 * @param source - Package source specification
+	 * @param release - Package release version
 	 */
-	async manifest(pkg: string, specifier: string, version: string): Promise<IPackageManifestResponse> {
-		const { error, found, manifest } = await this.#providers.manifest(pkg, specifier, version);
+	async manifest(source: DependencySource, release: string): Promise<IPackageManifestResponse> {
+		const { error, found, manifest } = await this.#providers.manifest(source, release);
 		return { error, found, manifest };
 	}
 
 	/**
-	 * Builds a download URL for a package given its scope and name.
+	 * Build a tarball request (url + headers) for downloading package release archive
 	 *
-	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
-	 * @param specifier - The version specifier as defined in package.json
-	 * (e.g., '^1.0.0', 'latest', 'https://github.com/user/repo', 'https://my-domain.com/package.tgz').
-	 * @returns The download URL for the package.
+	 * @param source - Package source specification
+	 * @param release - Package release version (only for semver)
 	 */
-	tarball(pkg: string, specifier: string, version: string): { url: string; headers: Record<string, string> } {
-		return this.#providers.tarball(pkg, specifier, version);
+	tarball(source: DependencySource, release?: string): { url: string; headers: Record<string, string> } {
+		return this.#providers.tarball(source, release);
 	}
 }

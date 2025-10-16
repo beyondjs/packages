@@ -15,7 +15,7 @@ export class SemverNodes {
 		this.#package = pkg;
 	}
 
-	async register(node: Node) {
+	async register(node: Node, update: boolean) {
 		await this.#package.versions.ready;
 
 		const done = (group?: Group) => {

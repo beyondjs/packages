@@ -1,3 +1,4 @@
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import type { DependencyPackage } from './';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
@@ -30,9 +31,14 @@ export class PackageSemverVersions {
 	async update() {
 		this.#ready = new PendingPromise<void>();
 
+		if (this.#package.source.data.is !== DependencySourceIsType.Semver) {
+			this.#ready.reject('Package versions are only available on semver sources');
+			return;
+		}
+
 		// Retrieve the versions of the package
-		const { project } = this.#package;
-		const { error, versions } = await project.packages.versions(this.#package.name);
+		const { project, source } = this.#package;
+		const { error, versions } = await project.packages.versions(source.package);
 		if (error) {
 			this.#error = error;
 			return;

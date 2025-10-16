@@ -1,6 +1,6 @@
 import type { DependencyPackage } from '../..';
 import type { Node } from '../../../../node';
-import { DependencyIsType } from '@beyond-js/packages/providers/parser';
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
 export class FixedNodes extends Map<string, Array<Node>> {
 	#package: DependencyPackage;
@@ -10,34 +10,33 @@ export class FixedNodes extends Map<string, Array<Node>> {
 		this.#package = pkg;
 	}
 
-	async register(node: Node) {
-		let key: string;
-		if (node.data.is === DependencyIsType.Git) {
+	async register(node: Node, update: boolean) {
+		if (node.source.data.is === DependencySourceIsType.Git) {
 			// Get the commit version
-			const { ref } = node.data;
-			const key = ''; // node.data.key;
-
+			const { ref } = node.source.data;
 			const { project } = this.#package;
 			const commit = 'the commit'; // await project.packages.commit(this.#package.name, ref);
 
-			if (!this.has(key)) this.set(key, []);
-			this.get(key)!.push(node);
+			node.version.update({ version: commit });
+
+			if (!this.has(commit)) this.set(commit, []);
+			this.get(commit)!.push(node);
 
 			throw new Error('Not implemented');
-		} else if (node.data.is === DependencyIsType.Url) {
+		} else if (node.source.data.is === DependencySourceIsType.Url) {
 			throw new Error('Not implemented');
-		} else if (node.data.is === DependencyIsType.Alias) {
+		} else if (node.source.data.is === DependencySourceIsType.Alias) {
 			throw new Error('Not implemented');
 		}
 	}
 
 	unregister(node: Node) {
 		let key: string;
-		if (node.data.is === DependencyIsType.Git) {
-			const key = ''; // node.data.key;
-		} else if (node.data.is === DependencyIsType.Url) {
+		if (node.source.data.is === DependencySourceIsType.Git) {
+			const key = ''; // node.source.data.key;
+		} else if (node.source.data.is === DependencySourceIsType.Url) {
 			throw new Error('Not implemented');
-		} else if (node.data.is === DependencyIsType.Alias) {
+		} else if (node.source.data.is === DependencySourceIsType.Alias) {
 			throw new Error('Not implemented');
 		}
 
