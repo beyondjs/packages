@@ -37,9 +37,9 @@ export class DependenciesInstaller {
 		this.#installing = true;
 
 		const graph = new DependenciesGraph(this.#project);
-		await graph.process();
+		await graph.process({ update: false });
 
-		// @to-do: Install the dependencies that are not installed yet
+		// @to-do: Install the dependencies that are not yet installed
 
 		this.#done(graph);
 	}
@@ -48,7 +48,7 @@ export class DependenciesInstaller {
 		this.#updating = true;
 
 		const graph = new DependenciesGraph(this.#project);
-		await graph.process();
+		await graph.process({ update: true });
 		this.#done(graph);
 	}
 }

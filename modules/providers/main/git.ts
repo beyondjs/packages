@@ -1,9 +1,9 @@
-import type { IPackageManifestResponse, IPackageProvider } from '@beyond-js/packages/providers/types';
-import type { IPackageManifest } from '@beyond-js/packages/types';
+import type { IPackageManifestResponse, IPackageProvider, ICacheOptions } from '@beyond-js/packages/providers/types';
 import type { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
 import type { DependencySourceRelease } from '@beyond-js/packages/dependency-source/release';
 import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import { AuthHeaders } from './tools';
+import { PackageRegistryFetcher } from './fetcher';
 
 /**
  * Provider adapter for git-based dependencies.
@@ -25,7 +25,7 @@ export class GitProvider implements IPackageProvider {
 	 * - owner/repo: the repository coordinates
 	 * - ref: branch, tag or commit (defaults to HEAD)
 	 */
-	async manifest(dependency: DependencySourceRelease): Promise<IPackageManifestResponse> {
+	async manifest(dependency: DependencySourceRelease, cache?: ICacheOptions): Promise<IPackageManifestResponse> {
 		const { source, provider } = dependency;
 		if (source.data.is !== DependencySourceIsType.Git) throw new Error(`Source type must be 'git'`);
 
@@ -48,35 +48,18 @@ export class GitProvider implements IPackageProvider {
 			url = `https://${hostname}/${owner}/${repo}/raw/${ref}/package.json`;
 		}
 
+		// Prepare headers
 		const headers = AuthHeaders.process(provider.auth);
 
-		let response: Response;
-		try {
-			response = await fetch(url, { headers });
-		} catch (exc) {
-			const code = 'NETWORK_ERROR';
-			const message = 'Network error occurred';
-			return { error: { code, message } };
+		// Set cache headers
+		if (cache) {
+			headers['If-None-Match'] = cache.etag;
+			headers['If-Modified-Since'] = cache.lastModified;
 		}
 
-		if (response.status === 404) {
-			return { found: false };
-		}
-
-		if (!response.ok) {
-			const code = 'INVALID_PROVIDER_RESPONSE';
-			const message = `Invalid response from provider: ${response.status}`;
-			return { error: { code, message } };
-		}
-
-		try {
-			const manifest: IPackageManifest = await response.json();
-			return { manifest };
-		} catch (exc) {
-			const code = 'PROVIDER_RESPONSE_NOT_PARSABLE';
-			const message = 'The provider response could not be parsed as JSON';
-			return { error: { code, message } };
-		}
+		const r = await PackageRegistryFetcher.fetch({ url, headers, cache });
+		if (r.notmodified) return { found: true, notmodified: true };
+		return { error: r.error, found: r.found, manifest: r.document, cache: r.cache };
 	}
 
 	/**

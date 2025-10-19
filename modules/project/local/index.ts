@@ -4,7 +4,7 @@ import type { Workspace } from '@beyond-js/packages/workspace';
 import type { Package } from '@beyond-js/packages/package';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { ProjectDependencies } from './dependencies';
-import { PackageProviders } from './providers';
+import { PackageProviders } from './packages';
 import { IDiagnostic } from '@beyond-js/packages/types';
 
 export /*bundle*/ class Project extends DynamicProcessor() implements IProject {

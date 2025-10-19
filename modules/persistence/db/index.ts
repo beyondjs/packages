@@ -40,11 +40,11 @@ export /*bundle*/ const db = new (class DB {
 		return this.#conditionals;
 	}
 
-	async init(cdn?: boolean): Promise<void> {
+	async init(options: { cdn?: boolean }): Promise<void> {
 		if (this.#ready) return await this.#ready;
 		this.#ready = new PendingPromise<void>();
 
-		const env = cdn ? 'cdn' : 'local';
+		const env = options.cdn ? 'cdn' : 'local';
 		const db = await bimport(`@beyond-js/packages/persistence/${env}/db`);
 		const { projects, packages, releases, conditionals } = db;
 

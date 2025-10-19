@@ -2,7 +2,8 @@ import type {
 	IPackageManifestResponse,
 	IPackageProvider,
 	IPackageProviders,
-	IPackumentResponse
+	IPackumentResponse,
+	ICacheOptions
 } from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
 import { DependencySource } from '@beyond-js/packages/dependency-source';
@@ -63,12 +64,12 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	 * @param pkg - Full package name, including scope if applicable (e.g., '@scope/package-name' or 'package-name').
 	 * @returns
 	 */
-	async packument(pkg: string): Promise<IPackumentResponse> {
+	async packument(pkg: string, cache?: ICacheOptions): Promise<IPackumentResponse> {
 		await this.#ready;
 
 		const source = new DependencySource(pkg, '0.0.0');
 		const dependency = new DependencySourceProvider(source, this.#settings);
-		return await this.#semver.packument(dependency);
+		return await this.#semver.packument(dependency, cache);
 	}
 
 	/**
@@ -77,7 +78,11 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	 * @param source - Package source specification
 	 * @param release - Package release version
 	 */
-	async manifest(source: DependencySource, release: string): Promise<IPackageManifestResponse> {
+	async manifest(
+		source: DependencySource,
+		release: string,
+		cache?: ICacheOptions
+	): Promise<IPackageManifestResponse> {
 		await this.#ready;
 
 		const provider = new DependencySourceProvider(source, this.#settings);
@@ -86,9 +91,9 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 		const { is } = source.data;
 		switch (is) {
 			case DependencySourceIsType.Semver:
-				return await this.#semver.manifest(dependency);
+				return await this.#semver.manifest(dependency, cache);
 			case DependencySourceIsType.Git:
-				return await this.#git.manifest(dependency);
+				return await this.#git.manifest(dependency, cache);
 			case DependencySourceIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:

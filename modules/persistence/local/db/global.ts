@@ -1,20 +1,19 @@
-import envpaths from 'env-paths';
 import { DB } from './db';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 import { join } from 'path';
 
 export class GlobalDB extends DB {
-	constructor() {
+	async _store() {
+		const envpaths = (await import('env-paths')).default;
 		const paths = envpaths('beyondjs');
 		const path = join(paths.cache, '.beyond/cache');
-		const name = 'packages.db';
+		const file = 'packages.db';
 
-		console.log('Global cache database path', path, name);
-		super(path, name);
+		return { path, file };
 	}
 
 	async _initialise(ready: PendingPromise<void>): Promise<void> {
-		const collections = ['packages'];
+		const collections = ['Packages', 'PackageReleases'];
 
 		let sql = '';
 		collections.forEach(collection => {

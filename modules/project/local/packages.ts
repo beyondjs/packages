@@ -1,7 +1,7 @@
 import type { Project } from './';
 import type { IPackageProviders } from '@beyond-js/packages/providers/types';
 import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
-import type { IPackageData } from '@beyond-js/packages/persistence/types';
+import type { IPackageData, IPackageReleaseData } from '@beyond-js/packages/persistence/types';
 import { PackageProviders as PackageProvidersBase } from '@beyond-js/packages/providers';
 import { db } from '@beyond-js/packages/persistence/db';
 import { DependencySource } from '@beyond-js/packages/dependency-source';
@@ -27,18 +27,26 @@ export class PackageProviders implements IPackageProviders {
 		await this.#providers.ready;
 		const source = new DependencySource(pkg, '0.0.0');
 		const { provider } = new DependencySourceProvider(source, this.#providers.settings);
+		const { id } = source;
+		const { auth } = provider;
 
-		const { packument, error, found } = await this.#providers.packument(pkg);
+		const cached = <IPackageData>await db.packages.get({ id });
+
+		// Fetch versions from provider
+		const response = await this.#providers.packument(pkg, cached?.cache);
+		const { error, found, notmodified, packument, cache } = response;
+
+		// Return cached versions if not modified
+		if (notmodified) return { versions: cached.versions };
 		if (error || !found) return { error, found };
 
 		// Extract version keys from packument
 		const versions = packument && typeof packument.versions === 'object' ? Object.keys(packument.versions) : [];
 
-		const { id } = source;
-		const { auth } = provider;
-		const data: IPackageData = { id, public: auth.mode === 'none', versions };
-
+		// Store versions in the database
+		const data: IPackageData = { id, public: auth.mode === 'none', versions, cache };
 		db.packages.set({ id, data });
+
 		return { versions };
 	}
 
@@ -49,8 +57,25 @@ export class PackageProviders implements IPackageProviders {
 	 * @param release - Package release version
 	 */
 	async manifest(source: DependencySource, release: string): Promise<IPackageManifestResponse> {
-		const { error, found, manifest } = await this.#providers.manifest(source, release);
-		return { error, found, manifest };
+		const { provider } = new DependencySourceProvider(source, this.#providers.settings);
+		const { id } = source;
+		const { auth } = provider;
+
+		const cached = <IPackageReleaseData>await db.releases.get({ id });
+
+		// Fetch manifest from provider
+		const response = await this.#providers.manifest(source, release, cached?.cache);
+		const { error, found, notmodified, manifest, cache } = response;
+
+		// Return cached manifest if not modified
+		if (notmodified) return { found, notmodified, manifest: cached.manifest };
+		if (error || !found) return { error, found };
+
+		// Store manifest in the database
+		const data: IPackageReleaseData = { id, public: auth.mode === 'none', manifest, cache };
+		db.releases.set({ id, data });
+
+		return { found, manifest };
 	}
 
 	/**

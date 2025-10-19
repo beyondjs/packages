@@ -32,8 +32,7 @@ export class PackageSemverVersions {
 		this.#ready = new PendingPromise<void>();
 
 		if (this.#package.source.data.is !== DependencySourceIsType.Semver) {
-			this.#ready.reject('Package versions are only available on semver sources');
-			return;
+			throw new Error('Package versions are only available on semver sources');
 		}
 
 		// Retrieve the versions of the package
@@ -41,6 +40,7 @@ export class PackageSemverVersions {
 		const { error, versions } = await project.packages.versions(source.package);
 		if (error) {
 			this.#error = error;
+			this.#ready.resolve();
 			return;
 		}
 

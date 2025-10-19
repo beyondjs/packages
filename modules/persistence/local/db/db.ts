@@ -16,8 +16,15 @@ export abstract class DB {
 		return this.#ready;
 	}
 
-	constructor(path: string, file: string) {
+	constructor() {
 		this.#ready = new PendingPromise<void>();
+		this._prepare(this.#ready);
+	}
+
+	abstract _store(): Promise<{ path: string; file: string }>;
+
+	async _prepare(ready: PendingPromise<void>) {
+		const { path, file } = await this._store();
 
 		if (!existsSync(path)) mkdirSync(path, { recursive: true });
 		const store = join(path, file);
@@ -27,7 +34,7 @@ export abstract class DB {
 		this._get = promisify(this.#db.get.bind(this.#db));
 		this._exec = promisify(this.#db.exec.bind(this.#db));
 
-		this._initialise(this.#ready);
+		this._initialise(ready);
 	}
 
 	abstract _initialise(ready: PendingPromise<void>): Promise<void>;

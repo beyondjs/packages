@@ -3,15 +3,14 @@ import { PendingPromise } from '@beyond-js/pending-promise/main';
 import { join } from 'path';
 
 export class WorspaceDB extends DB {
-	constructor() {
+	async _store() {
 		const path = join(process.cwd(), '.beyond/cache');
-		const name = 'packages.db';
-
-		super(path, name);
+		const file = 'packages.db';
+		return { path, file };
 	}
 
 	async _initialise(ready: PendingPromise<void>): Promise<void> {
-		const collections = ['packages', 'conditionals'];
+		const collections = ['Packages', 'Conditionals'];
 
 		let sql = '';
 		collections.forEach(collection => {

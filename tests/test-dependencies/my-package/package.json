@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"description": "A test package to verify the dependencies graph",
 	"dependencies": {
-		"style": "0.1.x"
+		"18": "0.0.0"
 	},
 	"-other-dependencies-to-test-with": {
 		"style": "0.1.x",
