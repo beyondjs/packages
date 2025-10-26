@@ -4,7 +4,9 @@ import { join } from 'path';
 
 export class GlobalDB extends DB {
 	async _store() {
+		// As BeyondJS transpiles to CJS, we need to use dynamic import
 		const envpaths = (await import('env-paths')).default;
+
 		const paths = envpaths('beyondjs');
 		const path = join(paths.cache, '.beyond/cache');
 		const file = 'packages.db';

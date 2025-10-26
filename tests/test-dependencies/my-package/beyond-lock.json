@@ -1,0 +1,10 @@
+{
+  "18@0.0.0": {
+    "name": "18",
+    "version": {
+      "specified": "0.0.0",
+      "resolved": "0.0.0"
+    },
+    "kind": "main"
+  }
+}

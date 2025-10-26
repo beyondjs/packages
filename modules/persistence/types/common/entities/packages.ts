@@ -25,5 +25,12 @@ export /*bundle*/ interface IPackageReleaseData {
 	cache: ICacheOptions;
 }
 
+export /*bundle*/ interface IPackageInstallData {
+	id: string;
+	path: string;
+	public: boolean;
+}
+
 export /*bundle*/ type Packages = ICollection<IPackageData>;
 export /*bundle*/ type Releases = ICollection<IPackageReleaseData>;
+export /*bundle*/ type InstalledPackages = ICollection<IPackageInstallData>;

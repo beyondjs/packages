@@ -17,7 +17,8 @@ export /*bundle*/ class Storage {
 		ready = new PendingPromise<void>();
 
 		const env = cdn ? 'cdn' : 'local';
-		const { File } = await bimport(`@beyond-js/packages/persistence/${env}/storage`);
+		const { File, initialize } = await bimport(`@beyond-js/packages/persistence/${env}/storage`);
+		await initialize?.();
 		Provider = File;
 
 		console.log(`Storage initialized with "${env}" 'provider`, Provider);

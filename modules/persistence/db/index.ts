@@ -1,5 +1,5 @@
 import { PendingPromise } from '@beyond-js/pending-promise/main';
-import type { Packages, Conditionals, Releases } from '@beyond-js/packages/persistence/types';
+import type { Packages, Conditionals, Releases, InstalledPackages } from '@beyond-js/packages/persistence/types';
 import type { Projects } from '@beyond-js/packages/persistence/types/cdn';
 
 declare const bimport: (module: string) => Promise<any>;
@@ -13,30 +13,40 @@ export /*bundle*/ const db = new (class DB {
 		return this.#env;
 	}
 
+	#check() {
+		if (!this.#initialised) throw new Error('Database not initialised. Call the init method first.');
+	}
+
 	/**
-	 * Only avaialble when server is running in CDN environment
+	 * Only available when server is running in CDN environment
 	 */
 	#projects?: Projects;
 	get projects() {
-		if (!this.#initialised) throw new Error('Database not initialised. Call the init method first.');
+		this.#check();
 		return this.#projects;
 	}
 
 	#packages: Packages;
 	get packages() {
-		if (!this.#initialised) throw new Error('Database not initialised. Call the init method first.');
+		this.#check();
 		return this.#packages;
 	}
 
 	#releases: Releases;
 	get releases() {
-		if (!this.#initialised) throw new Error('Database not initialised. Call the init method first.');
+		this.#check();
 		return this.#releases;
+	}
+
+	#installed: InstalledPackages;
+	get installed() {
+		this.#check();
+		return this.#installed;
 	}
 
 	#conditionals: Conditionals;
 	get conditionals() {
-		if (!this.#initialised) throw new Error('Database not initialised. Call the init method first.');
+		this.#check();
 		return this.#conditionals;
 	}
 
@@ -46,12 +56,13 @@ export /*bundle*/ const db = new (class DB {
 
 		const env = options.cdn ? 'cdn' : 'local';
 		const db = await bimport(`@beyond-js/packages/persistence/${env}/db`);
-		const { projects, packages, releases, conditionals } = db;
+		const { projects, packages, releases, installed, conditionals } = db;
 
 		this.#env = env;
 		this.#projects = projects;
 		this.#packages = packages;
 		this.#releases = releases;
+		this.#installed = installed;
 		this.#conditionals = conditionals;
 		this.#ready.resolve();
 

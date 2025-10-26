@@ -17,5 +17,5 @@ export /*bundle*/ interface IPackageProvider {
 	/**
 	 * Builds a download URL for a package given its scope and name
 	 */
-	tarball(dependency: DependencySourceProvider, release?: string): { url: string; headers: Record<string, string> };
+	tarball(dependency: DependencySourceRelease): Promise<{ url: string; headers: Record<string, string> }>;
 }

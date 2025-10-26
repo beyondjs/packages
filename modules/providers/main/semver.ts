@@ -74,7 +74,7 @@ export class SemverRegistry implements IPackageProvider {
 		return { error: r.error, found: r.found, manifest: r.document, cache: r.cache };
 	}
 
-	tarball(dependency: DependencySourceProvider, release: string): { url: string; headers: Record<string, string> } {
+	async tarball(dependency: DependencySourceRelease): Promise<{ url: string; headers: Record<string, string> }> {
 		const { package: pkg, name } = dependency.source;
 		const { source, provider } = dependency;
 		const { is } = source.data;

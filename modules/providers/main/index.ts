@@ -3,6 +3,7 @@ import type {
 	IPackageProvider,
 	IPackageProviders,
 	IPackumentResponse,
+	IPackageTarballResponse,
 	ICacheOptions
 } from '@beyond-js/packages/providers/types';
 import type { IProvidersSettingsOptions } from '@beyond-js/packages/providers/settings';
@@ -31,6 +32,10 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 		return this.#initialized;
 	}
 
+	/**
+	 * Promise that resolves when the providers are ready to be used
+	 * This is useful for ensuring that all provider settings are loaded before making requests.
+	 */
 	#ready: PendingPromise<void>;
 	get ready() {
 		return this.#ready;
@@ -65,6 +70,7 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	 * @returns
 	 */
 	async packument(pkg: string, cache?: ICacheOptions): Promise<IPackumentResponse> {
+		// Wait until providers are ready (settings are loaded)
 		await this.#ready;
 
 		const source = new DependencySource(pkg, '0.0.0');
@@ -83,6 +89,7 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 		release: string,
 		cache?: ICacheOptions
 	): Promise<IPackageManifestResponse> {
+		// Wait until providers are ready (settings are loaded)
 		await this.#ready;
 
 		const provider = new DependencySourceProvider(source, this.#settings);
@@ -107,20 +114,24 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 	 * @param source - Package source specification
 	 * @param release - Package release version (only for semver)
 	 */
-	tarball(source: DependencySource, release?: string): { url: string; headers: Record<string, string> } {
-		// As this method is sync, cannot wait for class being ready (await this.#ready)
-		if (!this.#initialized) {
-			throw new Error('Providers not initialized. Await the ".ready" promise before using this method');
-		}
+	async tarball(source: DependencySource, release: string): Promise<IPackageTarballResponse> {
+		// Wait until providers are ready (settings are loaded)
+		await this.#ready;
 
-		const dependency = new DependencySourceProvider(source, this.#settings);
+		const provider = new DependencySourceProvider(source, this.#settings);
+		const dependency = new DependencySourceRelease(provider, release);
+
+		const done = ({ url, headers }: { url: string; headers: Record<string, string> }) => {
+			const { id, path } = dependency;
+			return { id, path, url, headers };
+		};
 
 		const { is } = source.data;
 		switch (is) {
 			case DependencySourceIsType.Semver:
-				return this.#semver.tarball(dependency, release);
+				return done(await this.#semver.tarball(dependency));
 			case DependencySourceIsType.Git:
-				return this.#git.tarball(dependency, release);
+				return done(await this.#git.tarball(dependency));
 			case DependencySourceIsType.Url:
 			// return this.#url.manifest(dependency.url!, logger);
 			default:

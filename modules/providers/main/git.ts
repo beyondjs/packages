@@ -66,7 +66,7 @@ export class GitProvider implements IPackageProvider {
 	 * Build a tarball request (url + headers) for downloading repository archive at a ref.
 	 * This is optional but handy to keep symmetry with semver tarball usage.
 	 */
-	tarball(dependency: DependencySourceProvider, release: string): { url: string; headers: Record<string, string> } {
+	async tarball(dependency: DependencySourceRelease): Promise<{ url: string; headers: Record<string, string> }> {
 		const { source, provider } = dependency;
 		if (source.data.is !== DependencySourceIsType.Git) throw new Error(`Source type must be 'git'`);
 

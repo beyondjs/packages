@@ -1,5 +1,0 @@
-{
-	"name": "package/installer",
-	"bundle": "ts",
-	"files": "*"
-}

@@ -29,6 +29,13 @@ export /*bundle*/ interface IPackageManifestResponse extends IPackageResponseBas
 	manifest?: IPackageManifest;
 }
 
+export /*bundle*/ interface IPackageTarballResponse {
+	id: string;
+	path: string;
+	url: string;
+	headers: Record<string, string>;
+}
+
 export /*bundle*/ interface IPackageProviders {
 	/**
 	 * Retrieves the available versions for a package (only for semver).
@@ -58,7 +65,7 @@ export /*bundle*/ interface IPackageProviders {
 	 * Build a tarball request (url + headers) for downloading package release archive
 	 *
 	 * @param source - Package source specification
-	 * @param release - Package release version (only for semver)
+	 * @param release - Package release version
 	 */
-	tarball(source: DependencySource, release?: string): { url: string; headers: Record<string, string> };
+	tarball(source: DependencySource, release: string): Promise<IPackageTarballResponse>;
 }

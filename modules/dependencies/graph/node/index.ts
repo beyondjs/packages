@@ -82,7 +82,7 @@ export /*bundle*/ class Node {
 
 	constructor(params: INodeConstructorParams) {
 		const { project, registry, dependency, parent } = params;
-		const { package: pkg, version } = dependency;
+		const { package: pkg, version, kind } = dependency;
 
 		if (!project || !pkg || !version) {
 			throw new Error('Project, pkg and version are required parameters');
@@ -93,6 +93,7 @@ export /*bundle*/ class Node {
 		this.#logger = params.logger;
 		this.#package = pkg;
 		this.#version = new Version(version);
+		this.#kind = kind;
 		this.#parent = parent;
 		this.#source = new DependencySource(pkg, version);
 		this.#dependencies = new NodeDependencies(this);

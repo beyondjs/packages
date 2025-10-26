@@ -1,6 +1,10 @@
 import type { Project } from './';
 import type { IPackageProviders } from '@beyond-js/packages/providers/types';
-import type { IPackageVersionsResponse, IPackageManifestResponse } from '@beyond-js/packages/providers/types';
+import type {
+	IPackageVersionsResponse,
+	IPackageManifestResponse,
+	IPackageTarballResponse
+} from '@beyond-js/packages/providers/types';
 import type { IPackageData, IPackageReleaseData } from '@beyond-js/packages/persistence/types';
 import { PackageProviders as PackageProvidersBase } from '@beyond-js/packages/providers';
 import { db } from '@beyond-js/packages/persistence/db';
@@ -84,7 +88,7 @@ export class PackageProviders implements IPackageProviders {
 	 * @param source - Package source specification
 	 * @param release - Package release version (only for semver)
 	 */
-	tarball(source: DependencySource, release?: string): { url: string; headers: Record<string, string> } {
+	async tarball(source: DependencySource, release?: string): Promise<IPackageTarballResponse> {
 		return this.#providers.tarball(source, release);
 	}
 }
