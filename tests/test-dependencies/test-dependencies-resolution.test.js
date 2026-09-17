@@ -3,7 +3,7 @@ const BEE = require('@beyond-js/bee');
 let PackageResolution, PackageResolutionType;
 
 beforeAll(async () => {
-	// Inicializa el entorno BEE para cargar módulos desde el DevServer de BeyondJS
+	// Initialize BEE to load modules from the BeyondJS development server.
 	BEE('http://localhost:1110', { inspect: 4000 });
 
 	const resolutionModule = await bimport('@beyond-js/packages/dependencies/resolution');

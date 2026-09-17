@@ -33,6 +33,19 @@
 				"ports": {
 					"bundles": 1111
 				}
+			},
+			{
+				"name": "node-esm",
+				"platform": "node",
+				"bundles": {
+					"mode": "esm"
+				},
+				"development": {
+					"tools": false
+				},
+				"ports": {
+					"bundles": 1112
+				}
 			}
 		]
 	},

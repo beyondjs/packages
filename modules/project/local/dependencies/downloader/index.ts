@@ -99,7 +99,7 @@ export /*bundle*/ class DependenciesDownloader {
 		const list = Object.values(lockfile);
 		const project = this.#project;
 
-		const queue = new Queue(6); // 4–8 suele ir bien
+		const queue = new Queue(6); // A concurrency of 4–8 usually works well.
 
 		const tasks = list.map(v => {
 			return queue.run(async () => {
