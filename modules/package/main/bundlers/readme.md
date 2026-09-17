@@ -1,4 +1,11 @@
-# Package Bundlers (`workspace/package/bundlers/`)
+# Package bundler registry
+
+The current [Bundlers collection](index.ts) reads the top-level `bundlers` configuration and maps aliases to [Bundler](bundler.ts) objects. A Bundler exposes `Module`, `specifier`, `path`, `settings`, diagnostics and asynchronous readiness. Its [importer](importer.ts) expects a public Module constructor. There is no active `meta`/`BundleSettings` API in these TypeScript files. Await the selected Bundler before instantiation; collection readiness does not guarantee its constructor is ready.
+
+See [architecture and SDK](../../../../docs/architecture.md) for the active processing contract. The following retained design text uses older `workspace/package`, `meta`, JavaScript filenames and multibundle terminology; those names are not the current public API.
+
+## Earlier design description
+
 
 This directory is responsible for managing the collection of **Registered Bundlers** (also referred to as Bundler)
 available to a package.

@@ -1,43 +1,94 @@
-# Developing the new Beyond implementation
+# Development and acceptance
 
-Packages is the newer generation of Beyond, implemented with Beyond modules. Legacy Engine is the existing generation, currently needed to compile and serve this implementation and to explain established behavior such as HMR. They are not primarily two alternative dev-server products.
+Beyond is written in Beyond. Packages is the new Beyond packaging implementation, itself authored as Beyond public modules and internal components. Engine is the existing compiler generation used to compile and serve this implementation; Packages is responsible for compiling and serving its target applications.
 
-Read [AGENTS.md](../AGENTS.md). In the suite checkout, the canonical [implementation brief](../../docs/testbed-plan.md) contains confirmed direction, compatibility investigations and staged acceptance. The separate [execution report](../../docs/test-workspace.md) records another agent's dated scratchpad experiments; this guide did not rerun them. Those suite links may be unavailable in an independent clone; local source references below remain usable.
+Read [programming conventions](programming.md) before extending module structure and [architecture and SDK](architecture.md) for discovery, bundlers, conditionals, processors and outputs. All required explanations are contained in this repository. Engine, BEE Node, Kernel, Local, Widgets and CDN are independent components referenced here by their responsibilities, without requiring sibling checkout paths.
 
-## The two execution roles
+## Execution model and prerequisites
 
 ```text
-Legacy Engine
-  compiles/serves Packages implementation modules as ESM
-    → modern BEE Node loader
-      → Node executes Packages implementation
-        → Packages development HTTP service
-          discovers/resolves/compiles/serves testbed app and shared module
-            → browser runtime/Widgets, types, styles and HMR
+Engine compiles Packages implementation modules as ECMAScript
+  → modern BEE Node loads them through Node custom hooks
+    → Node executes Packages and its development service
+      → Packages discovers, compiles and serves the target application
+        → browser runtime and widgets consume its artifacts and updates
 ```
 
-The owner selected this direction. The [verified hello](../../bee-node/README.md) established a narrow Engine → implementation ESM → BEE Node execution circuit. It did not start the complete new service or establish that Packages serves a widget application. Extend that circuit instead of asking whether Packages should continue using Beyond.
+Engine may remain running throughout development. Acceptance depends on which implementation produces the target artifacts: Engine-produced Packages implementation is expected; an Engine-produced target app does not demonstrate Packages compilation.
 
-Engine may remain running to compile the implementation throughout the target acceptance run. The distinction is which generation produces the **target app's artifacts**, not whether an Engine process exists. An Engine-rendered application is a baseline/reference, not a replacement final product. Keep bootstrap origin, target artifact origin and compiler provenance explicit in test results.
+The selected Node loader is modern BEE Node, which uses Node custom hooks and an HTTP loading worker. The existing [server fixture](../tests/test-server/index.js) and older bundler scripts use legacy `@beyond-js/bee` and global `bimport`; they are not the new bootstrap recipe. Modern BEE Node does not automatically supply legacy `bimport`, `brequire` or HMR. The [bundler importer](../modules/package/main/bundlers/importer.ts), [processor importer](../modules/sdk/conditional/processors/base/importer.ts) and external API-server startup retain legacy assumptions that must be bridged or repaired explicitly.
 
-[Existing server fixture](../tests/test-server/index.js) uses installed legacy BEE and global bimport. The report observed its Express shell starting, but the [module handler](../modules/http/routes/modules/index.ts) still contains a fixed builder. Modern BEE Node has no global bimport or HMR today. The [bundler importer](../modules/package/main/bundlers/importer.ts), [processor importer](../modules/sdk/conditional/processors/base/importer.ts) and API server wrapper retain those assumptions. Bridging them and exposing awaited ready/error/stop are bounded integration work needed to run the full implementation through the selected modern loader, not already passing behavior.
+The [manifest](../package.json) declares implementation bundle ports 1110, 1111 and 1112; `node-esm` selects ESM and disables development tools for that distribution. [beyond.json](../beyond.json) points to this package manifest. These ports serve the implementation through Engine, not a completed target dev-server API. The manifest has no npm start/test scripts or directly executable Node root export. Per-module tsconfig files do not define a single standalone tsc build.
 
-## Start from the existing design
+Use a Node version supporting the selected BEE Node loader's `registerHooks` contract, an Engine implementation endpoint, and installed dependencies from this manifest. Configure independent loader/compiler locations and endpoints explicitly; no fixed sibling directory layout is part of Packages' public API. [The ESM hello assertion](../tests/hello/index.mjs) checks loader access to compiled implementation modules, not target compilation. Do not extrapolate it into HTTP startup or HMR readiness.
 
-The [Workspace](../modules/workspace/index.ts) discovers local packages. [Package](../modules/package/main/index.ts) owns configuration, registered bundlers and modules. The [resolver](../modules/package/main/modules/resolver.ts) chooses a bundler Module implementation. [SDK](../modules/sdk/conditional/main/index.ts) coordinates conditional processors; [ESM assembly](../modules/sdk/conditional/esm/index.ts) and [ConditionalOutput](../modules/module/output/index.ts) already express the packaging structure to complete.
+## Public modules and configuration
 
-Preserve these responsibilities and public-module boundaries. Internal source files are not automatically separate public modules; a packaged module may combine them while retaining bare imports to other public modules. Source-file, package-version and public-module graphs serve different purposes. Runtime resolution must map public names to selected version/condition artifacts, and declarations/editor resolution must agree without rewriting the author's imports. Modular CSS needs its own generation, delivery and runtime adoption/update path.
+Packages uses two configuration layers:
 
-The manifest finder currently reads beyond.modules while older authoring fixtures use top-level modules. The selected bundler can be unready when its collection appears ready. ESM assembly contains placeholder identities and places ESM exports inside a function. These are concrete compatibility gaps/defects; do not interpret them as proof that the architecture is unspecified. Inspect nearby types, consumers and lifecycle before proposing new abstractions. Record manifest precedence/backward compatibility and the required kernel/exports/styles/HMR ABI before any incompatible change. Completing the evidenced internal-module design is the first investigation; plain ESM with a new adapter would need justification, not automatic selection.
+| Layer | Source and interpretation |
+| --- | --- |
+| Author Packages itself with Engine | Root package uses top-level `modules.path`; each module manifest supplies its public identity and bundler. `modules/http/start/module.json` publishes `http/server`, not a path mechanically derived from its folder. |
+| Discover target modules with Packages | [Manifest finder](../modules/package/main/modules/manifests/finder.ts) reads `beyond.modules`; [types](../modules/types/package/index.ts) describe that structure. Older fixtures use top-level modules and require an explicit compatibility choice. |
+| Register target bundlers | [Bundlers](../modules/package/main/bundlers/index.ts) maps aliases to public implementation specifiers/settings. The importer expects a public `Module` constructor. |
+| Select a target module | [Modules](../modules/package/main/modules/index.ts) combines package exports and discovered manifests; [ModuleSpec](../modules/module/spec/index.ts) and [resolver](../modules/package/main/modules/resolver.ts) preserve the selected subpath/bundler contract. |
 
-## Next work and completion evidence
+Preserving top-level module discovery as an explicit fallback is one compatibility option; migrating target fixtures is another. Neither is implied by copying the bootstrap manifest into a target. Define precedence and conflict diagnostics while preserving the working bootstrap and public identities. Await the selected bundler itself before using its constructor; registry readiness alone does not establish that readiness.
 
-Follow the suite brief in dependency order: extend the modern bootstrap; establish a baseline fixture; fix discovery and selected-bundler readiness; produce executable module output; resolve the shared package; connect real HTTP output; then add/prove browser widget bootstrap, modular styles, declarations, watchers and HMR. Reuse the SDK rather than implementing an unrelated server around static files.
+The architecture has three distinct graphs: package/version selection, public module dependencies, and internal source/evaluation relationships. For example, `@suite/shared/message` is a public module of a package; its relative source imports are internal. Keep public bare specifiers in output and resolve them to selected versions/conditions at runtime. Do not flatten the shared module into an application or rewrite the authoring import into a relative path as a substitute for resolution.
 
-The target testbed has a real widget and an independently served public shared module, for example @suite/shared/message. Its exact directory, ports and React 18 baseline are proposals, not reasons to reopen the product architecture. Final evidence must show source-derived results, unchanged public bare references, correct resolution, actual shadow-root styling/types and separately labelled JS/CSS update behavior. A fixed hello response, static substitute, Engine proxy compilation, relative-import rewrite or fake TypeScript paths configuration does not satisfy it. A reload proves less than HMR; record that difference.
+## Service integration and current limitations
 
-CDN v2 is an independent consumer intended to reuse Packages' artifact capabilities. Keep service startup, persistence and deployment out of library import side effects. The [Kernel/Local source and HMR map](../../docs/bee-node-hmr.md) describes existing runtime consumers to preserve; the owner-designated [new development runtime](../../local-2026/README.md) is the new Beyond-authored package, while exact APIs and migration remain open. The CDN branch choice is still open; local target progress does not require a cloud deployment. Workspace 2026 consumes these foundations but its UI/provider choices are not prerequisites for repairing this implementation.
+[HTTP startup](../modules/http/start/index.ts) constructs external api-server and calls start without returning ready/error/stop. [Routes](../modules/http/routes/index.ts) registers the root and module handlers; info/dependency setup is commented. Its schema finder depends on an ancestor directory named `packages`, which must become an explicit resource location for independent consumers.
 
-All current checkouts use feature/next; main/dev in older guides identify baselines. This guide documents direction and acceptance only. It does not authorize source changes, installs, services, commits or publication during a documentation-only task.
+[Module routes](../modules/http/routes/modules/index.ts) parse options and set headers/ETags, but `buildBundle` returns fixed JavaScript. There is no wired request → workspace/package → module → conditional → actual artifact path. Map/DTS/CSS headers do not prove those outputs exist or have registered routes. Current options default to production/minification, so development behavior must be explicit. Validate scoped and slash-containing identities, selected conditions, map isolation, missing outputs and compilation diagnostics.
 
-Current naming and scope: the new Beyond-authored client runtime will unify Kernel/Local development capabilities for local and cloud servers while preserving production-needed runtime behavior. `local-2026/` is the provisional checkout, not the approved final name. Dev is only under consideration. No rename, new runtime implementation or finalized migration was performed; see [the handoff](../../local-2026/README.md).
+The proposed shared artifact service should accept explicit workspace/package context, module subpath and conditions, return actual selected outputs/diagnostics and own its lifecycle. No complete high-level service method with that contract is currently implemented. Build on the public Package/Module/ConditionalOutput model rather than inventing an unrelated static-file server. The local HTTP adapter and an independent CDN can consume this service; CDN storage, authorization, cache/session policy and deployment remain outside library import side effects.
+
+[Package](../modules/package/main/index.ts) creates a watcher only when requested, while [Workspace](../modules/workspace/index.ts) constructs packages without the option. [PackageController](../modules/package/main/controller/index.ts) does not install change coordination. Manifest discovery does not pass its optional watcher, although processor input finders consume the package watcher. The watcher client talks to a named service, so it requires a service bootstrap or explicit adapter. Package destroys an optional watcher without a guard, and Workspace clears its collection before its destruction iteration; cleanup needs repair when exposing stop.
+
+Current [ESM assembly](../modules/sdk/conditional/esm/index.ts) uses placeholder internal identities/hashes and embeds ESM source in creator functions. Per-file transpilation alone cannot produce a valid runtime artifact that way. Complete transformed creators, actual identifiers, public exports/dependencies and the runtime envelope required by consumers. The SDK's existing outputs and lifecycle are the design to complete, not evidence that the output format has no structure.
+
+## Runtime, widgets, styles and types
+
+The integrated runtime must preserve Kernel's production-needed module composition, imports/exports and style behavior while joining the development capabilities previously split across Kernel and Local. It must accept configured local or cloud service endpoints. Its final public name, packaging boundary, API and migration remain to be defined; those open details do not remove runtime integration from the functional-app deliverable.
+
+A compatible emitted patch addresses an existing runtime package, compares internal hashes, replaces changed creators, updates export bindings and notifies consumers. Native ESM loading does not supply that state transition by itself. Existing class instances, captured values and resource ownership also require explicit consumer/state behavior; do not promise universal replacement or rollback from an import alone.
+
+Widgets require compatible registration/controller metadata, runtime exports, mounting and refresh behavior. JavaScript artifact delivery therefore must be completed together with the selected widget consumer contract. A first fixture can use a deliberately selected framework adapter and runtime version; published versions do not establish compatibility with a new integrated runtime.
+
+Modular styles require compiler output, a stable public style identity, independent delivery, dependency tracking, shadow-root adoption and update/cleanup. Application/global styles have their own identity and update path. Static hardcoded CSS does not prove this pipeline.
+
+Public declarations and editor resolution must agree with runtime package/version/module/condition selection. Type output containers exist, but active declaration emission and editor integration are incomplete. Generate and serve declarations from public API, propagate missing/available changes and verify real diagnostics/completion. A paths override or source-relative import rewrite is not the intended public-module resolution system.
+
+## Inspector and HMR responsibilities
+
+Packages needs a development notification service connected to watcher invalidation and actual selected artifacts. It must identify workspace/package, public module, conditions, language and output kind; publish successful revisions or explicit failures; and coordinate ordering/reconnect reconciliation with the runtime. The inspector owns notification/delivery context, not browser widget instances or internal runtime registries.
+
+The active HTTP service does not implement that publisher. Retained SDK HMR code is implementation reference, not a wired update loop. HMR of the service's own route implementation is different from target application HMR. A successful import/HTTP response also is insufficient if no runtime update occurred.
+
+Keep focused objects for workspace/package state, compilation, artifact delivery and update coordination, with a transport adapter on top. The full legacy Workspace frontend, scaffold/source editing, uploads, general RPC and launcher administration are separate capabilities; retain their adapters only where actual consumers require them. Completing the widget dev loop does not require deploying the CDN or building a full Workspace UI.
+
+## Acceptance criteria
+
+The functional testbed must contain an application with real widgets and a separately compiled shared public module. Exact fixture directories, available ports and initial adapter versions are implementation choices; preserve their selected identities consistently.
+
+| Gate | Required behavior |
+| --- | --- |
+| Implementation bootstrap | Modern BEE Node executes Engine-produced Packages implementation; complete service startup exposes readiness, failure and stop. |
+| Discovery/readiness | Resolve actual target modules and selected bundler constructors, including delayed readiness and invalid/conflicting manifests. |
+| Executable output | Parse and execute source-derived public artifacts with real identities, exports and preserved bare dependencies. |
+| Independent package | Resolve app → shared using selected source/version rules; missing and incompatible dependencies report errors. |
+| HTTP artifacts | Bytes come from the selected Packages conditional; source edits change output and cache identity; unsupported outputs fail clearly. |
+| Browser/widget | Real mount/render/unmount and runtime registration work from Packages target artifacts, with visible source-derived content. |
+| Styles | Compiled modular CSS is adopted in the widget shadow root; application/global styles and update cleanup work. |
+| Types/editor | Public declarations and editor diagnostics/completion resolve the same module/version/conditions. |
+| Watch/rebuild | File changes invalidate and rebuild relevant outputs, preserve unrelated output and clean up on stop. Reload-only behavior is labelled as such. |
+| HMR | JS and CSS update without full reload, with explicit retained-state behavior, errors/recovery, ordering and reconnect handling. Browser and Node update claims are tested separately. |
+| Independent reuse | The artifact service can be consumed outside this repository without fixed folder names or implicit server startup. CDN deployment is a separate milestone. |
+
+A widget render is the first visible milestone, not completion of types/styles/HMR. Record the actual fixture, selected compatibility contract, compiler/artifact provenance and observed outcome for each gate. The existing legacy diagnostic scripts log errors and outputs; logging or a fulfilled ready Promise is not a substitute for assertions on the selected public contract.
+
+## Local and cloud development service
+
+The same Packages-based development service supports local Beyond installations and cloud Workspace sessions. Its broader source/configuration/build/control and realtime surface is described as the Development API; inspector remains the legacy name and protocol reference. The exact transports and public API remain to implement. Runtime resolution selects developing packages from this service without rewriting bare public references; CDN remains the delivery path for published versions. Repository working copies, revisions and session ownership belong to the development host, not implicitly to Packages’ filesystem Workspace class.

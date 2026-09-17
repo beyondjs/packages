@@ -1,4 +1,11 @@
-# Package Modules System (`workspace/package/modules/`)
+# Module discovery and resolution
+
+The current [collection](index.ts) combines package exports and discovered module specifications, and [ModuleResolver](resolver.ts) selects a registered bundler's Module constructor. Target manifest discovery reads `beyond.modules`. The [SDK guide](../../../../docs/architecture.md) describes the implemented control flow and its readiness/output limitations.
+
+The following retained design text describes an earlier multibundle/Seekers model. Its generic processing claims, source paths and metadata names are conceptual history, not a statement that those interfaces are active or that dependency resolution is complete.
+
+## Earlier design description
+
 
 This system is responsible for the discovery and instantiation of modules within a package.
 

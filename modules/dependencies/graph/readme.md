@@ -1,8 +1,8 @@
-# Beyond CDN - Graph Dependencies Resolver
+# Package dependency graph
 
 ## Overview
 
-Beyond CDN is a content delivery network for JavaScript modules, similar to Skypack or JSPM. A crucial part of Beyond CDN is the Graph Dependencies Resolver, an algorithm for managing project dependencies.
+This retained conceptual guide describes package/version grouping. The current implementation is in [index.ts](index.ts), with a [registry](registry/index.ts) rather than the older List directory. Public-module resolution and internal source evaluation are separate graphs; see [Packages architecture](../../../docs/architecture.md). The design description below does not imply that every conflict or invalidation path is complete.
 
 ## Graph Dependencies Resolver
 
@@ -28,4 +28,4 @@ The list groups nodes requiring the same package but with different version requ
 
 The list contains Dependency objects, each representing a package required by one or more nodes. Dependencies have "groups", and each group contains nodes that require compatible versions of the package. Groups resolve the required version range and notify nodes of the resolved version.
 
-For more details, see the [List documentation](./list/readme.md).
+For more details, see the [Registry design reference](./registry/readme.md).
