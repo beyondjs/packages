@@ -15,7 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 /**
  * The fixture compiled by this validation, and where its artifacts are written
  */
-export const testbed = resolve(here, '../../../testbed');
+export const testbed = resolve(process.env.BEYOND_TESTBED || resolve(here, '../../../testbed'), 'module-updates');
 export const artifactsPath = join(testbed, '.artifacts');
 export const conditions = { platform: 'node' };
 

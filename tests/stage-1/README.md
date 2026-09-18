@@ -4,7 +4,9 @@ Validates that Packages discovers two workspace packages, selects their bundler 
 
 Each behavior is also checked in the negative, which is what a package developer sees when something is wrong: contradictory declarations, an unregistered or unimportable bundler, an undeclared or incompatible dependency, a module that does not build for the requested conditions, and a source that does not compile.
 
-The fixture is the suite-owned `testbed/` (`@suite/shared` with `./message`, `@suite/app` with `./main` importing `@suite/shared/message`); the artifacts are written to `testbed/.artifacts/` (git-ignored). Read its README for how those packages are authored, and the stage record in the suite documentation for the selected contracts and the observed results.
+The fixture is the suite-owned `testbed/module-updates/` (`@suite/shared` with `./message`, `@suite/app` with `./main` importing `@suite/shared/message`); the artifacts are written to `testbed/module-updates/.artifacts/` (git-ignored). Read its README for how those packages are authored, and the stage record in the suite documentation for the selected contracts and the observed results.
+
+The default scenario is located beside the Packages checkout under the suite testbed. Set `BEYOND_TESTBED` to a different testbed index directory when needed; the driver selects its `module-updates` child. The permanent scenario is also available for manual inspection.
 
 ## Prerequisites
 
@@ -51,6 +53,6 @@ Negative cases run on temporary copies of the fixture, so only the steps that va
 
 - This process (BEE Node with `BEE_URL`): runs Packages, so the implementation under test is the one the development server compiles.
 - The watchers child (spawned by `WatchersService` with the same loader and `BEE_URL=WATCHERS_URL`): the real filesystem watcher service.
-- The consumer (spawned with BEE Node and `BEE_IMPORT_MAP=testbed/.artifacts/importmap.json`, no Engine, no HTTP): imports `@suite/app/main` and `@suite/shared/message` from the artifacts, then applies the updates Packages regenerates, reporting values, runtime identities and evaluation counters over IPC. It stays alive for the whole run, which is what makes an update observable: it is applied to modules that are already loaded.
+- The consumer (spawned with BEE Node and `BEE_IMPORT_MAP=testbed/module-updates/.artifacts/importmap.json`, no Engine, no HTTP): imports `@suite/app/main` and `@suite/shared/message` from the artifacts, then applies the updates Packages regenerates, reporting values, runtime identities and evaluation counters over IPC. It stays alive for the whole run, which is what makes an update observable: it is applied to modules that are already loaded.
 
 Two `Error emitting event … reading 'emit'` lines per edit come from the installed Finder utility (caught there); they are recorded in the stage record and do not affect the results.
