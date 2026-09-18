@@ -1,5 +1,7 @@
 # Architecture and bundlers SDK
 
+The [Dev Server/File API contract](development-server.md) assigns these services to Packages, including source revisions, external changes and events. Workspace owns central administration and Docker placement/access; project containers validate delegated authorization without owning users/roles. Preserve existing public compatibility; inspector is not a separate product component.
+
 Packages turns package/module specifications into conditional artifacts through collaborating objects. Workspace and Package own discovery and configuration; registered bundler implementations select module behavior; conditionals select platform/environment; processors transform sources into outputs. HTTP and other consumers must obtain those outputs through the same object model.
 
 The implementation includes source collections, delegated processing, maps and diagnostics. Final assembly, validity propagation and development integration remain incomplete. This guide describes existing APIs and limitations; [development](development.md) defines the intended service and widget acceptance criteria, and [programming](programming.md) explains authoring conventions.

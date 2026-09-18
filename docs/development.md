@@ -1,5 +1,7 @@
 # Development and acceptance
 
+The [Dev Server/File API contract](development-server.md) assigns these services to Packages, including source revisions, external changes and events. Workspace owns central administration and Docker placement/access; project containers validate delegated authorization without owning users/roles. Preserve existing public compatibility; inspector is not a separate product component.
+
 Beyond is written in Beyond. Packages is the new Beyond packaging implementation, itself authored as Beyond public modules and internal components. Engine is the existing compiler generation used to compile and serve this implementation; Packages is responsible for compiling and serving its target applications.
 
 Read [programming conventions](programming.md) before extending module structure and [architecture and SDK](architecture.md) for discovery, bundlers, conditionals, processors and outputs. All required explanations are contained in this repository. Engine, BEE Node, Kernel, Local, Widgets and CDN are independent components referenced here by their responsibilities, without requiring sibling checkout paths.
@@ -61,13 +63,13 @@ Modular styles require compiler output, a stable public style identity, independ
 
 Public declarations and editor resolution must agree with runtime package/version/module/condition selection. Type output containers exist, but active declaration emission and editor integration are incomplete. Generate and serve declarations from public API, propagate missing/available changes and verify real diagnostics/completion. A paths override or source-relative import rewrite is not the intended public-module resolution system.
 
-## Inspector and HMR responsibilities
+## Dev Server, legacy inspector capabilities and HMR
 
-Packages needs a development notification service connected to watcher invalidation and actual selected artifacts. It must identify workspace/package, public module, conditions, language and output kind; publish successful revisions or explicit failures; and coordinate ordering/reconnect reconciliation with the runtime. The inspector owns notification/delivery context, not browser widget instances or internal runtime registries.
+Packages needs a development notification service connected to watcher invalidation and actual selected artifacts. It must identify workspace/package, public module, conditions, language and output kind; publish successful revisions or explicit failures; and coordinate ordering/reconnect reconciliation with the runtime. Packages Dev Server owns notification/delivery context; inspector is no longer an independent product component. Preserve public compatibility and capabilities until explicit migration; runtime owns update application.
 
 The active HTTP service does not implement that publisher. Retained SDK HMR code is implementation reference, not a wired update loop. HMR of the service's own route implementation is different from target application HMR. A successful import/HTTP response also is insufficient if no runtime update occurred.
 
-Keep focused objects for workspace/package state, compilation, artifact delivery and update coordination, with a transport adapter on top. The full legacy Workspace frontend, scaffold/source editing, uploads, general RPC and launcher administration are separate capabilities; retain their adapters only where actual consumers require them. Completing the widget dev loop does not require deploying the CDN or building a full Workspace UI.
+Keep focused objects for workspace/package state, compilation, artifact delivery and update coordination, with a transport adapter on top. Packages owns required File API/source editing and development control; Workspace owns frontend and central users/teams/roles/resources/environment administration. Evaluate legacy adapters by actual consumers rather than copying every old method. Completing the widget dev loop does not require deploying the CDN or building a full Workspace UI.
 
 ## Acceptance criteria
 
