@@ -69,6 +69,13 @@ export class Bundlers extends DynamicProcessor(Map<string, Bundler>) {
 		}
 
 		const config = <BundlersSettingsType>this.#config.value;
+		if (config === void 0 || config === null) {
+			const code = 'BUNDLERS_NOT_REGISTERED';
+			const message =
+				'The package registers no bundlers. Add "bundlers" to its package.json, ' +
+				'for example {"ts": "@beyond-js/packages/bundlers/ts"}';
+			return done({ errors: [{ code, message }] });
+		}
 		if (typeof config !== 'object' || config instanceof Array) {
 			const code = 'BUNDLERS_CONFIG_INVALID';
 			const message = `Invalid bundlers configuration, configuration must be an object`;

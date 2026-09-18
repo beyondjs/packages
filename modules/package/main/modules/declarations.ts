@@ -74,6 +74,10 @@ export class Declarations extends Map<string, IDeclaration> {
 	 * Declares the modules published by the package exports
 	 */
 	#exports(exports: ModuleExports): void {
+		// An unsupported shape of the exports field publishes nothing, which its diagnostics explain
+		exports.errors.forEach(error => this.#errors.push(error));
+		exports.warnings.forEach(warning => this.#warnings.push(warning));
+
 		for (const [subpath, spec] of exports) {
 			const validate = /^\.\/[a-zA-Z0-9-_./]*$/;
 			if (!subpath || (subpath !== '.' && (!subpath.startsWith('./') || !validate.test(subpath)))) {

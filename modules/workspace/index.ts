@@ -18,6 +18,13 @@ export /*bundle*/ interface IWorkspaceOptions {
 	 * It requires a watchers service registered in the process; without one, the packages are read once.
 	 */
 	watcher?: boolean;
+
+	/**
+	 * The packages of the workspace, relative to its path, given by the caller instead of read from a
+	 * `beyond.json`. It is how a standalone package is developed: `{ packages: ['.'] }` makes its directory
+	 * a workspace of one package without writing a configuration file into the project.
+	 */
+	packages?: string[];
 }
 
 /**
@@ -81,6 +88,10 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 
 		this.#path = path;
 		this.#options = options;
+
+		// Packages given by the caller replace the configuration file, which is then neither read nor required
+		if (options.packages) return;
+
 		const config = new Config(path);
 		this.#config = config;
 
@@ -118,10 +129,9 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 			});
 		};
 
-		const { valid, errors } = this.#config;
-		if (!valid) return done({ errors });
+		if (this.#config && !this.#config.valid) return done({ errors: this.#config.errors });
 
-		const value: PropertyObjectType = this.#config.value;
+		const value: PropertyObjectType = this.#config ? this.#config.value : { packages: this.#options.packages };
 		if (value.packages && !Array.isArray(value.packages)) {
 			const code = 'INVALID_PACKAGES_PROPERTY';
 			const message = '"packages" must be an array of strings';

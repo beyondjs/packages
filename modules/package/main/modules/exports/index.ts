@@ -6,6 +6,7 @@ import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
 import { equal } from '@beyond-js/equal/main';
+import { Entries } from './entries';
 
 interface IDone {
 	updated?: Map<string, ExportsType>;
@@ -41,9 +42,6 @@ export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 	_prepared(require: RequireType): void {
 		require(this.#config, 'package-config');
-
-		const exports = this.#config.get('exports');
-		require(exports, 'package-config-exports');
 	}
 
 	_process() {
@@ -79,10 +77,17 @@ export class ModuleExports extends DynamicProcessor(Map<string, ModuleSpec>) {
 			return changed;
 		};
 
-		const exports = this.#config.get('exports');
-		if (!exports.valid) return done({ errors: exports.errors, warnings: exports.warnings });
+		/**
+		 * The fields are read from the manifest as written. They are not configuration branches: a branch
+		 * whose value is a string names a file to load, and both the `exports` shorthand and `main` are
+		 * strings that name a source file. The diagnostics of an invalid manifest belong to the package.
+		 */
+		const { valid, value } = this.#config;
+		if (!valid || !value) return done({});
 
-		const updated = exports.value ? new Map(Object.entries(exports.value)) : new Map();
-		return done({ updated, warnings: exports.warnings });
+		const { exports, main } = <Record<string, unknown>>value;
+		const entries = new Entries(exports, main);
+		const { errors, warnings } = entries;
+		return done({ updated: errors.length ? void 0 : entries, errors, warnings });
 	}
 }

@@ -51,6 +51,7 @@
 	},
 	"dependencies": {
 		"@beyond-js/api-server": "~0.0.4",
+		"@beyond-js/artifact-api": "~0.1.0",
 		"@beyond-js/response": "~0.0.3",
 		"@beyond-js/dynamic-processor": "~1.0.8",
 		"@beyond-js/finder": "~1.0.8",

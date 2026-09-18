@@ -9,6 +9,12 @@ import { posix } from 'path';
  */
 const KERNEL = '@beyond-js/kernel/bundle';
 
+/**
+ * The names an artifact declares for the runtime at its top level, which a public export cannot take:
+ * `hmr` and `__beyond_pkg` are part of what every artifact exports, and the others are its own bindings.
+ */
+const RESERVED = /^(hmr|_default|__beyond_pkg|__pkg|__ims|__Bundle|__bundle|__instances|dependency_\d+)$/;
+
 interface IParams {
 	vspecifier: string;
 	entry: string;
@@ -134,6 +140,12 @@ export class Assembler {
 		};
 
 		collect(ims.get(this.#entry), false);
+
+		[...names].filter(name => RESERVED.test(name)).forEach(name => {
+			const code = 'EXPORT_RESERVED';
+			const message = `The public export "${name}" is a name the artifact reserves for the runtime. Rename the export`;
+			this.#errors.push({ code, message });
+		});
 		return [...names].sort();
 	}
 
@@ -174,12 +186,12 @@ export class Assembler {
 		add('');
 
 		// 3. The internal modules, each identified and hashed
-		add('const ims = new Map();');
+		add('const __ims = new Map();');
 		this.#ims.forEach(({ id, hash, output }) => {
 			const file = output.source.relative.file.replace(/\\/g, '/');
 			add('');
 			add(header(`INTERNAL MODULE: ${id}`));
-			add(`ims.set('${id}', { hash: ${hash}, creator: function (require, exports) {`);
+			add(`__ims.set('${id}', { hash: ${hash}, creator: function (require, exports) {`);
 			// The source map of the file is preserved, so diagnostics point at the original sources
 			concat.add(file, output.code.code(), output.code.map());
 			add('}});');
@@ -191,21 +203,35 @@ export class Assembler {
 		add(`__pkg.exports.descriptor = ${JSON.stringify(descriptor)};`);
 
 		if (!hmr) {
-			// `default` cannot be a binding identifier, so it is exported through an alias
-			const bindings = this.#exports.map(name => (name === 'default' ? '_default' : name));
-			bindings.length && add(`export let ${bindings.join(', ')};`);
-			bindings.includes('_default') && add('export default _default;');
+			const named = this.#exports.filter(name => name !== 'default');
+			named.length && add(`export let ${named.join(', ')};`);
+
+			/**
+			 * `default` cannot be a binding identifier, so it is exported through an alias of a local binding.
+			 * `export default _default` would export the value the binding has when that statement is
+			 * evaluated, which is before the runtime assigns it; the alias is a live binding, as the named
+			 * exports are, and keeps `_default` itself out of the public API.
+			 */
+			if (this.#exports.includes('default')) {
+				add('let _default;');
+				add('export { _default as default };');
+			}
 
 			/**
 			 * The runtime calls this closure with `require` when it refreshes every public binding, and with
 			 * `prop`/`value` when one exported value changes. It keeps the closure across updates, which is
-			 * why an update does not need to emit it again.
+			 * why an update does not need to emit it again. The closure declares no parameters: a parameter
+			 * named as a public export (`value` is an ordinary one) would shadow the binding it must assign.
+			 * `arguments` cannot name a binding of an ES module, so reading the call from it cannot collide.
 			 */
-			add('__pkg.exports.process = function ({ require, prop, value }) {');
+			add('__pkg.exports.process = function () {');
 			this.#exports.forEach(name => {
 				const binding = name === 'default' ? '_default' : name;
-				const exported = `require('${this.#entry}')['${name}']`;
-				add(`\t(require || prop === '${name}') && (${binding} = require ? ${exported} : value);`);
+				const exported = `arguments[0].require('${this.#entry}')['${name}']`;
+				add(
+					`\t(arguments[0].require || arguments[0].prop === '${name}') && ` +
+						`(${binding} = arguments[0].require ? ${exported} : arguments[0].value);`
+				);
 			});
 			add('};');
 
@@ -221,7 +247,7 @@ export class Assembler {
 		}
 
 		// Registering and evaluating, or comparing hashes and replacing the changed creators
-		add(hmr ? '__pkg.update(ims);' : '__pkg.initialise(ims);');
+		add(hmr ? '__pkg.update(__ims);' : '__pkg.initialise(__ims);');
 
 		return { code: concat.content.toString(), map: concat.sourceMap };
 	}

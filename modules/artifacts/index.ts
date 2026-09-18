@@ -1,13 +1,11 @@
 import type { Workspace } from '@beyond-js/packages/workspace';
-import type { Package } from '@beyond-js/packages/package';
-import type { BaseModule } from '@beyond-js/packages/module';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { ESMConditional } from '@beyond-js/packages/sdk';
 import type { IArtifact, IArtifactsOptions, IArtifactsReport } from './types';
 import { Dependencies } from './dependencies';
 import { ImportMap } from './importmap';
-import { promises as fs } from 'fs';
-import { join, dirname, posix } from 'path';
+import { Conditions } from './conditions';
+import { Compilation } from './compilation';
+import { Files } from './files';
 
 /**
  * Writes the public modules of a workspace as executable artifacts for a set of conditions.
@@ -24,6 +22,8 @@ import { join, dirname, posix } from 'path';
  * ```
  *
  * `build()` reports diagnostics instead of throwing, so one call describes every module of the workspace.
+ * A module with diagnostics, including those of its dependencies, is not published: its artifact is not
+ * written, it is left out of the import map, and the files a previous build wrote for it are removed.
  * This object owns artifact production only: it neither serves the artifacts nor notifies consumers that
  * they changed.
  */
@@ -31,14 +31,15 @@ export /*bundle*/ class Artifacts {
 	#workspace: Workspace;
 	#options: IArtifactsOptions;
 
+	#conditions: Conditions;
 	#dependencies: Dependencies;
 
 	constructor(workspace: Workspace, options: IArtifactsOptions) {
 		if (!options?.path) throw new Error('The artifacts path is required');
-		if (typeof options.conditions?.platform !== 'string') throw new Error('The platform condition is required');
 
 		this.#workspace = workspace;
 		this.#options = options;
+		this.#conditions = new Conditions(options.conditions);
 		this.#dependencies = new Dependencies(workspace);
 	}
 
@@ -47,20 +48,7 @@ export /*bundle*/ class Artifacts {
 	 * which is `platform` or `platform/environment`
 	 */
 	get key(): string {
-		const { platform, environment } = this.#options.conditions;
-		return environment ? `${platform}/${environment}` : platform;
-	}
-
-	/**
-	 * The file of a public module artifact, relative to the artifacts directory.
-	 *
-	 * The versioned package directory keeps two versions of one package apart, and the conditions are part
-	 * of the file name so that several conditionals of one module coexist.
-	 */
-	#file(pkg: Package, subpath: string, patch: boolean): string {
-		const name = subpath === '.' ? 'index' : subpath.replace(/^\.\//, '');
-		const conditions = this.key.replace('/', '.');
-		return posix.join(`${pkg.name}@${pkg.version}`, `${name}.${conditions}${patch ? '.hmr' : ''}.mjs`);
+		return this.#conditions.key;
 	}
 
 	/**
@@ -68,7 +56,7 @@ export /*bundle*/ class Artifacts {
 	 * their public specifiers.
 	 *
 	 * A module that fails does not interrupt the others: its diagnostics are collected, and its artifact is
-	 * left out of the report and of the import map.
+	 * left out of the report, of the import map and of the artifacts directory.
 	 */
 	async build(): Promise<IArtifactsReport> {
 		const workspace = this.#workspace;
@@ -77,6 +65,7 @@ export /*bundle*/ class Artifacts {
 		const warnings: IDiagnostic[] = [];
 		const artifacts: IArtifact[] = [];
 		const importmap = new ImportMap(conditions);
+		const files = new Files(path, this.key);
 
 		await workspace.ready;
 		workspace.errors.forEach(error => errors.push(error));
@@ -96,95 +85,49 @@ export /*bundle*/ class Artifacts {
 			pkg.modules.errors.forEach(({ code, message }) => errors.push({ code, message: prefix + message }));
 			pkg.modules.warnings.forEach(({ code, message }) => warnings.push({ code, message: prefix + message }));
 
-			for (const [subpath, module] of pkg.modules) {
-				const specifier = subpath === '.' ? pkg.name : `${pkg.name}/${subpath.replace(/^\.\//, '')}`;
-				const artifact = await this.#module(pkg, specifier, subpath, module, errors);
-				if (!artifact) continue;
+			for (const subpath of pkg.modules.keys()) {
+				const compilation = new Compilation(pkg, subpath, this.#conditions, this.#dependencies);
+				await compilation.run();
+				if (!compilation.valid) {
+					compilation.errors.forEach(error => errors.push(error));
+					continue;
+				}
 
+				const artifact = await this.#write(compilation, files);
 				artifacts.push(artifact);
 				importmap.add(artifact);
 			}
 		}
 
+		await files.prune();
 		return { path, conditions, artifacts, errors, warnings, importmap: await importmap.write(path) };
 	}
 
 	/**
-	 * Compiles one public module and writes its artifact, source map and update
-	 *
-	 * @returns The written artifact, or undefined when the module produced diagnostics instead of output
+	 * Writes the artifact of a valid compilation and describes it
 	 */
-	async #module(
-		pkg: Package,
-		specifier: string,
-		subpath: string,
-		module: BaseModule,
-		errors: IDiagnostic[]
-	): Promise<IArtifact | undefined> {
-		const { conditions } = this.#options;
-
-		await module.conditionals.ready;
-		if (!module.conditionals.has(this.key)) {
-			const code = 'CONDITIONAL_NOT_FOUND';
-			const declared = [...module.conditionals.keys()].join(', ');
-			const message = `Module "${specifier}" does not produce the "${this.key}" conditional (declared: ${declared})`;
-			errors.push({ code, message });
-			return;
-		}
-
-		const conditional = <ESMConditional>module.conditionals.get(this.key);
-		await conditional.ready;
-		if (!conditional.valid || !conditional.output) {
-			const prefix = `Module "${specifier}": `;
-			conditional.errors.forEach(({ code, message }) => errors.push({ code, message: prefix + message }));
-
-			// A conditional is invalid without diagnostics only if one of its producers failed to report one
-			!conditional.errors.length &&
-				errors.push({ code: 'OUTPUT_MISSING', message: `Module "${specifier}" did not produce its output` });
-			return;
-		}
-
+	async #write(compilation: Compilation, files: Files): Promise<IArtifact> {
+		const { package: pkg, subpath, conditional } = compilation;
 		const { artifact: assembled } = conditional;
-		const dependencies = await this.#dependencies.resolve(pkg, assembled.dependencies, errors);
 
-		const file = this.#file(pkg, subpath, false);
-		const patch = this.#file(pkg, subpath, true);
-		await this.#write(conditional, file, patch);
+		const vname = `${pkg.name}@${pkg.version}`;
+		const file = files.name(vname, subpath, false);
+		const patch = files.name(vname, subpath, true);
+		await files.write(conditional, file, patch);
 
 		return {
-			specifier,
+			specifier: compilation.specifier,
 			vspecifier: assembled.vspecifier,
 			package: pkg.name,
 			version: pkg.version,
 			subpath,
-			conditions,
+			conditions: this.#options.conditions,
 			file,
 			patch,
 			hash: conditional.output.hash,
 			exports: assembled.exports,
 			ims: assembled.ims,
-			dependencies
+			dependencies: compilation.dependencies
 		};
-	}
-
-	/**
-	 * Writes the artifact of a conditional, its source map and its update
-	 */
-	async #write(conditional: ESMConditional, file: string, patch: string): Promise<void> {
-		const { path } = this.#options;
-		const target = join(path, file);
-		await fs.mkdir(dirname(target), { recursive: true });
-
-		/**
-		 * The source map is written next to the artifact and referenced by it. The reference comment is
-		 * assembled from its parts because a literal one in this source would be consumed by the compiler
-		 * that packages this implementation.
-		 */
-		const reference = `${['//#', 'sourceMappingURL'].join(' ')}=${posix.basename(file)}.map`;
-		await fs.writeFile(target, `${conditional.output.code()}\n${reference}\n`);
-		await fs.writeFile(`${target}.map`, conditional.output.map());
-
-		// The update carries its map inline: it is imported by URL, with no sibling file to resolve
-		await fs.writeFile(join(path, patch), conditional.patch.code('sourcemap-inline'));
 	}
 }

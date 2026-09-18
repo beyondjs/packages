@@ -2,45 +2,45 @@ import type { Request, Response } from 'express';
 import { createHash } from 'crypto';
 
 /**
- * Helper class to parse and validate query parameters.
- */
-export class Parse {
-	static bool(v: unknown, d: boolean): boolean {
-		if (v === undefined) return d;
-		if (typeof v === 'boolean') return v;
-		const s = String(v).toLowerCase();
-		return s === '1' || s === 'true' || s === 'yes';
-	}
-
-	static one<T extends string>(v: unknown, list: readonly T[], d?: T): T {
-		const s = typeof v === 'string' ? v : '';
-		if ((list as readonly string[]).includes(s)) return s as T;
-		if (d !== undefined) return d;
-		throw new Error(`Invalid value "${v}" (expected: ${list.join(', ')})`);
-	}
-}
-
-/**
- * Helper class to manage ETag generation and validation for HTTP responses.
+ * The validators of a module response: a strong ETag computed from its bytes, and the cache policy
  */
 export class Tag {
-	static etag(content: string): string {
-		const hex = createHash('sha256').update(content).digest('hex'); // 64 hex
-		return `"sha256-${hex}"`; // strong etag
+	#value: string;
+	get value() {
+		return this.#value;
 	}
 
-	static notmod(req: Request, res: Response, tag: string): boolean {
-		const inm = req.headers['if-none-match'];
-		if (!inm) return false;
+	#cache: string;
 
-		const list = String(inm)
+	/**
+	 * @param content The body the tag identifies
+	 * @param cache The Cache-Control of the response, which a 304 repeats
+	 */
+	constructor(content: string, cache: string) {
+		const hex = createHash('sha256').update(content).digest('hex');
+		this.#value = `"sha256-${hex}"`;
+		this.#cache = cache;
+	}
+
+	/**
+	 * Sets the validators, and answers 304 when the request already holds the current tag
+	 *
+	 * @returns Whether the response was completed
+	 */
+	current(request: Request, response: Response): boolean {
+		response.setHeader('ETag', this.#value);
+		response.setHeader('Cache-Control', this.#cache);
+
+		const header = request.headers['if-none-match'];
+		if (!header) return false;
+
+		// A weak validator of the same bytes matches in If-None-Match, and "*" matches any current entity
+		const tags = String(header)
 			.split(',')
-			.map(s => s.trim());
+			.map(tag => tag.trim().replace(/^W\//, ''));
+		if (!tags.includes(this.#value) && !tags.includes('*')) return false;
 
-		if (list.includes(tag)) {
-			res.status(304).end();
-			return true;
-		}
-		return false;
+		response.status(304).end();
+		return true;
 	}
 }
