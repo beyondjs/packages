@@ -1,6 +1,6 @@
 # Programming conventions
 
-Packages is authored with Beyond and should remain recognizable as a collection of public modules implemented by focused internal files and collaborating objects. These conventions explain the current programming model and how to extend it while preserving public contracts. Use [architecture and SDK](architecture.md) for actual extension APIs and [development](development.md) for execution and acceptance boundaries.
+Packages is authored with Beyond and should remain recognizable as a collection of public modules implemented by focused internal files and collaborating objects. These conventions explain the current programming model and how to extend it while preserving public contracts. Use [architecture and SDK](architecture.md) for actual extension APIs and [development](development.md) for execution and acceptance boundaries. The binding rules for file length, object-oriented design and naming are the [coding standards](coding-standards.md); this guide shows how the existing source applies them.
 
 ## Think in public modules, then internal files
 
@@ -8,7 +8,7 @@ The package is `@beyond-js/packages`. A public module is a separately addressabl
 
 For example, [the package module manifest](../modules/package/main/module.json) publishes `package`. Its [entry source](../modules/package/main/index.ts) exposes `Package` and composes internal `attributes`, `bundlers`, `controller`, and `modules` implementations through relative imports. Those internal collaborators need not become public modules simply because they have their own directories. Conversely, [module/spec](../modules/module/spec/module.json) and [module/output](../modules/module/output/module.json) are explicitly separate public modules used through bare imports.
 
-**Recommended boundary decision:** extend an existing module when the behavior is an internal responsibility of its API. Consider a new public module when another module needs a deliberate reusable contract, with an independently meaningful identity. The source supports this distinction; it does not establish a rigid size, file-count, or one-class-per-module rule. Follow the nearest current family before inventing a new partition.
+**Recommended boundary decision:** extend an existing module when the behavior is an internal responsibility of its API. Consider a new public module when another module needs a deliberate reusable contract, with an independently meaningful identity. The source supports this distinction; it does not establish a file-count or one-class-per-module rule for public modules. File length is governed separately by the [coding standards](coding-standards.md#file-length), and splitting a long file produces internal files, not new public modules. Follow the nearest current family before inventing a new partition.
 
 Compiled public-module references remain bare specifiers. The architectural dependency graph connects those public modules; relative source-file dependencies are internal implementation detail. The package/version graph is a separate supporting layer.
 

@@ -7,5 +7,6 @@ The existing Engine generation compiles Packages implementation modules; modern 
 - [Development and acceptance](docs/development.md): execution roles, configuration, current blockers and the functional widget development loop.
 - [Architecture and bundlers SDK](docs/architecture.md): actual public extension interfaces, source/output flow, diagnostics and lifecycle.
 - [Programming conventions](docs/programming.md): Beyond authoring, public versus internal modules, naming, state and tests.
+- [Coding standards](docs/coding-standards.md): binding file-length, object-oriented design and naming rules.
 
 The manifest supplies Beyond build/distribution configuration, not a standalone npm start command. Begin with the development guide before running historical fixtures or changing public interfaces.
