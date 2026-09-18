@@ -1,0 +1,39 @@
+{
+	"name": "@beyond-js/packages-bootstrap",
+	"version": "0.1.0",
+	"description": "Transitional bootstrap of @beyond-js/packages: compiles and serves its implementation with Engine for a distribution that carries sources",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": ">=22.21.1"
+	},
+	"exports": {
+		".": "./index.mjs",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"index.mjs",
+		"implementation.mjs",
+		"group.mjs",
+		"ports.mjs",
+		"engine.cjs",
+		"resources"
+	],
+	"scripts": {
+		"resources": "node scripts/resources.mjs",
+		"prepack": "node scripts/resources.mjs",
+		"test": "node --test \"test/*.test.mjs\""
+	},
+	"peerDependencies": {
+		"@beyond-js/packages": "~0.0.1"
+	},
+	"dependencies": {
+		"@beyond-js/bee-node": "~0.1.0",
+		"@beyond-js/ipc": "~1.0.10",
+		"@beyond-js/kernel": "~0.1.12",
+		"@beyond-js/pending-promise": "~0.0.5",
+		"@types/node": "~20.11.0",
+		"beyond": "1.4.1",
+		"chokidar": "4.0.2"
+	}
+}

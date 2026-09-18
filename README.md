@@ -4,6 +4,7 @@ Packages is the Beyond packaging implementation written in Beyond. It models wor
 
 The existing Engine generation compiles Packages implementation modules; modern BEE Node loads their ECMAScript output. Packages then compiles the target packages itself: it discovers their public modules, selects their bundler and conditions, and assembles executable artifacts that keep their public references and can be updated one source file at a time. HTTP delivery, widgets, styles, declarations and the complete update loop still require integration.
 
+- [Development service](docs/service.md): the Dev Server implementation under `service/`, its clients, lifecycle and embedding options, the transitional [bootstrap package](bootstrap/README.md), and what exists and remains for an Engine-independent distribution.
 - [Dev Server/File API ownership and acceptance](docs/development-server.md): source synchronization, delegated authorization and local/cloud consumer boundaries.
 - [Development and acceptance](docs/development.md): execution roles, configuration, current blockers and the functional widget development loop.
 - [Architecture and bundlers SDK](docs/architecture.md): actual public extension interfaces, source/output flow, artifacts, diagnostics and lifecycle.

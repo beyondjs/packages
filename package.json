@@ -14,6 +14,10 @@
 	"modules": {
 		"path": "modules"
 	},
+	"exports": {
+		"./service": "./service/index.mjs",
+		"./package.json": "./package.json"
+	},
 	"description": "BeyondJS Packages",
 	"deployment": {
 		"distributions": [
@@ -61,6 +65,8 @@
 		"@beyond-js/pending-promise": "~0.0.5",
 		"@beyond-js/specifier-parser": "~0.0.4",
 		"@beyond-js/firestore-collection": "~0.1.0",
+		"@beyond-js/kernel": "~0.1.12",
+		"express": "^4.21.2",
 		"@google-cloud/storage": "^6.8.0",
 		"@google-cloud/logging": "11.2.1",
 		"@beyond-js/equal": "~1.0.2",

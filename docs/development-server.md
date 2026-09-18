@@ -1,6 +1,6 @@
 # Packages Dev Server and File API
 
-Packages owns Dev Server/File API, reusing its existing compiler, dependency graphs, source discovery, watchers, artifacts and lifecycle. Workspace does not own a competing server implementation. This is approved ownership and required acceptance, not a claim that current interfaces are complete. Read [development](development.md), [architecture](architecture.md) and [programming conventions](programming.md) before changing public contracts.
+Packages owns Dev Server/File API, reusing its existing compiler, dependency graphs, source discovery, watchers, artifacts and lifecycle. Workspace does not own a competing server implementation. This is approved ownership and required acceptance, not a claim that current interfaces are complete. Read [development](development.md), [architecture](architecture.md) and [programming conventions](programming.md) before changing public contracts. The part that exists, the [development service](service.md) under `service/`, covers context, discovery, lifecycle, artifact delivery, selection and state; it does not yet provide the file operations, revisions and events described below.
 
 ## Responsibilities
 
@@ -32,4 +32,4 @@ Saved, committed and pushed differ. GitHub restores pushed history only; it does
 - Reject unauthorized/revoked delegated access without adding project-container role authority. Prove matching local/cloud contract inside Workspace Docker and independent Docker-free standalone CLI consumption.
 - With Workspace, test recovered pending source/buffers after container replacement, scoped routing and cloud parity. Full local product proof comes first, but cloud/administration are in Workspace v1.
 
-Exact package exports, revision/event/delegation schemas and compatibility versions are engineering contracts to define from source and fixtures. Do not move or delete concurrent implementation based only on this document; coordinate ownership and an explicit migration before code changes. Documentation/source audit is not runtime validation.
+Exact package exports, revision/event/delegation schemas and compatibility versions are engineering contracts to define from source and fixtures. The service implementation first written in the Workspace repository was relocated here in coordination with its consumers; do not move or delete other concurrent implementation based only on this document, and coordinate ownership and an explicit migration before such code changes. Documentation/source audit is not runtime validation.

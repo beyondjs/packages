@@ -54,4 +54,4 @@ Engine classifies a dependency of a bundle by the first import statement that na
 
 ## Limits
 
-Module and package manifests are not watched: a development service reloads its workspace when they change. Re-exports remain a restart boundary of the installed runtime. Declarations, styles, browser execution and a push channel for updates are outside this guide.
+Module and package manifests are not watched: the [development service](service.md) reloads its workspace when they change. Re-exports remain a restart boundary of the installed runtime. Declarations, styles, browser execution and a push channel for updates are outside this guide.
