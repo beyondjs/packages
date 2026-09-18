@@ -5,6 +5,10 @@ import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
 
+/**
+ * Whether a bundler implementation is loaded as a public module being developed, or resolved as an
+ * installed dependency of the package that registers it
+ */
 const DEV = true;
 
 interface IResponse {
@@ -12,8 +16,6 @@ interface IResponse {
 	Module?: ModuleConstructor<BaseModule>;
 	path?: string;
 }
-
-declare const bimport: (specifier: string) => Promise<any>;
 
 const done = ({ errors, Module, path, specifier }: IResponse & { specifier: string }): IResponse => {
 	if (!errors?.length && typeof Module !== 'function') {
@@ -25,10 +27,17 @@ const done = ({ errors, Module, path, specifier }: IResponse & { specifier: stri
 	return { errors, Module, path };
 };
 
+/**
+ * Imports the bundler as a public module.
+ *
+ * The specifier is imported as it was registered, so the loader of the process decides where the
+ * implementation comes from: a development server serving the compiled modules, or the installed package.
+ * Resolution is therefore configuration of the running process, not of this importer.
+ */
 async function dev(specifier: string, basedir: string): Promise<IResponse> {
 	void basedir; // eslint-disable-line no-unused-vars
 	try {
-		const mod = await bimport(specifier);
+		const mod = await import(specifier);
 		const { Module } = mod;
 		return done({ Module, specifier });
 	} catch (exc) {
@@ -38,6 +47,10 @@ async function dev(specifier: string, basedir: string): Promise<IResponse> {
 	}
 }
 
+/**
+ * Imports the bundler as an installed dependency of the package that registers it, resolving it from that
+ * package directory so that each package can use its own version of a bundler
+ */
 async function prod(specifier: string, basedir: string): Promise<IResponse> {
 	let path: string = null;
 	try {
@@ -46,12 +59,11 @@ async function prod(specifier: string, basedir: string): Promise<IResponse> {
 	} catch (exc) {
 		const code = 'BUNDLER_NOT_FOUND';
 		const message = `Bundler "${specifier}" not found`;
-		console.log(code, message);
 		return done({ errors: [{ code, message }], specifier });
 	}
 
 	try {
-		const mod = await bimport(pathToFileURL(path).href);
+		const mod = await import(pathToFileURL(path).href);
 		const { Module } = mod;
 		return done({ Module, path, specifier });
 	} catch (exc) {

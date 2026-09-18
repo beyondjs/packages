@@ -39,7 +39,14 @@ export /*bundle*/ interface IPackageDependencies {
 export /*bundle*/ interface IBeyondPackageManifest extends IPackageManifest {
 	bundlers: BundlersSettingsType;
 	beyond: {
+		// Where the module manifests of the package are found
 		modules: string | { path: string };
+
+		/**
+		 * The bundler that compiles the public modules that do not select one in their manifest, named as
+		 * it is registered in the `bundlers` of the package
+		 */
+		bundler?: string;
 		distributions: {
 			name: string;
 			platform: string;

@@ -12,6 +12,34 @@ interface IProcessDone {
 	packages?: Set<string>;
 }
 
+export /*bundle*/ interface IWorkspaceOptions {
+	/**
+	 * Whether the packages watch their sources, so that editing a file rebuilds what depends on it.
+	 * It requires a watchers service registered in the process; without one, the packages are read once.
+	 */
+	watcher?: boolean;
+}
+
+/**
+ * Which public module of which package of the workspace a public specifier addresses
+ */
+export /*bundle*/ interface IWorkspaceResolution {
+	specifier: string;
+	package: Package;
+
+	/**
+	 * The subpath of the module inside the package, such as `./message` or `.`
+	 */
+	subpath: string;
+}
+
+/**
+ * The packages being developed together.
+ *
+ * A workspace reads which packages it contains from its `beyond.json` and creates one Package for each,
+ * which is also what makes them resolvable between themselves: a public reference from one package to
+ * another is satisfied by the package of the workspace, not by an installed copy of it.
+ */
 export /*bundle*/ class Workspace extends DynamicProcessor() {
 	get dp() {
 		return 'workspace';
@@ -43,10 +71,16 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 		return this.#packages;
 	}
 
-	constructor(path = process.cwd()) {
+	#options: IWorkspaceOptions;
+	get options() {
+		return this.#options;
+	}
+
+	constructor(path = process.cwd(), options: IWorkspaceOptions = {}) {
 		super();
 
 		this.#path = path;
+		this.#options = options;
 		const config = new Config(path);
 		this.#config = config;
 
@@ -62,21 +96,24 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 			const previous = { errors: this.#errors, warnings: this.#warnings, packages: [...this.#packages.keys()] };
 
 			const changed = !equal(previous, { errors, warnings, packages: [...packages] });
-			if (!changed) return;
+			if (!changed) return false;
 
 			this.#errors = errors;
 			this.#warnings = warnings;
-			this.#packages.clear();
 
 			// Destroy unused packages
-			this.#packages.forEach((pkg, path) => packages.has(path) && pkg.destroy());
+			this.#packages.forEach((pkg, path) => {
+				if (packages.has(path)) return;
+				pkg.destroy();
+				this.#packages.delete(path);
+			});
 
 			// Add new packages
 			packages.forEach(path => {
 				if (this.#packages.has(path)) return;
 
 				const fulldir = resolve(this.#path, path);
-				const pkg = new Package(fulldir);
+				const pkg = new Package(fulldir, { watcher: this.#options.watcher });
 				this.#packages.set(path, pkg);
 			});
 		};
@@ -126,5 +163,37 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 		});
 
 		return done({ packages: output });
+	}
+
+	/**
+	 * The public module of the workspace that a public specifier addresses, such as `@suite/shared/message`.
+	 *
+	 * The packages of the workspace take precedence over any other source of a package with the same name,
+	 * which is what lets a package under development satisfy the dependencies of its siblings. Resolution
+	 * reads the name of each package, so the packages must have been processed for it to be conclusive.
+	 *
+	 * @returns undefined when no package of the workspace publishes the specifier
+	 */
+	resolve(specifier: string): IWorkspaceResolution | undefined {
+		if (typeof specifier !== 'string' || !specifier) return;
+
+		const split = specifier.split('/');
+		const scope = split[0].startsWith('@') ? split.shift() : void 0;
+		const name = split.shift();
+		if (!name) return;
+
+		const pkgname = scope ? `${scope}/${name}` : name;
+		const subpath = split.length ? `./${split.join('/')}` : '.';
+
+		for (const pkg of this.#packages.values()) {
+			if (pkg.name !== pkgname) continue;
+			return { specifier, package: pkg, subpath };
+		}
+	}
+
+	destroy() {
+		super.destroy();
+		this.#packages.forEach(pkg => pkg.destroy());
+		this.#packages.clear();
 	}
 }

@@ -102,8 +102,15 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 			}
 
 			const { module } = this.#conditional;
-			let Processor: ProcessorConstructor, path: string;
-			({ errors, Processor, path } = await importer(specifier, module.package.path));
+
+			// The diagnostics of a processor that could not be imported are added to the ones already
+			// collected, so configuring several processors reports every failure
+			const imported = await importer(specifier, module.package.path);
+			if (imported.errors?.length) {
+				imported.errors.forEach(error => errors.push(error));
+				continue;
+			}
+			const { Processor } = imported;
 
 			try {
 				const processor = new Processor(this.#conditional, name);

@@ -5,12 +5,15 @@ import type { BaseModule } from '@beyond-js/packages/module';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { Config } from '@beyond-js/config/main';
 import { equal } from '@beyond-js/equal/main';
+import { ModuleSpec } from '@beyond-js/packages/module/spec';
+import { Declarations } from './declarations';
 import { ModuleExports } from './exports';
 import { ModuleManifests } from './manifests';
 import { ModuleResolver } from './resolver';
 
 interface IPreparedDone {
 	updated: Map<string, ModuleResolver>;
+	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
 }
 
@@ -19,6 +22,14 @@ interface IProcessDone {
 	updated: Map<string, BaseModule>;
 }
 
+/**
+ * The public modules of a package.
+ *
+ * How a package declares them is resolved by the [declarations](./declarations.ts), which combine its
+ * exports entries with its module manifests. This collection owns the resulting specifications and the
+ * resolvers that instantiate each module with the bundler that compiles it. A module that cannot be
+ * resolved is reported as a warning and left out, so the rest of the package still compiles.
+ */
 export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 	get dp() {
 		return 'package.modules';
@@ -28,11 +39,36 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 	#exports: ModuleExports;
 	#manifests: ModuleManifests;
 
+	/**
+	 * The specification of each declared module, owned by this collection because it combines declarations
+	 * that come from different sources
+	 */
+	#specs: Map<string, ModuleSpec> = new Map();
+
 	#resolvers: Map<string, ModuleResolver> = new Map();
 
+	/**
+	 * The diagnostics of the declarations: contradictions that prevent a module from being declared
+	 */
+	#errors: IDiagnostic[] = [];
+	get errors() {
+		return this.#errors;
+	}
+
 	#warnings: IDiagnostic[] = [];
+
+	/**
+	 * The diagnostics of the modules that could not be resolved, which are separate from the declaration
+	 * ones because they are produced in a later phase
+	 */
+	#unresolved: IDiagnostic[] = [];
+
 	get warnings() {
-		return this.#warnings;
+		return this.#warnings.concat(this.#unresolved);
+	}
+
+	get valid() {
+		return !this.#errors.length;
 	}
 
 	constructor(pkg: Package, config: Config) {
@@ -43,7 +79,12 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 		this.#manifests = new ModuleManifests(config);
 	}
 
+	/**
+	 * Declares the modules of the package and requires their resolvers, whose results are read once every
+	 * one of them has selected and awaited its bundler
+	 */
 	_prepared(require: RequireType): void | boolean {
+		if (!require(this.#package, 'package')) return false;
 		if (!require(this.#exports, 'package-exports')) return false;
 		if (!require(this.#manifests, 'package-manifests')) return false;
 
@@ -54,75 +95,64 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 		});
 		if (!ready) return false;
 
-		const done = ({ updated, warnings }: IPreparedDone) => {
-			warnings = warnings ? warnings : [];
-			this.#warnings = warnings;
+		const done = ({ updated, errors, warnings }: IPreparedDone) => {
+			this.#errors = errors ? errors : [];
+			this.#warnings = warnings ? warnings : [];
 
-			// Destroy unused resolvers
+			// Release the resolvers and specifications of the modules that are no longer declared
 			this.#resolvers.forEach((resolver, subpath) => !updated.has(subpath) && resolver.destroy());
-			this.#resolvers.clear();
+			this.#specs.forEach((spec, subpath) => {
+				if (updated.has(subpath)) return;
+				spec.destroy();
+				this.#specs.delete(subpath);
+			});
 
-			// Add the updated resolvers collection
+			this.#resolvers.clear();
 			updated.forEach((resolver, subpath) => this.#resolvers.set(subpath, resolver));
 
-			// The resolvers must be all processed before processing the modules collection
-			this.#resolvers.forEach((resolver, key) => require(resolver, `module-resolver:${key}`));
+			// The modules are read only once every resolver has selected its bundler and instantiated it
+			this.#resolvers.forEach((resolver, subpath) => require(resolver, `module-resolver:${subpath}`));
 		};
 
-		const exports = this.#exports;
-		const manifests = this.#manifests;
-		const warnings: IDiagnostic[] = (this.#warnings = []);
+		const declarations = new Declarations(this.#exports, this.#manifests, this.#package.defaultBundler);
 		const updated = new Map<string, ModuleResolver>();
 
-		// Process the exports to include their modules
-		for (const [subpath, spec] of exports) {
-			// Validate subpath
-			const validate = /^\.\/[a-zA-Z0-9-_./]*$/;
-			if (!subpath || (subpath !== '.' && (!subpath.startsWith('./') || !validate.test(subpath)))) {
-				const code = 'INVALID_SUBPATH';
-				const message =
-					`Invalid subpath: "${subpath}". ` +
-					`Subpath must be a non-empty string starting with './' and contain only valid characters.`;
-				warnings.push({ code, message });
-				continue;
-			}
+		declarations.forEach((declaration, subpath) => {
+			const { bundler, path, values, sources } = declaration;
 
-			const resolver = (() => {
-				if (this.#resolvers.has(subpath)) return this.#resolvers.get(subpath);
-				return new ModuleResolver(this.#package, spec);
+			const spec = (() => {
+				if (this.#specs.has(subpath)) return this.#specs.get(subpath);
+
+				const info = sources.includes('exports')
+					? { type: <const>'export', subpath }
+					: { type: <const>'manifest', path };
+				const spec = new ModuleSpec(info, bundler);
+				this.#specs.set(subpath, spec);
+				return spec;
 			})();
+			spec.update(Object.assign({ subpath }, values), { bundler, path });
+
+			const resolver = this.#resolvers.has(subpath)
+				? this.#resolvers.get(subpath)
+				: new ModuleResolver(this.#package, spec);
 			updated.set(subpath, resolver);
-		}
+		});
 
-		// Process the manifests to include all their modules
-		for (const manifest of manifests.values()) {
-			// Process each manifest modules
-			manifest.modules.forEach(spec => {
-				const { subpath } = spec;
-				if (!subpath) throw new Error(`Module spec without subpath in "${manifest.file.relative.file}"`);
-				if (updated.has(subpath)) return; // Already processed from exports
-
-				const resolver = (() => {
-					if (this.#resolvers.has(subpath)) return this.#resolvers.get(subpath);
-					return new ModuleResolver(this.#package, spec);
-				})();
-				updated.set(subpath, resolver);
-			});
-		}
-
-		return done({ updated, warnings });
+		return done({ updated, errors: declarations.errors, warnings: declarations.warnings });
 	}
 
 	_process() {
-		this.clear();
-
 		const done = ({ updated, warnings }: IProcessDone) => {
 			warnings = warnings ? warnings : [];
 
-			const previous = { modules: [...this.keys()], warnings: this.#warnings };
-			const changed = !equal(previous, { modules: [...updated.keys()], warnings });
+			// A module instance replaced by its resolver, because its bundler changed, is also a change
+			const previous = { modules: [...this.keys()], warnings: this.#unresolved };
+			const changed =
+				!equal(previous, { modules: [...updated.keys()], warnings }) ||
+				[...updated].some(([subpath, module]) => this.get(subpath) !== module);
 
-			this.#warnings = warnings;
+			this.#unresolved = warnings;
+			this.clear();
 			updated.forEach((module, subpath) => this.set(subpath, module));
 
 			return changed;
@@ -131,17 +161,32 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 		const warnings: IDiagnostic[] = [];
 		const updated = new Map<string, BaseModule>();
 
-		this.#resolvers.forEach((resolver, key) => {
+		this.#resolvers.forEach((resolver, subpath) => {
 			if (!resolver.valid) {
 				const code = 'INVALID_RESOLVER';
-				const message = `Module resolver for "${key}" is not valid`;
-				warnings.push({ code, message });
+				const reported = resolver.errors.map(({ message }) => message).join('; ');
+				warnings.push({ code, message: `Module "${subpath}" cannot be resolved: ${reported}` });
 				return;
 			}
 
-			updated.set(key, resolver.module);
+			updated.set(subpath, resolver.module);
 		});
 
 		return done({ warnings, updated });
+	}
+
+	/**
+	 * The resolver of a module subpath, which exposes why a declared module is missing from the collection
+	 */
+	resolver(subpath: string): ModuleResolver | undefined {
+		return this.#resolvers.get(subpath);
+	}
+
+	destroy() {
+		super.destroy();
+		this.#resolvers.forEach(resolver => resolver.destroy());
+		this.#specs.forEach(spec => spec.destroy());
+		this.#exports.destroy();
+		this.#manifests.destroy();
 	}
 }

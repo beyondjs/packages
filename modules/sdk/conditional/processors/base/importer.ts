@@ -4,6 +4,10 @@ import { createRequire } from 'module';
 import { pathToFileURL } from 'url';
 import { join } from 'path';
 
+/**
+ * Whether a processor implementation is loaded as a public module being developed, or resolved as an
+ * installed dependency of the package being compiled
+ */
 const DEV = true;
 
 interface IResponse {
@@ -11,8 +15,6 @@ interface IResponse {
 	Processor?: ProcessorConstructor;
 	path?: string;
 }
-
-declare const bimport: (specifier: string) => Promise<any>;
 
 const done = ({ errors, Processor, path, specifier }: IResponse & { specifier: string }): IResponse => {
 	if (!errors?.length && typeof Processor !== 'function') {
@@ -24,10 +26,16 @@ const done = ({ errors, Processor, path, specifier }: IResponse & { specifier: s
 	return { errors, Processor, path };
 };
 
+/**
+ * Imports the processor as a public module.
+ *
+ * The specifier is imported as its bundler declared it, so the loader of the process decides where the
+ * implementation comes from, exactly as it does for the bundler itself.
+ */
 async function dev(specifier: string, basedir: string): Promise<IResponse> {
 	void basedir; // eslint-disable-line no-unused-vars
 	try {
-		const mod = await bimport(specifier);
+		const mod = await import(specifier);
 		const { Processor } = mod;
 		return done({ Processor, specifier });
 	} catch (exc) {
@@ -37,6 +45,10 @@ async function dev(specifier: string, basedir: string): Promise<IResponse> {
 	}
 }
 
+/**
+ * Imports the processor as an installed dependency, resolved from the directory of the package being
+ * compiled
+ */
 async function prod(specifier: string, basedir: string): Promise<IResponse> {
 	let path: string = null;
 	try {
@@ -45,12 +57,11 @@ async function prod(specifier: string, basedir: string): Promise<IResponse> {
 	} catch (exc) {
 		const code = 'PROCESSOR_NOT_FOUND';
 		const message = `Processor "${specifier}" not found`;
-		console.log(code, message);
 		return done({ errors: [{ code, message }], specifier });
 	}
 
 	try {
-		const mod = await bimport(pathToFileURL(path).href);
+		const mod = await import(pathToFileURL(path).href);
 		const { Processor } = mod;
 		return done({ Processor, path, specifier });
 	} catch (exc) {

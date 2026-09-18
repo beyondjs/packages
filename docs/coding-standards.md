@@ -81,17 +81,12 @@ Measured when the standard was adopted, on 2026-09-18. Line counts are those of 
 
 ### Accepted exceptions: more than 400 lines
 
-These files predate the standard. Do not add lines to them; split each one along its responsibilities when it is next substantially modified, and remove it from this list once it complies.
-
-| File | Lines |
-| --- | --- |
-| [tests/stage-1/index.mjs](../tests/stage-1/index.mjs) | 563 |
-| [modules/artifacts/index.ts](../modules/artifacts/index.ts) | 425 |
+None. A file that exceeds the limit is split along its responsibilities as part of the change that touches it, and listed here only if that split has to be deferred.
 
 ### Tolerated band: 301 to 400 lines
 
-| File | Lines |
-| --- | --- |
-| [modules/package/main/modules/index.ts](../modules/package/main/modules/index.ts) | 340 |
+None.
+
+The three files that exceeded the target when the standard was adopted were split the same day, along the responsibilities they had accumulated: the artifacts writer now delegates dependency resolution and the import map to [dependencies](../modules/artifacts/dependencies.ts) and [importmap](../modules/artifacts/importmap.ts), and keeps its public types in [types](../modules/artifacts/types.ts); the modules collection delegates how a package declares its public modules to [declarations](../modules/package/main/modules/declarations.ts); and the stage-1 validation separates [its harness](../tests/stage-1/harness.mjs) from the checks of [what is built](../tests/stage-1/build.mjs) and of [what happens when sources change](../tests/stage-1/updates.mjs).
 
 This standard is shared by all Beyond repositories. Propose a change to the sections above for all of them together instead of diverging locally; only this status section is specific to this repository.

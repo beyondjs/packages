@@ -51,15 +51,17 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 	_process() {
 		const spec = this.#processor.spec.values;
 
+		// Only a change of the selection reconfigures the collection of files, which then reprocesses
 		const done = ({ errors, warnings, values }: IDone) => {
 			errors = errors || [];
 			warnings = warnings || [];
 			const previous = { errors: this.#errors, warnings: this.#warnings, values: this.#values };
-			equal({ errors, warnings, values }, previous);
+			const changed = !equal({ errors, warnings, values }, previous);
 
 			this.#errors = errors;
 			this.#warnings = warnings;
 			this.#values = values;
+			return changed;
 		};
 
 		const warnings: IDiagnostic[] = [];
@@ -77,6 +79,10 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 			path = spec.path;
 			includes = spec.files;
 			includes = typeof includes === 'string' ? [includes] : includes;
+
+			// A specification that configures the processor without selecting files takes all of them,
+			// as an absent specification does
+			includes = includes === void 0 ? ['*'] : includes;
 			excludes = spec.excludes;
 
 			delete spec.path;

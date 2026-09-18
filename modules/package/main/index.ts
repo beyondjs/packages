@@ -57,6 +57,18 @@ export /*bundle*/ class Package extends Attributes {
 		return this.#modules;
 	}
 
+	/**
+	 * The bundler that compiles the public modules of this package that do not select one, named as it is
+	 * registered in its `bundlers` and configured as `beyond.bundler`.
+	 *
+	 * It lets a package declare its compiler once instead of repeating it in every module manifest, so a
+	 * module manifest is only needed when a module configures its own build.
+	 */
+	get defaultBundler(): string | undefined {
+		const beyond = this.manifest?.beyond;
+		return typeof beyond === 'object' && beyond && typeof beyond.bundler === 'string' ? beyond.bundler : void 0;
+	}
+
 	// #static: Static;
 	// get static() {
 	// 	return this.#static;
@@ -105,7 +117,7 @@ export /*bundle*/ class Package extends Attributes {
 			warnings = warnings ? warnings : [];
 
 			const previous = { errors: this.#errors, warnings: this.#warnings };
-			changed = changed || equal(previous, { errors, warnings });
+			changed = changed || !equal(previous, { errors, warnings });
 			if (!changed) return false;
 
 			this.#errors = errors;
@@ -129,9 +141,9 @@ export /*bundle*/ class Package extends Attributes {
 
 	destroy() {
 		super.destroy();
-		this.#watcher.destroy();
-		// this.#bundlers.destroy();
-		this.#modules.destroy();
+		this.#watcher?.destroy();
+		this.#bundlers?.destroy();
+		this.#modules?.destroy();
 		// this.#static.destroy();
 	}
 }

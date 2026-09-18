@@ -10,19 +10,20 @@ The implementation includes source collections, delegated processing, maps and d
 | --- | --- |
 | Workspace discovery | [Workspace](../modules/workspace/index.ts) reads beyond.json and constructs Package objects for normalized paths |
 | Package configuration | [Package](../modules/package/main/index.ts) initializes manifest attributes, Bundlers, controller and Modules |
-| Module specification | [Modules](../modules/package/main/modules/index.ts) combines exports first, then discovered module.json specifications |
+| Module declaration | [Declarations](../modules/package/main/modules/declarations.ts) combines each exports entry with the manifest of the same subpath, applies the package default bundler and reports contradictions; [Modules](../modules/package/main/modules/index.ts) owns the resulting specifications |
 | Bundler implementation | [Registry](../modules/package/main/bundlers/index.ts) maps aliases to specifiers/settings; importer expects public `Module` |
-| Module instance | [ModuleResolver](../modules/package/main/modules/resolver.ts) constructs `new Module({package, spec, bundler})` |
+| Module instance | [ModuleResolver](../modules/package/main/modules/resolver.ts) awaits the selected bundler and constructs `new Module({package, spec, bundler})`, replacing the instance when its implementation changes |
 | Conditional selection | [Conditionals](../modules/module/main/conditionals/index.ts) invokes module `_conditionals()` and `_conditional({key, conditions})` |
 | Conditional inputs | [ConditionalSpec](../modules/module/main/conditionals/conditional/spec.ts) invokes conditional `_spec(module.spec.values)` |
 | Processor configuration | SDK conditional calls `_processors()`; its collection imports public `Processor` constructors and assigns per-module spec |
 | Processing | Each ConditionalProcessor owns settings, specification, sources and a fresh output container per build |
 | Conditional result | A concrete conditional assembles or directly produces ConditionalOutput |
-| Consumer | Fixtures explicitly await stages and read output; the current HTTP route still uses a stub rather than this object graph |
+| Artifact | [ESMConditional](../modules/sdk/conditional/esm/index.ts) assembles the internal modules into the executable artifact of the module and its update |
+| Consumer | [Artifacts](../modules/artifacts/index.ts) writes the artifacts of a workspace with an import map; the HTTP route still uses a stub rather than this object graph |
 
 This is an ownership/dependency path, not a single synchronous function. Readiness at one stage does not establish readiness or semantic validity of all descendants.
 
-The existing configuration distinctions still apply: current finder reads `beyond.modules`; bootstrap manifests use top-level `modules`; registry is top-level `bundlers`; legacy `bundle` wins over `bundler` when both are truthy; exports occupy a subpath before manifests. Project picks one exact local name/version, but the current package dependency provider does not implement a demonstrated workspace-local override. Keep bootstrap authoring configuration distinct from target-package discovery until an explicit compatibility contract connects them.
+The existing configuration distinctions still apply: current finder reads `beyond.modules`; bootstrap manifests use top-level `modules`; registry is top-level `bundlers`; legacy `bundle` wins over `bundler` when both are truthy. Exports entries pointing to source files declare Beyond public modules (entry point = public API) and the manifest of the same subpath adds its specification and bundler selection; `beyond.bundler` is the package default bundler. Project picks one exact local name/version, but the current package dependency provider does not implement a demonstrated workspace-local override. Keep bootstrap authoring configuration distinct from target-package discovery until an explicit compatibility contract connects them.
 
 ## Public interfaces: core versus SDK
 
@@ -104,18 +105,18 @@ The types/CSS containers provide an API slot, not completed DTS or stylesheet ge
 | Default ConditionalProcessors has no explicit setup dependency on conditional.spec | A parent becoming invalid is not proof that the collection recalculates `_processors()`; test module-spec edits through the whole chain |
 | [Optional resolver](../modules/sdk/conditional/processors/resolver/index.ts) reads `bundler.settings.values.processors`, while ProcessorSettings reads `bundler.settings.processors` | Strategies disagree on the settings shape; the optional resolver is not automatically the default collection |
 | ConditionalProcessors error branch calls done without updated, but done accesses updated.size | Configuration failure may throw instead of producing the intended diagnostics |
-| Import result overwrites errors; constructor catch may then call errors.push on undefined | Import/initialization failure paths need explicit tests; success with another processor can also replace earlier error state |
+| Processor import failures are now added to the collected diagnostics instead of replacing them | Repaired; a configuration with several processors reports every failure |
 | Processor collection retains instances by name even when implementation specifier changes | Alias identity alone may leave the previous constructor active after configuration edits |
 | Processor.valid consults its private errors, while TS writes output.issues | `valid` does not aggregate build issues; Conditional.valid also omits a complete spec/settings/output diagnostic rollup |
 | ConditionalSpec exposes valid as a method, unlike nearby getters | Consumers must not treat it interchangeably with boolean getters |
 | DelegationCollector computes but does not store its new hash; delegating processor errors are not published | Delegated invalidation/diagnostics need verification |
 | BaseConditional and ConditionalProcessor destroy methods omit super.destroy; SDK Conditional has no explicit processor collection disposal | Listener/child cleanup cannot be assumed; ProcessorSources also destroys optional inputs without a guard |
 
-ModuleResolver additionally caches an existing module instance after confirming the alias is present, before rechecking that bundler's validity/constructor. Changing an implementation under a stable module subpath therefore needs a dedicated replacement test. These details matter more than a blanket statement that DynamicProcessor handles all invalidation automatically.
+ModuleResolver now awaits the selected bundler before instantiating a module and replaces the instance when the implementation behind the same name changes, so these two concerns are repaired. The remaining findings above are still open. They matter more than a blanket statement that DynamicProcessor handles all invalidation automatically.
 
 ## Actual TS authoring example
 
-The existing [TS Module](../modules/bundlers/ts/module/index.ts) is the clearest SDK extension example. It reads `platforms`, defaults to `['default']`, and creates an ESM conditional for each platform. The types conditional branch is commented out. Its [ESM subclass](../modules/bundlers/ts/module/esm.ts) returns all spec values and configures one processor named `ts`, using public specifier `@beyond-js/packages/bundlers/ts/processors/ts`. It excludes `platforms` while forwarding other entries.
+The TypeScript bundler is the reference SDK extension, and the one that compiles the modules of a target package. Its [TS Module](../modules/bundlers/ts/module/index.ts) is the clearest example of the extension contract. It reads `platforms`, defaults to `['default']`, and creates an ESM conditional for each platform. The types conditional branch is commented out. Its [ESM subclass](../modules/bundlers/ts/module/esm.ts) returns all spec values and configures one processor named `ts`, using public specifier `@beyond-js/packages/bundlers/ts/processors/ts`. It excludes `platforms` while forwarding other entries.
 
 These are the actual bounded method shapes, excerpted from that implementation; they are not a new runnable bundler:
 
@@ -136,9 +137,9 @@ _processors(): IProcessorsSetup {
 
 The [TS Processor](../modules/bundlers/ts/processors/ts/index.ts) extends ConditionalProcessor and configures `.ts`/`.tsx` inputs plus a JSON `tsconfig.json` auxiliary file. `_build` obtains `outputs.ims.obtain(input)` and concurrently calls Exports.process and Transpiler.process for each input.
 
-[Transpiler](../modules/bundlers/ts/processors/ts/transpiler.ts) uses SWC, ES2022 target, ESM output and source maps; failures add `TRANSPILE_ERROR` to output issues. The loaded tsconfig is not read by this transformation. [Exports](../modules/bundlers/ts/processors/ts/exports.ts) separately parses source and recognizes `/*bundle*/` on supported class/function/identifier variable declarations. Default expressions are explicitly unsupported; its parser does not configure TSX as the transpiler does, and parse rejection is not caught there. Analyzer/dependency construction is commented out in the processor constructor.
+[Transpiler](../modules/bundlers/ts/processors/ts/transpiler.ts) uses TypeScript `transpileModule` (CommonJS module output, ES2022 target, per-file source maps, no type checking); diagnostics become `TRANSPILE_ERROR` issues with positions. CommonJS with assignment-style exports is required by the runtime internal-module contract: getter-defined exports (SWC's CommonJS output) cannot be re-created by the installed Kernel on a patch. The [analyzer](../modules/bundlers/ts/processors/ts/analyzer.ts) reads the emitted body with `cjs-module-lexer` to record the exported names, `export *` re-exports and bare dependencies. The loaded tsconfig is not read by this transformation. The magic-comment export extractor was removed: target packages expose their public API through the entry point's ordinary exports.
 
-The current SDK ESM assembly wraps each IM in a creator function but uses literal `id`/`hash` placeholders and does not supply the complete registration/runtime envelope. SWC emits ESM syntax, which is then placed inside those functions. Thus per-file transpilation and a resulting code string are not proof of valid executable public-module ESM, retained imports, or working exports. This is a specific assembly gap, not a reason to discard source/output abstractions.
+The SDK [ESM assembly](../modules/sdk/conditional/esm/index.ts) emits the executable artifact through its [assembler](../modules/sdk/conditional/esm/assembler.ts): internal modules identified by `./relative/path` with 32-bit content hashes, sorted for stable output; bare imports preserved and registered in the runtime package; the exports descriptor and `export let` live bindings of the entry internal module; `__beyond_pkg`/`hmr` handles; `initialise(ims)` for the artifact and `update(ims)` for the patch. Processor issues are aggregated into the conditional diagnostics and no output is exposed while errors exist.
 
 To author another bundler against this design, expose a public Module, register its specifier under a package alias, choose conditionals, project their spec, then either configure SDK Processors or produce a core ConditionalOutput directly. Reuse these signatures and explicitly define source/options/error handling. Do not assume subclassing the unfinished ESMConditional makes the new bundler executable.
 
@@ -158,9 +159,10 @@ Only out.js and its map are collected; CSS siblings are not. The build uses `pla
 | [TS fixture](../tests/test-bundlers/ts/index.js) | Awaits package, registry, modules, conditionals and default conditional, then prints `conditional.output.code('sourcemap-inline')` |
 | [esbuild fixture](../tests/test-bundlers/esbuild/index.js) | Selects `./utils`, node conditional and prints output; the broader exports manifest is not equivalent to all alternatives being exercised |
 | [new hello assertion](../tests/hello/index.mjs) | Asserts Engine-produced HTTP ESM through BEE Node; it does not execute the newer SDK packaging path |
+| [stage-1 validation](../tests/stage-1/README.md) | Executes this path end to end on two packages: declaration, bundler selection, conditions, assembly, artifacts, dependency resolution, watched rebuilding and the update of a running consumer, with the corresponding failure cases |
 | [HTTP module route](../modules/http/routes/modules/index.ts) | Parses options and returns a generated hello stub; it does not resolve Package/Module/ConditionalOutput |
 
-The three older bundler fixtures use legacy BEE with server port 1110 and inspector 4000, log results, and catch errors without assertion-based failure handling. The TS and hello-world fixture package manifests still use top-level modules, conflicting with the newer finder. These fixtures are evidence of intended consumption, not passing end-to-end tests. HTTP headers advertising maps/DTS/CSS are also not proof those outputs exist or are served.
+The stage-1 validation is the current reference consumer. The three older bundler fixtures use legacy BEE with server port 1110 and inspector 4000, log results, and catch errors without assertion-based failure handling. The TS and hello-world fixture package manifests still use top-level modules, conflicting with the newer finder. These fixtures are evidence of intended consumption, not passing end-to-end tests. HTTP headers advertising maps/DTS/CSS are also not proof those outputs exist or are served.
 
 
 ## Extension and validation
@@ -178,14 +180,24 @@ For a bundler extension, validate these boundaries:
 
 ## Runtime artifact contract
 
-An outer ECMAScript public module and internal module composition are separate layers. Beyond source files inside a public module can be transformed into creator functions indexed by stable internal identities and hashes. The public artifact still imports other public modules through bare specifiers. A compatible runtime owns existing package/internal instances and export bindings; a patch updates that state rather than silently creating an independent registry.
+An outer ECMAScript public module and its internal composition are separate layers. The artifact is a native ES module: it imports other public modules by bare specifier and publishes live bindings. Its own sources are not separate ES modules at runtime, but creator functions registered in the runtime package under a stable identity and a content hash. That composition is what lets an update replace the code of one source file while the public module keeps its identity, its consumers and the rest of its state.
 
-The current ESMConditional does not finish that contract. Completing it requires valid transformed creator code, actual identities/hashes, public export metadata, dependency registration and the runtime update envelope consumed by widgets/styles/HMR. An `export` declaration inside a creator function is invalid JavaScript; a valid plain ESM file without required consumer metadata is also insufficient for the existing runtime integration.
+[ESMConditional](../modules/sdk/conditional/esm/index.ts) and its [assembler](../modules/sdk/conditional/esm/assembler.ts) implement that contract and produce two outputs from the same internal modules: the artifact, which creates the runtime package and initialises it, and the update, which obtains the package already registered under the same identity and replaces the creators whose hash changed. Consumers read the identities, public API, dependencies and internal hashes of the result through the conditional `artifact` property.
 
-Keep three relationships distinct: internal source imports/evaluation, public module imports, and package/version selection. Processor delegation is a fourth, build-local flow between processors. None automatically supplies another graph's identities or invalidation behavior.
+Two boundaries follow from the runtime contract and are respected by the current producers. The exports of an internal module must be assignments on its `exports` object, because the runtime empties and refills that object when it re-creates it; an emitter that defines exports as accessors produces internal modules that cannot be updated. And the public API of a module is fixed when its artifact is first evaluated, so adding or removing a public export requires loading the module again rather than updating it.
+
+Keep three relationships distinct: internal source imports and evaluation, public module imports, and package/version selection. Processor delegation is a fourth, build-local flow between processors. None automatically supplies another graph's identities or invalidation behavior.
+
+## Artifacts, dependency resolution and watching
+
+[Artifacts](../modules/artifacts/index.ts) turns the conditional outputs of a workspace into files: one artifact and one update per public module and conditions, their source maps, and an [import map](../modules/artifacts/importmap.ts) that resolves the bare public specifiers the artifacts preserve. Its report describes what each artifact is, which build produced it and how its dependencies were resolved, which is the provenance a delivery service or a consumer needs.
+
+Public references are resolved against the workspace by [Dependencies](../modules/artifacts/dependencies.ts), so a package under development satisfies the dependencies of its siblings, and are checked against the declared ranges: an undeclared dependency, an incompatible version and a module the required package does not publish are reported instead of silently resolved elsewhere. A public module of the same package needs no declaration. Whatever the workspace does not provide (the runtime, Node builtins, installed packages) is left to the environment that executes the artifact.
+
+[WatchersService](../modules/watchers/index.ts) starts the filesystem watching the packages subscribe to. It runs in a child process started with the loader of the current process, which imports the service implementation as an ordinary public module, and registers it under a name that the watcher client of each package addresses. Startup is awaited and its failure is observable, so a workspace never silently stops rebuilding. Watching is opt-in: `new Workspace(path, {watcher: true})`.
 
 ## Services and reusable library access
 
-The existing public objects support a future shared artifact service, but no completed high-level artifact-service API is currently exposed. That service must resolve explicit package/workspace context, public subpath, target/environment and output kind; await the selected conditional; surface diagnostics; and return actual code/map/type/style output with its identity. HTTP adapters should consume it without duplicating packaging logic.
+An artifact service that answers requests, rather than writing files, is still to be exposed. It must resolve explicit package/workspace context, public subpath, target/environment and output kind; await the selected conditional; surface diagnostics; and return actual code/map/type/style output with its identity. HTTP adapters should consume it without duplicating packaging logic.
 
 The local development server owns watcher bootstrap, request defaults, update publication and application bootstrap. An independent CDN consumer owns its storage, caching, authorization, session policy and deployment. Library imports must not implicitly start those services. Preserve public bare references and select runtime/editor resolution consistently. The [development guide](development.md) describes the remaining HTTP, widget, types, style and HMR work.

@@ -16,7 +16,7 @@ Engine compiles Packages implementation modules as ECMAScript
 
 Engine may remain running throughout development. Acceptance depends on which implementation produces the target artifacts: Engine-produced Packages implementation is expected; an Engine-produced target app does not demonstrate Packages compilation.
 
-The selected Node loader is modern BEE Node, which uses Node custom hooks and an HTTP loading worker. The existing [server fixture](../tests/test-server/index.js) and older bundler scripts use legacy `@beyond-js/bee` and global `bimport`; they are not the new bootstrap recipe. Modern BEE Node does not automatically supply legacy `bimport`, `brequire` or HMR. The [bundler importer](../modules/package/main/bundlers/importer.ts), [processor importer](../modules/sdk/conditional/processors/base/importer.ts) and external API-server startup retain legacy assumptions that must be bridged or repaired explicitly.
+The selected Node loader is modern BEE Node, which uses Node custom hooks and an HTTP loading worker. The existing [server fixture](../tests/test-server/index.js) and older bundler scripts use legacy `@beyond-js/bee` and global `bimport`; they are not the new bootstrap recipe. Modern BEE Node does not automatically supply legacy `bimport`, `brequire` or HMR. The [bundler importer](../modules/package/main/bundlers/importer.ts) and [processor importer](../modules/sdk/conditional/processors/base/importer.ts) load implementations with native `import()` (Engine preserves dynamic imports inside internal modules, and BEE Node resolves the public specifier); the external API-server startup still retains legacy assumptions. The [stage-1 validation](../tests/stage-1/README.md) is the current executed reference for discovery, compilation, artifacts and watched regeneration.
 
 The [manifest](../package.json) declares implementation bundle ports 1110, 1111 and 1112; `node-esm` selects ESM and disables development tools for that distribution. [beyond.json](../beyond.json) points to this package manifest. These ports serve the implementation through Engine, not a completed target dev-server API. The manifest has no npm start/test scripts or directly executable Node root export. Per-module tsconfig files do not define a single standalone tsc build.
 
@@ -29,9 +29,9 @@ Packages uses two configuration layers:
 | Layer | Source and interpretation |
 | --- | --- |
 | Author Packages itself with Engine | Root package uses top-level `modules.path`; each module manifest supplies its public identity and bundler. `modules/http/start/module.json` publishes `http/server`, not a path mechanically derived from its folder. |
-| Discover target modules with Packages | [Manifest finder](../modules/package/main/modules/manifests/finder.ts) reads `beyond.modules`; [types](../modules/types/package/index.ts) describe that structure. Older fixtures use top-level modules and require an explicit compatibility choice. |
+| Declare target public modules | `package.json` `exports` entries pointing to source files are the entry points of Beyond public modules: their ordinary exports and re-exports are the public API. [Manifest finder](../modules/package/main/modules/manifests/finder.ts) reads `beyond.modules`; a `module.json` adds its specification (platforms, processor options) to the entry of the same subpath and can select the bundler; `beyond.bundler` is the package default bundler. [types](../modules/types/package/index.ts) describe that structure. Older fixtures use top-level modules and require an explicit compatibility choice. |
 | Register target bundlers | [Bundlers](../modules/package/main/bundlers/index.ts) maps aliases to public implementation specifiers/settings. The importer expects a public `Module` constructor. |
-| Select a target module | [Modules](../modules/package/main/modules/index.ts) combines package exports and discovered manifests; [ModuleSpec](../modules/module/spec/index.ts) and [resolver](../modules/package/main/modules/resolver.ts) preserve the selected subpath/bundler contract. |
+| Select a target module | [Modules](../modules/package/main/modules/index.ts) combines package exports and discovered manifests into one declaration per subpath, with conflict diagnostics (`MODULE_DUPLICATED`, `MODULE_ENTRY_CONFLICT`, `MODULE_ENTRY_INVALID`); [ModuleSpec](../modules/module/spec/index.ts) carries subpath, path, entry and bundler; the [resolver](../modules/package/main/modules/resolver.ts) waits for the selected bundler implementation before instantiating its `Module`. |
 
 Preserving top-level module discovery as an explicit fallback is one compatibility option; migrating target fixtures is another. Neither is implied by copying the bootstrap manifest into a target. Define precedence and conflict diagnostics while preserving the working bootstrap and public identities. Await the selected bundler itself before using its constructor; registry readiness alone does not establish that readiness.
 
@@ -47,7 +47,7 @@ The proposed shared artifact service should accept explicit workspace/package co
 
 [Package](../modules/package/main/index.ts) creates a watcher only when requested, while [Workspace](../modules/workspace/index.ts) constructs packages without the option. [PackageController](../modules/package/main/controller/index.ts) does not install change coordination. Manifest discovery does not pass its optional watcher, although processor input finders consume the package watcher. The watcher client talks to a named service, so it requires a service bootstrap or explicit adapter. Package destroys an optional watcher without a guard, and Workspace clears its collection before its destruction iteration; cleanup needs repair when exposing stop.
 
-Current [ESM assembly](../modules/sdk/conditional/esm/index.ts) uses placeholder internal identities/hashes and embeds ESM source in creator functions. Per-file transpilation alone cannot produce a valid runtime artifact that way. Complete transformed creators, actual identifiers, public exports/dependencies and the runtime envelope required by consumers. The SDK's existing outputs and lifecycle are the design to complete, not evidence that the output format has no structure.
+The [ESM assembly](../modules/sdk/conditional/esm/index.ts) produces the executable public artifact: bare public imports, the runtime package registration, CommonJS internal-module creators with content hashes, the exports descriptor with live public bindings, the runtime handles and initialisation; a patch variant addresses the loaded package with `update`. The [artifacts module](../modules/artifacts/index.ts) writes artifacts, patches, source maps and an import map, and resolves workspace dependencies with version checks. HTTP delivery of these outputs is not connected yet.
 
 ## Runtime, widgets, styles and types
 
@@ -72,6 +72,8 @@ Keep focused objects for workspace/package state, compilation, artifact delivery
 ## Acceptance criteria
 
 The functional testbed must contain an application with real widgets and a separately compiled shared public module. Exact fixture directories, available ports and initial adapter versions are implementation choices; preserve their selected identities consistently.
+
+The [first-stage validation](../tests/stage-1/README.md) covers the first rows of this matrix for a Node target, and reports the exact behavior it observed for each one.
 
 | Gate | Required behavior |
 | --- | --- |

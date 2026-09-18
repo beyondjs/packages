@@ -100,11 +100,19 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 		config.bundler = config.bundle ? config.bundle : config.bundler;
 		delete config.bundle; // Avoid to detect it as a bundler
 
-		// If the subpath is not defined, use the relative dirname of the file
-		const { dirname } = this.#manifest.file.relative;
-		config.subpath = typeof config.subpath === 'string' ? config.subpath : dirname.replace(/\\/g, '/');
+		/**
+		 * A manifest that does not configure its subpath publishes the one its directory names, expressed as
+		 * a package subpath so that it matches the entries of the package exports: `message` becomes
+		 * `./message`, and a manifest at the package root becomes `.`
+		 */
+		const dirname = this.#manifest.file.relative.dirname.replace(/\\/g, '/');
+		const derived = !dirname || dirname === '.' ? '.' : `./${dirname.replace(/^\.\//, '')}`;
+		config.subpath = typeof config.subpath === 'string' ? config.subpath : derived;
 
 		const updated: Map<string, Record<string, any>> = new Map();
+
+		const isPlainObject = (value: unknown) =>
+			typeof value === 'object' && value !== null && !(value instanceof Array);
 
 		// At this point, all the common properties are removed from the config object
 		if (config.bundler) {
@@ -121,6 +129,13 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 			}
 
 			updated.set(config.bundler, spec);
+		} else if (!Object.entries(config).some(([, value]) => isPlainObject(value))) {
+			/**
+			 * The manifest selects no bundler and configures none: it specifies a single module, which the
+			 * default bundler of the package compiles. The bundler name is left empty here, because it is a
+			 * package-level decision that the modules collection applies.
+			 */
+			updated.set('', Object.assign({}, config));
 		} else {
 			// Bundler property doesn't exist, so we assume that any property that is
 			// not a module property is a bundler configuration.
@@ -133,7 +148,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 			for (const entry of entries) {
 				const bundler = entry[0];
 
-				if (typeof entry[1] !== 'object') {
+				if (!isPlainObject(entry[1])) {
 					const code = 'INVALID_BUNDLER_CONFIG';
 					const message = `Invalid bundler "${bundler}" configuration. The configuration must be an object.`;
 					this.#warnings.push({ code, message });
