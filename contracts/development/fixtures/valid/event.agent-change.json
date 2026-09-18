@@ -1,0 +1,12 @@
+{
+	"cursor": "k3v9q2:43",
+	"type": "file.created",
+	"path": "app/main/format.ts",
+	"revision": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+	"origin": "api",
+	"actor": {
+		"sub": "usr_ana0001",
+		"kind": "agent",
+		"task": "tsk_0001"
+	}
+}

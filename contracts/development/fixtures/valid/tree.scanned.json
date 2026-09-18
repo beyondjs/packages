@@ -1,0 +1,23 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"cursor": "k3v9q2:41",
+	"scanned": true,
+	"entries": [
+		{
+			"path": "app",
+			"kind": "directory"
+		},
+		{
+			"path": "app/package.json",
+			"kind": "file",
+			"size": 212,
+			"revision": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		},
+		{
+			"path": "app/main/index.ts",
+			"kind": "file",
+			"size": 96,
+			"revision": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		}
+	]
+}

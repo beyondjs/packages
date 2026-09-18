@@ -1,0 +1,6 @@
+{
+	"operation": "rename",
+	"path": "app/main/format.ts",
+	"expected": "sha256-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+	"to": "app/main/price.ts"
+}

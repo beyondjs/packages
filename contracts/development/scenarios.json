@@ -1,0 +1,774 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"description": "Behavior every implementation must reproduce. `given` seeds the root. A step is an `api` mutation, an `external` write that bypasses the API, a `control` action on the service, or an `expect` that names events (by type, path, origin) or a result. `$rev(path)` is the revision of the seeded or last written content of a path.",
+	"scenarios": [
+		{
+			"name": "edit-with-current-revision",
+			"requirement": "A write whose expected revision matches completes and announces one api change",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"content": "two"
+					},
+					"result": {
+						"outcome": "completed"
+					}
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "file.changed",
+								"path": "a.ts",
+								"origin": "api"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "stale-edit-conflicts",
+			"requirement": "A write based on a superseded revision changes nothing and reports both revisions",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"remember": {
+						"base": "$rev(a.ts)"
+					}
+				},
+				{
+					"external": {
+						"write": "a.ts",
+						"content": "agent"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$base",
+						"content": "human"
+					},
+					"result": {
+						"outcome": "conflict",
+						"conflict": {
+							"expected": "$base",
+							"current": "$rev(a.ts)"
+						}
+					}
+				},
+				{
+					"expect": {
+						"content": {
+							"a.ts": "agent"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "external-write-races-the-index",
+			"requirement": "The expected revision is compared with the bytes on disk at the mutation boundary, not with a watcher-fed cache",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"control": "watcher.pause"
+				},
+				{
+					"external": {
+						"write": "a.ts",
+						"content": "unseen"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev-of(one)",
+						"content": "human"
+					},
+					"result": {
+						"outcome": "conflict"
+					}
+				}
+			]
+		},
+		{
+			"name": "create-over-existing",
+			"requirement": "Creation states that the path is absent; an existing file is a conflict",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "absent",
+						"content": "new"
+					},
+					"result": {
+						"outcome": "conflict",
+						"conflict": {
+							"expected": "absent",
+							"current": "$rev(a.ts)"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "delete-after-external-delete",
+			"requirement": "Deleting a file that is already gone is a conflict against `absent`, never a silent success",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"remember": {
+						"base": "$rev(a.ts)"
+					}
+				},
+				{
+					"external": {
+						"delete": "a.ts"
+					}
+				},
+				{
+					"api": {
+						"operation": "delete",
+						"path": "a.ts",
+						"expected": "$base"
+					},
+					"result": {
+						"outcome": "conflict",
+						"conflict": {
+							"expected": "$base",
+							"current": "absent"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "rename-keeps-destination",
+			"requirement": "A rename never overwrites an existing destination",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one",
+						"b.ts": "two"
+					}
+				},
+				{
+					"api": {
+						"operation": "rename",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"to": "b.ts"
+					},
+					"result": {
+						"outcome": "conflict",
+						"conflict": {
+							"target": "b.ts"
+						}
+					}
+				},
+				{
+					"expect": {
+						"content": {
+							"a.ts": "one",
+							"b.ts": "two"
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "external-rename-is-delete-and-create",
+			"requirement": "A watcher cannot prove identity across paths, so an external move is announced as two events",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"external": {
+						"rename": "a.ts",
+						"to": "b.ts"
+					}
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "file.deleted",
+								"path": "a.ts",
+								"origin": "external"
+							},
+							{
+								"type": "file.created",
+								"path": "b.ts",
+								"origin": "external"
+							}
+						],
+						"order": "any"
+					}
+				}
+			]
+		},
+		{
+			"name": "batch-stops-at-first-conflict",
+			"requirement": "A batch is ordered and not atomic: what completed stays on disk and is reported as partial",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one",
+						"b.ts": "two",
+						"c.ts": "three"
+					}
+				},
+				{
+					"external": {
+						"write": "b.ts",
+						"content": "moved on"
+					}
+				},
+				{
+					"batch": [
+						{
+							"operation": "write",
+							"path": "a.ts",
+							"expected": "$rev-of(one)",
+							"content": "A"
+						},
+						{
+							"operation": "write",
+							"path": "b.ts",
+							"expected": "$rev-of(two)",
+							"content": "B"
+						},
+						{
+							"operation": "write",
+							"path": "c.ts",
+							"expected": "$rev-of(three)",
+							"content": "C"
+						}
+					],
+					"result": {
+						"outcome": "partial",
+						"results": [
+							"completed",
+							"conflict",
+							"skipped"
+						]
+					}
+				},
+				{
+					"expect": {
+						"content": {
+							"a.ts": "A",
+							"b.ts": "moved on",
+							"c.ts": "three"
+						},
+						"events": [
+							{
+								"type": "file.changed",
+								"path": "a.ts",
+								"origin": "api"
+							},
+							{
+								"type": "batch.completed"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "path-escape",
+			"requirement": "No operation reaches outside the served root, through segments or through symbolic links",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "../outside.ts",
+						"expected": "absent",
+						"content": "x"
+					},
+					"error": {
+						"status": 400,
+						"code": "PATH_INVALID"
+					}
+				},
+				{
+					"external": {
+						"symlink": "escape",
+						"target": "/"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "escape/tmp/x",
+						"expected": "absent",
+						"content": "x"
+					},
+					"error": {
+						"status": 403,
+						"code": "PATH_FORBIDDEN"
+					}
+				}
+			]
+		},
+		{
+			"name": "replay-within-epoch",
+			"requirement": "A subscriber that returns with a retained cursor receives exactly the events after it",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"content": "two"
+					}
+				},
+				{
+					"disconnect": "first"
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"content": "three"
+					}
+				},
+				{
+					"subscribe": "first",
+					"cursor": "$last(first)"
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "file.changed",
+								"path": "a.ts"
+							}
+						],
+						"exactly": true
+					}
+				}
+			]
+		},
+		{
+			"name": "gap-forces-resync",
+			"requirement": "A cursor older than the retained log is answered with resync, and the tree is the snapshot to reconcile against",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"disconnect": "first"
+				},
+				{
+					"control": "log.overflow"
+				},
+				{
+					"subscribe": "first",
+					"cursor": "$last(first)"
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "resync",
+								"reason": "GAP"
+							}
+						],
+						"first": true
+					}
+				}
+			]
+		},
+		{
+			"name": "restart-changes-epoch",
+			"requirement": "After a restart the server cannot vouch for continuity: old cursors are answered with resync EPOCH",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"control": "service.restart"
+				},
+				{
+					"subscribe": "first",
+					"cursor": "$last(first)"
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "resync",
+								"reason": "EPOCH"
+							}
+						],
+						"first": true
+					}
+				}
+			]
+		},
+		{
+			"name": "scan-finds-missed-changes",
+			"requirement": "Polling and manual refresh read disk, so a change the watcher never delivered is still found and announced",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"control": "watcher.pause"
+				},
+				{
+					"external": {
+						"write": "a.ts",
+						"content": "missed"
+					}
+				},
+				{
+					"external": {
+						"write": "new.ts",
+						"content": "n"
+					}
+				},
+				{
+					"tree": {
+						"scan": true
+					},
+					"result": {
+						"scanned": true,
+						"includes": {
+							"a.ts": "$rev(a.ts)",
+							"new.ts": "$rev(new.ts)"
+						}
+					}
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "file.changed",
+								"path": "a.ts",
+								"origin": "scan"
+							},
+							{
+								"type": "file.created",
+								"path": "new.ts",
+								"origin": "scan"
+							}
+						],
+						"order": "any"
+					}
+				}
+			]
+		},
+		{
+			"name": "duplicate-observation",
+			"requirement": "An api mutation that the watcher also observes is announced once",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"content": "two"
+					}
+				},
+				{
+					"control": "watcher.flush"
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "file.changed",
+								"path": "a.ts",
+								"origin": "api"
+							}
+						],
+						"exactly": true
+					}
+				}
+			]
+		},
+		{
+			"name": "stale-build-is-superseded",
+			"requirement": "A build that finishes after a newer change to one of its inputs is never current",
+			"steps": [
+				{
+					"given": {
+						"app/main/index.ts": "export const v = 1;"
+					}
+				},
+				{
+					"control": "build.hold"
+				},
+				{
+					"build": "start",
+					"as": "slow"
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "app/main/index.ts",
+						"expected": "$rev(app/main/index.ts)",
+						"content": "export const v = 2;"
+					}
+				},
+				{
+					"control": "build.release"
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "build.ended",
+								"build": {
+									"id": "$slow",
+									"state": "superseded"
+								}
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "failed-build-then-recovery",
+			"requirement": "A failed build reports diagnostics against the revision it compiled; the next valid edit produces a completed build with a later input",
+			"steps": [
+				{
+					"given": {
+						"app/main/index.ts": "export const v = 1;"
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "app/main/index.ts",
+						"expected": "$rev(app/main/index.ts)",
+						"content": "export const v = ;"
+					}
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "build.ended",
+								"build": {
+									"state": "failed",
+									"diagnostics": [
+										{
+											"file": "app/main/index.ts",
+											"revision": "$rev(app/main/index.ts)"
+										}
+									]
+								}
+							}
+						]
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "app/main/index.ts",
+						"expected": "$rev(app/main/index.ts)",
+						"content": "export const v = 3;"
+					}
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "build.ended",
+								"build": {
+									"state": "completed"
+								}
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "viewer-cannot-write",
+			"requirement": "A grant without files.write reads and subscribes but is refused mutations with 403",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"grant": [
+						"session.read",
+						"files.read",
+						"events.subscribe"
+					]
+				},
+				{
+					"tree": {},
+					"result": {
+						"scanned": false
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "a.ts",
+						"expected": "$rev(a.ts)",
+						"content": "x"
+					},
+					"error": {
+						"status": 403,
+						"code": "GRANT_CAPABILITY"
+					}
+				}
+			]
+		},
+		{
+			"name": "revocation-ends-subscription",
+			"requirement": "Accepting a revocation list ends the open streams of the revoked grant and refuses its next request",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"grant": [
+						"files.read",
+						"events.subscribe"
+					],
+					"as": "bob"
+				},
+				{
+					"subscribe": "first"
+				},
+				{
+					"control": "revocations.accept",
+					"revoke": "bob"
+				},
+				{
+					"expect": {
+						"subscriber": "first",
+						"events": [
+							{
+								"type": "access.ended",
+								"reason": "GRANT_REVOKED"
+							}
+						],
+						"closed": true
+					}
+				},
+				{
+					"tree": {},
+					"error": {
+						"status": 401,
+						"code": "GRANT_REVOKED"
+					}
+				}
+			]
+		},
+		{
+			"name": "no-grant-no-access",
+			"requirement": "In delegated mode every route, including artifacts and events, refuses a request without a grant",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"grant": null
+				},
+				{
+					"tree": {},
+					"error": {
+						"status": 401,
+						"code": "GRANT_MALFORMED"
+					}
+				},
+				{
+					"subscribe": "first",
+					"error": {
+						"status": 401,
+						"code": "GRANT_MALFORMED"
+					}
+				}
+			]
+		}
+	]
+}

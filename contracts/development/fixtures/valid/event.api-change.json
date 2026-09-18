@@ -1,0 +1,12 @@
+{
+	"cursor": "k3v9q2:42",
+	"type": "file.changed",
+	"path": "app/main/index.ts",
+	"revision": "sha256-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+	"previous": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	"origin": "api",
+	"actor": {
+		"sub": "usr_ana0001",
+		"kind": "user"
+	}
+}

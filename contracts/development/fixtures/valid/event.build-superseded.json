@@ -1,0 +1,16 @@
+{
+	"cursor": "k3v9q2:47",
+	"type": "build.ended",
+	"build": {
+		"id": "bld_0042",
+		"state": "superseded",
+		"input": "k3v9q2:44",
+		"modules": [
+			{
+				"vspecifier": "@suite/app@0.1.0/main",
+				"status": "valid",
+				"hash": "h1"
+			}
+		]
+	}
+}

@@ -1,0 +1,8 @@
+{
+	"outcome": "conflict",
+	"path": "app/main/index.ts",
+	"conflict": {
+		"expected": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		"current": "sha256-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	}
+}

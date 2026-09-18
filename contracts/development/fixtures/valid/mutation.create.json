@@ -1,0 +1,7 @@
+{
+	"operation": "write",
+	"path": "app/main/format.ts",
+	"expected": "absent",
+	"content": "export const x = 1;\n",
+	"encoding": "utf8"
+}

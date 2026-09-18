@@ -1,0 +1,6 @@
+{
+	"operation": "write",
+	"path": "app/main/index.ts",
+	"expected": "sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	"content": "export {};\n"
+}

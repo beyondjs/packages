@@ -6,6 +6,7 @@ The existing Engine generation compiles Packages implementation modules; modern 
 
 - [Development service](docs/service.md): the Dev Server implementation under `service/`, its clients, lifecycle and embedding options, the transitional [bootstrap package](bootstrap/README.md), and what exists and remains for an Engine-independent distribution.
 - [Dev Server/File API ownership and acceptance](docs/development-server.md): source synchronization, delegated authorization and local/cloud consumer boundaries.
+- [Development contract `beyond-dev-files/1`](docs/development-contract.md): source revisions, conflicts, ordered events with replay and resync, build correlation, delegated access and legacy inspector compatibility, with schema, fixtures and behavior scenarios under `contracts/development`. Implemented by the public module `@beyond-js/packages/development` and validated by `tests/development`.
 - [Development and acceptance](docs/development.md): execution roles, configuration, current blockers and the functional widget development loop.
 - [Architecture and bundlers SDK](docs/architecture.md): actual public extension interfaces, source/output flow, artifacts, diagnostics and lifecycle.
 - [Programming conventions](docs/programming.md): Beyond authoring, public versus internal modules, naming, state and tests.

@@ -1,0 +1,220 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "urn:beyond:dev-files:1",
+	"title": "Dev Server source, event and build documents, protocol beyond-dev-files/1",
+	"$defs": {
+		"path": {
+			"type": "string",
+			"description": "Relative to the served root, POSIX separators, no empty, `.` or `..` segment. A path names a file, never a public module.",
+			"pattern": "^(?!.*(^|/)\\.{1,2}(/|$))[^/\\\\\\u0000][^\\\\\\u0000]*$",
+			"not": { "pattern": "//|/$" }
+		},
+		"revision": {
+			"type": "string",
+			"description": "Digest of the file bytes. The HTTP entity tag of a file is this value in quotes.",
+			"pattern": "^sha256-[a-f0-9]{64}$"
+		},
+		"expected": {
+			"description": "What the writer believes is on disk: a revision, or `absent` when the path must not exist",
+			"anyOf": [{ "$ref": "#/$defs/revision" }, { "const": "absent" }]
+		},
+		"cursor": {
+			"type": "string",
+			"description": "`<epoch>:<seq>`. The epoch changes whenever the server cannot vouch for continuity: restart, watcher failure, log overflow.",
+			"pattern": "^[A-Za-z0-9]{6,32}:[0-9]+$"
+		},
+		"origin": {
+			"enum": ["api", "external", "scan"],
+			"description": "`api`: a mutation of this API. `external`: a watcher observed a write that bypassed it (agent shell, Git, another tool). `scan`: found by comparing disk with the index, so its time and author are unknown."
+		},
+		"actor": {
+			"type": "object",
+			"description": "Copied from the verified grant of an `api` mutation; absent for every other origin",
+			"required": ["sub", "kind"],
+			"additionalProperties": false,
+			"properties": {
+				"sub": { "type": "string" },
+				"kind": { "enum": ["user", "agent", "service"] },
+				"task": { "type": "string" }
+			}
+		},
+		"entry": {
+			"type": "object",
+			"required": ["path", "kind"],
+			"additionalProperties": false,
+			"properties": {
+				"path": { "$ref": "#/$defs/path" },
+				"kind": { "enum": ["file", "directory"] },
+				"size": { "type": "integer", "minimum": 0 },
+				"revision": { "$ref": "#/$defs/revision" }
+			},
+			"if": { "properties": { "kind": { "const": "file" } } },
+			"then": { "required": ["size", "revision"] }
+		},
+		"tree": {
+			"type": "object",
+			"description": "A snapshot boundary: `entries` describe the root exactly as of `cursor`; events after that cursor apply on top of it",
+			"required": ["protocol", "cursor", "scanned", "entries"],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": { "const": "beyond-dev-files/1" },
+				"cursor": { "$ref": "#/$defs/cursor" },
+				"scanned": { "type": "boolean", "description": "Whether disk was re-read for this answer instead of trusting the watcher-fed index" },
+				"entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+			}
+		},
+		"mutation": {
+			"type": "object",
+			"required": ["operation", "path", "expected"],
+			"additionalProperties": false,
+			"properties": {
+				"operation": { "enum": ["write", "delete", "rename"] },
+				"path": { "$ref": "#/$defs/path" },
+				"expected": { "$ref": "#/$defs/expected" },
+				"to": { "$ref": "#/$defs/path" },
+				"content": { "type": "string" },
+				"encoding": { "enum": ["utf8", "base64"] }
+			},
+			"allOf": [
+				{ "if": { "properties": { "operation": { "const": "write" } } }, "then": { "required": ["content"] } },
+				{ "if": { "properties": { "operation": { "const": "rename" } } }, "then": { "required": ["to"] } },
+				{
+					"if": { "properties": { "operation": { "enum": ["delete", "rename"] } } },
+					"then": { "properties": { "expected": { "$ref": "#/$defs/revision" } } }
+				}
+			]
+		},
+		"result": {
+			"type": "object",
+			"required": ["outcome", "path"],
+			"additionalProperties": false,
+			"properties": {
+				"outcome": { "enum": ["completed", "conflict", "failed", "skipped"] },
+				"path": { "$ref": "#/$defs/path" },
+				"revision": { "$ref": "#/$defs/revision" },
+				"cursor": { "$ref": "#/$defs/cursor" },
+				"conflict": {
+					"type": "object",
+					"required": ["expected", "current"],
+					"additionalProperties": false,
+					"properties": {
+						"expected": { "$ref": "#/$defs/expected" },
+						"current": { "$ref": "#/$defs/expected" },
+						"target": { "$ref": "#/$defs/path", "description": "Set when the conflict is the existing destination of a rename" }
+					}
+				},
+				"error": {
+					"type": "object",
+					"required": ["code", "message"],
+					"properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+				}
+			},
+			"allOf": [
+				{ "if": { "properties": { "outcome": { "const": "conflict" } } }, "then": { "required": ["conflict"] } },
+				{ "if": { "properties": { "outcome": { "const": "failed" } } }, "then": { "required": ["error"] } }
+			]
+		},
+		"batch": {
+			"type": "object",
+			"description": "Ordered and not atomic. `partial` says earlier mutations are on disk and later ones are not.",
+			"required": ["id", "outcome", "results"],
+			"additionalProperties": false,
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"outcome": { "enum": ["completed", "partial", "rejected"] },
+				"results": { "type": "array", "items": { "$ref": "#/$defs/result" } }
+			}
+		},
+		"diagnostic": {
+			"type": "object",
+			"required": ["code", "message"],
+			"additionalProperties": false,
+			"properties": {
+				"code": { "type": "string" },
+				"message": { "type": "string" },
+				"severity": { "enum": ["error", "warning"] },
+				"file": { "$ref": "#/$defs/path" },
+				"revision": { "$ref": "#/$defs/revision", "description": "The revision of `file` that was compiled" },
+				"range": {
+					"type": "object",
+					"required": ["line", "column"],
+					"properties": {
+						"line": { "type": "integer", "minimum": 1 },
+						"column": { "type": "integer", "minimum": 1 }
+					}
+				}
+			}
+		},
+		"build": {
+			"type": "object",
+			"description": "`input` is the cursor the build read its sources at. A build whose input is older than a later change to one of its files ends `superseded` and is never reported as current.",
+			"required": ["id", "state", "input", "modules"],
+			"additionalProperties": false,
+			"properties": {
+				"id": { "type": "string", "minLength": 1 },
+				"state": { "enum": ["running", "completed", "failed", "superseded", "cancelled"] },
+				"input": { "$ref": "#/$defs/cursor" },
+				"modules": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["vspecifier", "status"],
+						"additionalProperties": false,
+						"properties": {
+							"vspecifier": { "type": "string" },
+							"status": { "enum": ["valid", "invalid"] },
+							"hash": { "type": "string" }
+						}
+					}
+				},
+				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+			}
+		},
+		"event": {
+			"type": "object",
+			"required": ["cursor", "type"],
+			"additionalProperties": false,
+			"properties": {
+				"cursor": { "$ref": "#/$defs/cursor" },
+				"type": {
+					"enum": [
+						"file.created",
+						"file.changed",
+						"file.deleted",
+						"file.renamed",
+						"batch.completed",
+						"build.started",
+						"build.ended",
+						"resync",
+						"access.ended",
+						"stopping"
+					]
+				},
+				"path": { "$ref": "#/$defs/path" },
+				"from": { "$ref": "#/$defs/path" },
+				"revision": { "$ref": "#/$defs/revision" },
+				"previous": { "$ref": "#/$defs/revision" },
+				"origin": { "$ref": "#/$defs/origin" },
+				"actor": { "$ref": "#/$defs/actor" },
+				"batch": { "type": "string" },
+				"build": { "$ref": "#/$defs/build" },
+				"reason": { "enum": ["EPOCH", "GAP", "OVERFLOW", "WATCHER", "GRANT_EXPIRED", "GRANT_REVOKED", "SHUTDOWN"] }
+			},
+			"allOf": [
+				{
+					"if": { "properties": { "type": { "enum": ["file.created", "file.changed", "file.deleted", "file.renamed"] } } },
+					"then": { "required": ["path", "origin"] }
+				},
+				{
+					"if": { "properties": { "type": { "const": "file.renamed" } } },
+					"then": { "required": ["from"], "properties": { "origin": { "const": "api" } } }
+				},
+				{ "if": { "properties": { "type": { "enum": ["build.started", "build.ended"] } } }, "then": { "required": ["build"] } },
+				{
+					"if": { "properties": { "type": { "enum": ["resync", "access.ended"] } } },
+					"then": { "required": ["reason"] }
+				}
+			]
+		}
+	}
+}

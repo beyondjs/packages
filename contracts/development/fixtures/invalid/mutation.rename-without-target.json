@@ -1,0 +1,5 @@
+{
+	"operation": "rename",
+	"path": "a.ts",
+	"expected": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

@@ -1,0 +1,5 @@
+{
+	"operation": "delete",
+	"path": "app/main/index.ts",
+	"expected": "absent"
+}

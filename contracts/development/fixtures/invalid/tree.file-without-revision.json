@@ -1,0 +1,12 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"cursor": "k3v9q2:41",
+	"scanned": false,
+	"entries": [
+		{
+			"path": "a.ts",
+			"kind": "file",
+			"size": 1
+		}
+	]
+}

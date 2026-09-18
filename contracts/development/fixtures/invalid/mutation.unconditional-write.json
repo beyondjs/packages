@@ -1,0 +1,5 @@
+{
+	"operation": "write",
+	"path": "app/main/index.ts",
+	"content": "x"
+}

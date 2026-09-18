@@ -1,0 +1,13 @@
+{
+	"warning": "Public test keys. Never configure them in an administration.",
+	"trusted": {
+		"kid": "test-2026-09",
+		"private": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIDUzIhx+T3ozVV/4mXkbEo+gqfPuz/BZ5TwJid1Bs5fR\n-----END PRIVATE KEY-----\n",
+		"public": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAW/EAPrydx68iSZcAD09bC/uCa47VmrA8jR83VZjU3H4=\n-----END PUBLIC KEY-----\n"
+	},
+	"foreign": {
+		"kid": "foreign",
+		"private": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIBOPBKmZRr2TOZxgk+/loL/bSBDqZtTfjzD4ViP2m+JE\n-----END PRIVATE KEY-----\n",
+		"public": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA1dtX0sx/4sOvi2ILtJ4DeOirtnHanE/c2LbTrAisYeQ=\n-----END PUBLIC KEY-----\n"
+	}
+}
