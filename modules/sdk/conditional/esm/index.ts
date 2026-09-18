@@ -45,9 +45,30 @@ export /*bundle*/ interface IESMArtifact {
 	exports: string[];
 
 	/**
-	 * The internal modules composing the artifact, with their content hashes
+	 * The internal modules composing the artifact, with their content hashes. A packaged artifact has none.
 	 */
 	ims: { id: string; hash: number }[];
+
+	/**
+	 * How the sources of the module reach the runtime: `creators` registers one internal module per source
+	 * file in the runtime package, `packaged` bundles them into the ES module itself. Absent means `creators`.
+	 */
+	composition?: 'creators' | 'packaged';
+
+	/**
+	 * The public modules a packaged artifact re-exports with `export *`, whose names are not listed in `exports`
+	 */
+	stars?: string[];
+
+	/**
+	 * The source files a packaged artifact was bundled from, relative to the module directory
+	 */
+	inputs?: string[];
+
+	/**
+	 * The compiler that produced a packaged artifact, as its bundler resolved it
+	 */
+	compiler?: { specifier: string; version: string; location?: string; assigned: boolean; provenance?: Record<string, unknown> };
 }
 
 /**

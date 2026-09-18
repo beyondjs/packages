@@ -51,10 +51,14 @@ export class Files {
 		await fs.writeFile(target, `${conditional.output.code()}\n${reference}\n`);
 		await fs.writeFile(`${target}.map`, conditional.output.map());
 
+		[file, `${file}.map`].forEach(written => this.#written.add(written));
+
+		// A packaged module has no update: whatever a previous build in another mode wrote for it is pruned
+		if (!conditional.patch) return;
+
 		// The update carries its map inline: it is imported by URL, with no sibling file to resolve
 		await fs.writeFile(join(this.#path, patch), conditional.patch.code('sourcemap-inline'));
-
-		[file, `${file}.map`, patch].forEach(written => this.#written.add(written));
+		this.#written.add(patch);
 	}
 
 	/**

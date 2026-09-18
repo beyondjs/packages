@@ -1,0 +1,99 @@
+import type { IProcessedSpec } from '@beyond-js/packages/module';
+import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { IProcessorsSetup, IESMArtifact } from '@beyond-js/packages/sdk';
+import { Conditional } from '@beyond-js/packages/sdk';
+import { ConditionalOutput } from '@beyond-js/packages/module/output';
+import { equal } from '@beyond-js/equal/main';
+
+/**
+ * What the bundle processor leaves for its conditional. It is declared here as a structure because the
+ * processor is another public module, imported by the collection of processors and not by this file.
+ */
+interface IBundle {
+	code: string;
+	map: string;
+	exports: string[];
+	stars: string[];
+	dependencies: string[];
+	inputs: string[];
+	compiler: IESMArtifact['compiler'];
+}
+
+/**
+ * The packaged conditional of a public module: one native ES module bundled from its sources.
+ *
+ * It exposes the same members the artifacts writer and the delivery read from any conditional (`output`,
+ * `artifact`, diagnostics), so a packaged module is written, resolved and checked exactly as a composed
+ * one. It has no `patch`: there are no internal modules to replace, and how a running consumer receives a
+ * rebuilt packaged module is an update integration that this conditional does not implement.
+ */
+export /*bundle*/ class Packaged extends Conditional {
+	#output: ConditionalOutput;
+	get output(): ConditionalOutput {
+		return this.#output;
+	}
+
+	get patch(): ConditionalOutput {
+		return void 0;
+	}
+
+	#artifact: IESMArtifact;
+	get artifact(): IESMArtifact {
+		return this.#artifact;
+	}
+
+	#errors: IDiagnostic[] = [];
+	get errors(): IDiagnostic[] {
+		return this.#errors.concat(super.errors);
+	}
+
+	get valid(): boolean {
+		return !this.#errors.length && super.valid;
+	}
+
+	_spec(values: Record<string, any>): IProcessedSpec {
+		return { values };
+	}
+
+	_processors(): IProcessorsSetup {
+		const specifier = '@beyond-js/packages/bundlers/esbuild/processors/bundle';
+		return { processors: new Map([['bundle', { specifier }]]) };
+	}
+
+	_process(): boolean {
+		const errors: IDiagnostic[] = [];
+		let bundle: IBundle;
+		this.processors.forEach(processor => {
+			processor.errors.forEach(error => errors.push(error));
+			bundle = (<{ bundle?: IBundle }>(<unknown>processor)).bundle ?? bundle;
+		});
+		!errors.length && !bundle && errors.push({ code: 'OUTPUT_MISSING', message: 'The module was not bundled' });
+
+		let output: ConditionalOutput;
+		let artifact: IESMArtifact;
+		if (!errors.length) {
+			const { module } = this;
+			const subpath = module.spec.subpath.replace(/^\.\/?/, '');
+			const vspecifier = subpath ? `${module.package.vname}/${subpath}` : module.package.vname;
+
+			output = new ConditionalOutput();
+			output.set({ code: bundle.code, map: bundle.map });
+			artifact = {
+				vspecifier,
+				dependencies: bundle.dependencies,
+				exports: bundle.exports,
+				ims: [],
+				composition: 'packaged',
+				stars: bundle.stars,
+				inputs: bundle.inputs,
+				compiler: bundle.compiler
+			};
+		}
+
+		const changed = !equal({ errors: this.#errors, hash: this.#output?.hash }, { errors, hash: output?.hash });
+		this.#errors = errors;
+		this.#output = output;
+		this.#artifact = artifact;
+		return changed;
+	}
+}

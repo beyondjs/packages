@@ -72,7 +72,7 @@ export /*bundle*/ interface IArtifact {
 	 * The artifact file and its update file, relative to the artifacts directory
 	 */
 	file: string;
-	patch: string;
+	patch?: string;
 
 	/**
 	 * The hash of the artifact code. It changes when the emitted code changes, so consumers and caches
@@ -90,6 +90,28 @@ export /*bundle*/ interface IArtifact {
 	 * which creators an update replaces
 	 */
 	ims: { id: string; hash: number }[];
+
+	/**
+	 * Which mode produced the artifact. A `creators` artifact registers its internal modules in the Beyond
+	 * runtime and has an update file; a `packaged` one is a self-contained ES module, with no internal
+	 * modules and no update file. Consumers must not assume one from the other.
+	 */
+	composition: 'creators' | 'packaged';
+
+	/**
+	 * Public modules a packaged artifact re-exports with `export *`; their names are not in `exports`
+	 */
+	stars?: string[];
+
+	/**
+	 * The source files bundled into a packaged artifact, relative to its module directory
+	 */
+	inputs?: string[];
+
+	/**
+	 * The compiler that produced a packaged artifact, as its bundler resolved it
+	 */
+	compiler?: { specifier: string; version: string; location?: string; assigned: boolean; provenance?: Record<string, unknown> };
 
 	dependencies: IArtifactDependency[];
 }

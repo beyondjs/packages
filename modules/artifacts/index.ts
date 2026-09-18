@@ -123,10 +123,14 @@ export /*bundle*/ class Artifacts {
 			subpath,
 			conditions: this.#options.conditions,
 			file,
-			patch,
+			patch: conditional.patch ? patch : void 0,
 			hash: conditional.output.hash,
 			exports: assembled.exports,
 			ims: assembled.ims,
+			composition: assembled.composition ?? 'creators',
+			stars: assembled.stars,
+			inputs: assembled.inputs,
+			compiler: assembled.compiler,
 			dependencies: compilation.dependencies
 		};
 	}

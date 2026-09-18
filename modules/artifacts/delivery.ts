@@ -37,9 +37,10 @@ export /*bundle*/ interface IDelivered {
 	code: (sourcemap: 'inline' | 'none') => string;
 
 	/**
-	 * The update of an already loaded module, which carries its source map inline
+	 * The update of an already loaded module, which carries its source map inline. A packaged module has
+	 * none: there is nothing to patch in place, so the value is undefined.
 	 */
-	patch: () => string;
+	patch: () => string | undefined;
 }
 
 /**
@@ -141,7 +142,7 @@ export /*bundle*/ class Delivery {
 				hash: conditional.output.hash,
 				dependencies: compilation.dependencies,
 				code: sourcemap => conditional.output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
-				patch: () => conditional.patch.code('sourcemap-inline')
+				patch: () => conditional.patch?.code('sourcemap-inline')
 			}
 		};
 	}
