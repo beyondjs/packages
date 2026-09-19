@@ -1,5 +1,7 @@
 # @beyond-js/packages
 
+For CDN integration, read the [required compiler/resolver contract](docs/cdn-contract.md) and [source evidence](docs/reviews/2026-09-19-cdn-readiness.md). Existing development builders are reusable, but the three-stage CDN pipeline needs additional capabilities.
+
 Packages is the Beyond packaging implementation written in Beyond. It models workspaces, packages, public modules, bundlers, conditional outputs and processors. Packages also owns Dev Server/File API, consumed by standalone CLI and Workspace; the independent CDN consumes shared compiler/artifact capabilities. Workspace central administration owns teams/permissions/resources and Docker lifecycle, never delegated to per-project role databases.
 
 The existing Engine generation compiles Packages implementation modules; modern BEE Node loads their ECMAScript output. Packages then compiles the target packages itself: it discovers their public modules, selects their bundler and conditions, and assembles executable artifacts that keep their public references and can be updated one source file at a time. HTTP delivery, widgets, styles, declarations and the complete update loop still require integration.

@@ -1,10 +1,12 @@
 # Architecture and bundlers SDK
 
+The [CDN integration contract](cdn-contract.md) distinguishes existing builders and development HTTP delivery from required independent analysis, immutable inventories and published adapter parity. Historical fixture limitations below do not negate current Delivery/Declarations capabilities.
+
 The [Dev Server/File API contract](development-server.md) assigns these services to Packages, including source revisions, external changes and events. Workspace owns central administration and Docker placement/access; project containers validate delegated authorization without owning users/roles. Preserve existing public compatibility; inspector is not a separate product component.
 
 Packages turns package/module specifications into conditional artifacts through collaborating objects. Workspace and Package own discovery and configuration; registered bundler implementations select module behavior; conditionals select platform/environment; processors transform sources into outputs. HTTP and other consumers must obtain those outputs through the same object model.
 
-The implementation includes source collections, delegated processing, maps and diagnostics. Final assembly, validity propagation and development integration remain incomplete. This guide describes existing APIs and limitations; [development](development.md) defines the intended service and widget acceptance criteria, and [programming](programming.md) explains authoring conventions.
+The implementation includes source collections, delegated processing, ESM assembly, maps, diagnostics and Delivery-backed development integration. Complete CDN analysis, npm compatibility, style/asset outputs and semantic Diagnostics remain required work. This guide describes existing APIs and limitations; [development](development.md) defines the intended service and widget acceptance criteria, and [programming](programming.md) explains authoring conventions.
 
 ## Control and data flow
 
@@ -21,7 +23,7 @@ The implementation includes source collections, delegated processing, maps and d
 | Processing | Each ConditionalProcessor owns settings, specification, sources and a fresh output container per build |
 | Conditional result | A concrete conditional assembles or directly produces ConditionalOutput |
 | Artifact | [ESMConditional](../modules/sdk/conditional/esm/index.ts) assembles the internal modules into the executable artifact of the module and its update |
-| Consumer | [Artifacts](../modules/artifacts/index.ts) writes the artifacts of a workspace with an import map; the HTTP route still uses a stub rather than this object graph |
+| Consumer | [Artifacts](../modules/artifacts/index.ts) writes the artifacts of a workspace with an import map; [Delivery](../modules/artifacts/delivery.ts) compiles selected modules for the development HTTP adapter |
 
 This is an ownership/dependency path, not a single synchronous function. Readiness at one stage does not establish readiness or semantic validity of all descendants.
 
@@ -55,7 +57,7 @@ Its constructor `(module, conditions, strategy?)` permits a replacement `Process
 
 ## Processor creation, settings and lifecycle
 
-[ConditionalProcessors](../modules/sdk/conditional/processors/base/index.ts) invokes `_processors()`, resolves each implementation, and constructs `new Processor(conditional, name)`. Both the bundler and [processor importers](../modules/sdk/conditional/processors/base/importer.ts) hardcode development bimport loading. A public class called `Module` or `Processor` is required respectively. These are separate aliases/imports, not a function taking arbitrary input bytes.
+[ConditionalProcessors](../modules/sdk/conditional/processors/base/index.ts) invokes `_processors()`, resolves each implementation, and constructs `new Processor(conditional, name)`. The bundler and [processor importers](../modules/sdk/conditional/processors/base/importer.ts) use native dynamic imports under the running loader. A public class called `Module` or `Processor` is required respectively. These are separate aliases/imports, not a function taking arbitrary input bytes.
 
 [ConditionalProcessor](../modules/sdk/conditional/processor/index.ts) takes `(conditional, name, strategy)`. Strategy supplies Settings/Spec overrides, source strategy and optional delegation names. It creates child processors for configuration and sources. Its extension points are:
 
@@ -173,7 +175,7 @@ Only out.js and its map are collected; CSS siblings are not. The build uses `pla
 | [new hello assertion](../tests/hello/index.mjs) | Asserts Engine-produced HTTP ESM through BEE Node; it does not execute the newer SDK packaging path |
 | [stage-1 validation](../tests/stage-1/README.md) | Executes this path end to end on two packages: declaration, bundler selection, conditions, assembly, artifacts, dependency resolution, watched rebuilding and the update of a running consumer, with the corresponding failure cases |
 | [esbuild packaging trial](../tests/esbuild-packaging/README.md) | Executes the esbuild bundler on copies of the testbed: resolved compiler identity, per-module mode selection in both directions, a production conditional and a watched development rebuild with its reload boundary |
-| [HTTP module route](../modules/http/routes/modules/index.ts) | Parses options and returns a generated hello stub; it does not resolve Package/Module/ConditionalOutput |
+| [HTTP module route](../modules/http/routes/modules/index.ts) | Uses the artifact-api codec and Delivery for workspace development ESM; rejects unsupported outputs explicitly |
 
 The stage-1 validation is the current reference consumer. The three older bundler fixtures use legacy BEE with server port 1110 and inspector 4000, log results, and catch errors without assertion-based failure handling. The TS and hello-world fixture package manifests still use top-level modules, conflicting with the newer finder. These fixtures are evidence of intended consumption, not passing end-to-end tests. HTTP headers advertising maps/DTS/CSS are also not proof those outputs exist or are served.
 
@@ -215,6 +217,6 @@ Public references are resolved against the workspace by [Dependencies](../module
 
 Updates of composed modules are delivered by a provisional route of [the HTTP routes](../modules/http/routes/updates/index.ts), `GET /u/<hash>/[<registry>/]<package>@<version>/modules/<subpath>?<options>`, mounted with the compiled-module routes wherever a delivery is given. `<hash>` is the artifact hash that a `build.ended` event of the [development module](development-contract.md) announced, so every update has its own URL and a notification that is no longer current is refused (`409 UPDATE_SUPERSEDED`) instead of being answered with newer code; a module that is not composed at runtime has none (`404 UPDATE_NOT_APPLICABLE`). The rest of the path and the options are read with the codec of the compiled-module contract, but the route is deliberately outside `/m/` and answers its own errors: that contract is a shared specification that does not describe updates, and whether it should is its owner's decision. The development runtime is the client: it subscribes to `/events`, reads `/session` and imports these URLs.
 
-An artifact service that answers requests, rather than writing files, is still to be exposed. It must resolve explicit package/workspace context, public subpath, target/environment and output kind; await the selected conditional; surface diagnostics; and return actual code/map/type/style output with its identity. HTTP adapters should consume it without duplicating packaging logic.
+`Delivery` already answers development module requests through the shared artifact-api HTTP adapter. Complete type/style/asset and published release delivery are separate required extensions; see the [CDN contract](cdn-contract.md). CDN uses a distinct retrieval-only adapter and must not compile on a miss.
 
 The local development server owns watcher bootstrap, request defaults, update publication and application bootstrap. An independent CDN consumer owns its storage, caching, authorization, session policy and deployment. Library imports must not implicitly start those services. Preserve public bare references and select runtime/editor resolution consistently. The [development guide](development.md) describes the remaining HTTP, widget, types, style and HMR work.

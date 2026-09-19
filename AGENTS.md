@@ -1,5 +1,7 @@
 # packages agent instructions
 
+For CDN v1 work, read the [maintained implementation contract](docs/cdn-contract.md); preserve its stage boundaries and distinguish approved scope from source evidence and unvalidated capabilities.
+
 Canonical instructions for this repository and its descendants. Tool-specific files must only reference AGENTS.md. This is an independent Git repository; the current coordinated branch is `feature/next`.
 
 Packages is a Beyond-authored packaging implementation and owns Dev Server/File API. Read [the service ownership contract](docs/development-server.md): reuse compiler/graphs and legacy capabilities, validate delegated access without per-container roles authority. Workspace owns frontend and central administration; Docker is required for Workspace projects locally/cloud, not standalone CLI. Read [development](docs/development.md), [architecture and SDK](docs/architecture.md) and [programming conventions](docs/programming.md) before changing its contracts. Engine compiles/serves the implementation as ESM for modern BEE Node execution; Packages itself must compile/serve the target widget app and shared module. Legacy-BEE fixtures do not select a different runtime. Preserve public/internal module boundaries and the runtime, types, styles and HMR acceptance criteria described locally.
