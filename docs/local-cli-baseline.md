@@ -8,6 +8,12 @@ BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" tests/c
 
 It runs like [the first-stage validation](../tests/stage-1/README.md), from this directory and with the implementation served by Engine, but it needs no watchers service and never edits the suite testbed.
 
+## Development and distribution
+
+Beyond supports both live development serving and compilation into distributable packages for publication and consumption, including npm. Consumers of a compiled package must not need its author's running Dev Server; required runtime dependencies and resources remain part of the distribution contract. Packages itself follows the same principle.
+
+The validation described here loads Packages from an Engine development server. It proves the stated local execution capabilities, not an Engine-independent compiled Packages release. The initial CLI automates that bootstrap, which is transitional and must remain separate from the service lifecycle. A compiled Packages installation must eventually run without Engine serving Packages itself, while Packages' own Dev Server continues to serve the target application. Neither self-compilation nor registry publication is necessary to test a prepared distribution; its build, installation and execution require separate evidence.
+
 ## Authoring forms
 
 Every form leads to the same public module. The manifests below are complete: nothing else is configured.
