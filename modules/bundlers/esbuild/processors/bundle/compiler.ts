@@ -1,7 +1,7 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { createRequire } from 'module';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { dirname, isAbsolute, join, resolve } from 'path';
 import { existsSync, readFileSync } from 'fs';
 
 /**
@@ -21,9 +21,17 @@ export interface ICompilerIdentity {
  *
  * "bundlers": { "esbuild": { "specifier": "…/bundlers/esbuild", "processors": { "bundle": { "compiler": "…" } } } }
  *
- * The value is a module specifier that the loader of the running process resolves: an installed package
- * name or a `file:` URL. There is no default and no fallback, because an artifact must be able to say which
- * compiler built it; a module that does not select one reports it.
+ * The value names one compiler, in one of these forms:
+ *
+ * - an installed package name or a `file:` URL, which the loader of the running process resolves;
+ * - a path starting with `./` or `../`, resolved against the root of the package that declares it, so a
+ *   manifest can name a build that sits at a known place beside it;
+ * - `env:NAME`, the value of that environment variable, which must be an absolute path, a `file:` URL or a
+ *   package name. It lets one manifest be used where checkouts are placed differently.
+ *
+ * There is no default and no fallback, because an artifact must be able to say which compiler built it: a
+ * module that selects none, or names a variable that is not set, reports it. The identity keeps the value as
+ * declared next to the location it resolved to.
  */
 export class Compiler {
 	static #loaded: Map<string, Promise<Compiler>> = new Map();
@@ -43,24 +51,51 @@ export class Compiler {
 		return this.#error;
 	}
 
-	static load(specifier: string): Promise<Compiler> {
-		!this.#loaded.has(specifier) && this.#loaded.set(specifier, new Compiler().#load(specifier));
-		return this.#loaded.get(specifier);
+	/**
+	 * @param declared The value of the setting
+	 * @param root The root of the package that declares it, which relative values are resolved against
+	 */
+	static load(declared: string, root: string): Promise<Compiler> {
+		// A relative value names a different file in each package, and a variable can change between runs
+		const variable = typeof declared === 'string' && declared.startsWith('env:') ? process.env[declared.slice(4)] : '';
+		const key = JSON.stringify([declared, root, variable]);
+
+		!this.#loaded.has(key) && this.#loaded.set(key, new Compiler().#load(declared, root));
+		return this.#loaded.get(key);
 	}
 
-	async #load(specifier: string): Promise<this> {
-		if (!specifier || typeof specifier !== 'string') {
-			const message = 'The esbuild bundler requires "processors.bundle.compiler" in its package settings';
-			this.#error = { code: 'COMPILER_NOT_SELECTED', message };
-			return this;
+	/**
+	 * The specifier to import for a declared value, or the reason why it selects nothing
+	 */
+	#select(declared: string, root: string): string | undefined {
+		const none = (message: string) => void (this.#error = { code: 'COMPILER_NOT_SELECTED', message });
+
+		if (!declared || typeof declared !== 'string') {
+			return none('The esbuild bundler requires "processors.bundle.compiler" in its package settings');
 		}
+		if (/^\.\.?\//.test(declared)) return pathToFileURL(resolve(root, declared)).href;
+		if (!declared.startsWith('env:')) return declared;
+
+		const name = declared.slice(4);
+		const value = process.env[name];
+		if (!value) return none(`The compiler is selected as "${declared}", but the environment variable "${name}" is not set`);
+		if (isAbsolute(value)) return pathToFileURL(value).href;
+		if (/^\.\.?\//.test(value) || value.startsWith('env:')) {
+			return none(`The environment variable "${name}" must hold an absolute path, a "file:" URL or a package name`);
+		}
+		return value;
+	}
+
+	async #load(declared: string, root: string): Promise<this> {
+		const specifier = this.#select(declared, root);
+		if (!specifier) return this;
 
 		try {
 			const imported = await import(specifier);
 			this.#api = imported.default?.build ? imported.default : imported;
 			if (typeof this.#api?.build !== 'function') throw new Error('It does not expose "build"');
 		} catch (exc) {
-			this.#error = { code: 'COMPILER_IMPORT_ERROR', message: `Compiler "${specifier}" cannot be used: ${exc.message}` };
+			this.#error = { code: 'COMPILER_IMPORT_ERROR', message: `Compiler "${declared}" cannot be used: ${exc.message}` };
 			return this;
 		}
 
@@ -71,7 +106,8 @@ export class Compiler {
 			.catch(() => false);
 
 		const location = this.#locate(specifier);
-		this.#identity = { specifier, version: this.#api.version, location, assigned, provenance: this.#provenance(location) };
+		// The value as declared, next to where it resolved to
+		this.#identity = { specifier: declared, version: this.#api.version, location, assigned, provenance: this.#provenance(location) };
 		return this;
 	}
 

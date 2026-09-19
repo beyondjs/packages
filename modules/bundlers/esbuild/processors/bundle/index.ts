@@ -75,7 +75,7 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 		};
 
 		const { module, platform, environment } = this.conditional;
-		const compiler = await Compiler.load((<{ compiler?: string }>this.settings.values).compiler);
+		const compiler = await Compiler.load((<{ compiler?: string }>this.settings.values).compiler, module.package.path);
 		if (compiler.error) return done(void 0, [compiler.error]);
 		if (!module.spec.entry) {
 			return done(void 0, [{ code: 'MODULE_ENTRY_MISSING', message: `Module "${module.spec.subpath}" does not define its entry point` }]);

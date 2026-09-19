@@ -56,6 +56,11 @@ export /*bundle*/ interface IESMArtifact {
 	composition?: 'creators' | 'packaged';
 
 	/**
+	 * The runtime public module a `creators` artifact imports. A packaged artifact has none.
+	 */
+	runtime?: string;
+
+	/**
 	 * The public modules a packaged artifact re-exports with `export *`, whose names are not listed in `exports`
 	 */
 	stars?: string[];
@@ -238,7 +243,15 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		const subpath = module.spec.subpath.replace(/^\.\/?/, '');
 		const vspecifier = subpath ? `${pkg.vname}/${subpath}` : pkg.vname;
 
-		const assembler = new Assembler({ vspecifier, entry: id, ims });
+		// A package selects the runtime its composed modules are written against in the settings of the bundler
+		const { runtime } = <{ runtime?: unknown }>(module.bundler?.settings ?? {});
+		if (runtime !== void 0 && (typeof runtime !== 'string' || !runtime)) {
+			const code = 'RUNTIME_INVALID';
+			const message = `The "runtime" setting of bundler "${module.bundler.specifier}" must be the specifier of a public module`;
+			return done({ errors: [{ code, message }] });
+		}
+
+		const assembler = new Assembler({ vspecifier, entry: id, ims, runtime: <string>runtime });
 		if (assembler.errors.length) return done({ errors: assembler.errors });
 
 		const output = new ConditionalOutput();
@@ -249,6 +262,7 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 
 		const artifact: IESMArtifact = {
 			vspecifier,
+			runtime: assembler.runtime,
 			dependencies: assembler.dependencies,
 			exports: assembler.exports,
 			ims: assembler.ims.map(({ id, hash }) => ({ id, hash }))

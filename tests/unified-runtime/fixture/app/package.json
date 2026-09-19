@@ -1,0 +1,22 @@
+{
+	"name": "@fixture/app",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Unified-runtime validation: a composed public module that consumes @fixture/shared/text through a bare reference",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"dependencies": {
+		"@fixture/shared": "0.1.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

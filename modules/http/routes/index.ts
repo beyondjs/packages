@@ -2,6 +2,7 @@ import type { Application, Request, Response, NextFunction } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, Schema } from '@beyond-js/artifact-api';
 import { ModulesRoutes } from './modules';
+import { UpdatesRoutes } from './updates';
 
 /**
  * The HTTP building blocks of the compiled-module API, mounted on an Express application that the caller
@@ -20,6 +21,9 @@ export /*bundle*/ class Routes {
 		);
 
 		delivery && ModulesRoutes.setup(app, delivery);
+
+		// Provisional: the updates of composed modules, outside the namespace of the compiled-module contract
+		delivery && UpdatesRoutes.setup(app, delivery);
 	}
 
 	/**

@@ -30,10 +30,10 @@ BEYOND_ESBUILD=/absolute/path/to/beyond-esbuild BEE_URL=http://localhost:1112 WA
   node --import "$BEE_NODE_DIR/register.mjs" tests/esbuild-packaging/index.mjs
 ```
 
-Expected: `7/7 steps passed`. Restart the Engine that serves this implementation after adding or removing a module directory, and allow it to finish compiling before the first run.
+Expected: `8/8 steps passed`. Restart the Engine that serves this implementation after adding or removing a module directory, and allow it to finish compiling before the first run.
 
-The compiler is selected by location, as a `file:` URL in `bundlers.esbuild.processors.bundle.compiler` of the fixture copies. Nothing is installed into this repository and its `esbuild` dependency is not changed.
+The compiler is selected by location in `bundlers.esbuild.processors.bundle.compiler` of the fixture copies: as a `file:` URL in most steps, and in one step as a path relative to the declaring package and as `env:NAME`, whose unset or relative value is refused with `COMPILER_NOT_SELECTED`. Nothing is installed into this repository and its `esbuild` dependency is not changed.
 
 ## Not covered
 
-Browser execution of these artifacts; styles, types and HTTP delivery; the closure identity and the split build of shared package files that the fork's fixtures use; framework source and CommonJS adapters; published-package distribution, which is the separate `exports` bundler; switching the mode of a module that is already running; the unified runtime, since composed modules here run on the installed legacy Kernel.
+Browser execution of these artifacts; styles, types and HTTP delivery; the closure identity that the fork's fixtures use; packages whose public modules share private files, which the fork reports as unsupported because Beyond divides code by public module only and nothing is split further; framework source and CommonJS adapters; published-package distribution, which is the separate `exports` bundler; switching the mode of a module that is already running; the unified runtime, since composed modules here run on the installed legacy Kernel.

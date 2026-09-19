@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/shared",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Unified-runtime validation: a composed public module with a re-export, a stateful internal module and a value captured at evaluation",
+	"exports": {
+		"./text": "./text/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

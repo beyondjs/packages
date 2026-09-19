@@ -60,13 +60,15 @@ export class Fixture {
 
 	/**
 	 * @param modes The bundler of each module: `{ shared: 'esbuild' | 'ts', app: 'esbuild' | 'ts' }`
-	 * @param compiler The compiler specifier of the esbuild bundler, or undefined to leave it unselected
+	 * @param compiler The compiler setting of the esbuild bundler, a function that computes it from the root
+	 * of the copy (its two packages sit at the same depth), or undefined to leave it unselected
 	 */
 	async create(modes, compiler) {
 		this.#root = await realpath(await mkdtemp(join(tmpdir(), 'beyond-esbuild-trial-')));
 		await cp(testbed, this.#root, { recursive: true, filter: source => !source.includes('/.artifacts') });
 
-		const processors = compiler ? { bundle: { compiler } } : {};
+		const selected = typeof compiler === 'function' ? compiler(this.#root) : compiler;
+		const processors = selected ? { bundle: { compiler: selected } } : {};
 		for (const [location, module] of [['shared', 'message'], ['app', 'main']]) {
 			await json(join(this.#root, location, 'package.json'), manifest => {
 				manifest.bundlers.esbuild = { specifier: '@beyond-js/packages/bundlers/esbuild', processors };

@@ -6,10 +6,11 @@ import { builtinModules } from 'module';
 import { satisfies, valid } from 'semver';
 
 /**
- * The runtime public module. Every artifact imports it, so it is classified apart from the dependencies
- * between workspace packages and is never version-checked.
+ * The runtime public module of an artifact that does not name its own. A composed artifact imports its
+ * runtime, so it is classified apart from the dependencies between workspace packages and is never
+ * version-checked, also when the workspace itself provides it.
  */
-const KERNEL = '@beyond-js/kernel/bundle';
+const RUNTIME = '@beyond-js/kernel/bundle';
 
 /**
  * Resolves the public bare specifiers that the artifacts of a workspace require.
@@ -33,12 +34,13 @@ export class Dependencies {
 	 * @param pkg The package that owns the artifact
 	 * @param specifiers The bare specifiers collected from its internal modules
 	 * @param errors Collects the diagnostics of the specifiers that cannot be satisfied
+	 * @param runtime The runtime public module the artifact was assembled against, when it names one
 	 */
-	async resolve(pkg: Package, specifiers: string[], errors: IDiagnostic[]): Promise<IArtifactDependency[]> {
+	async resolve(pkg: Package, specifiers: string[], errors: IDiagnostic[], runtime = RUNTIME): Promise<IArtifactDependency[]> {
 		const resolved: IArtifactDependency[] = [];
 
 		for (const specifier of specifiers) {
-			if (specifier === KERNEL) {
+			if (specifier === runtime) {
 				resolved.push({ specifier, source: 'runtime' });
 				continue;
 			}

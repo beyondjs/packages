@@ -106,7 +106,7 @@ Installing today's archives proves relocation and an automated bootstrap. It is 
 ## Known limits
 
 - Source read/write, revisions, events and reconnection belong to the [development contract](development-contract.md) and are not implemented by this service; it is the artifact, selection, state and lifecycle slice. A host adds them by naming the public module `@beyond-js/packages/development` in `extensions`.
-- Updates are not pushed to consumers and patches are not served over HTTP. A consumer started after an edit loads rebuilt code; that is not HMR.
+- The service itself pushes nothing to consumers. With the development extension it announces builds on `/events`, and the updates of composed modules are served by the provisional `/u/` route of the HTTP routes; a consumer that registers the service in the development runtime applies them while it runs, which [the unified-runtime validation](../tests/unified-runtime/README.md) executes for Node consumers. Without that runtime, a consumer started after an edit loads rebuilt code; that is not HMR. The session and the builds describe Node modules only, so browsers are not served updates.
 - One defect of an installed utility is contained in [processors.mjs](../service/host/processors.mjs): the slow-processor warning of `@beyond-js/dynamic-processor` 1.0.8 throws. User impact without the containment: the service would end whenever a processor took more than five seconds. The utility's source is repaired; the containment stays until a published version is depended on.
 - The host must not be given an IPC channel: the implementation's IPC utility takes a process that has one for a child of its own router.
 - Validated on macOS; process groups are POSIX, and Windows was not exercised.

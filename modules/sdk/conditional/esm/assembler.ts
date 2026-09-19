@@ -5,9 +5,10 @@ import { header } from './header';
 import { posix } from 'path';
 
 /**
- * The runtime public module, which every artifact imports to create or obtain its package
+ * The runtime public module an artifact imports to create or obtain its package, unless its bundler selects
+ * another one. It is the legacy Kernel, which is what existing consumers have installed.
  */
-const KERNEL = '@beyond-js/kernel/bundle';
+const RUNTIME = '@beyond-js/kernel/bundle';
 
 /**
  * The names an artifact declares for the runtime at its top level, which a public export cannot take:
@@ -19,6 +20,11 @@ interface IParams {
 	vspecifier: string;
 	entry: string;
 	ims: IInternalModule[];
+
+	/**
+	 * The public module that implements the runtime contract the artifact is written against
+	 */
+	runtime?: string;
 }
 
 /**
@@ -46,6 +52,15 @@ interface IParams {
 export class Assembler {
 	#vspecifier: string;
 	#entry: string;
+
+	#runtime: string;
+
+	/**
+	 * The runtime public module the artifact imports
+	 */
+	get runtime() {
+		return this.#runtime;
+	}
 
 	#ims: IInternalModule[];
 
@@ -79,9 +94,10 @@ export class Assembler {
 		return this.#exports;
 	}
 
-	constructor({ vspecifier, entry, ims }: IParams) {
+	constructor({ vspecifier, entry, ims, runtime }: IParams) {
 		this.#vspecifier = vspecifier;
 		this.#entry = entry;
+		this.#runtime = runtime ?? RUNTIME;
 
 		/**
 		 * Internal modules, dependencies and exports are ordered by identity so that the emitted code, and
@@ -159,7 +175,8 @@ export class Assembler {
 		const add = (code: string) => concat.add(null, code);
 
 		// 1. The runtime and the public dependencies, imported by bare specifier
-		const dependencies = [KERNEL, ...this.#dependencies.filter(dependency => dependency !== KERNEL)];
+		const runtime = this.#runtime;
+		const dependencies = [runtime, ...this.#dependencies.filter(dependency => dependency !== runtime)];
 		dependencies.forEach((dependency, index) => add(`import * as dependency_${index} from '${dependency}';`));
 		add('');
 
@@ -180,7 +197,7 @@ export class Assembler {
 		// The dependency namespaces that the internal requires of bare specifiers resolve to
 		const registrations = dependencies
 			.map((dependency, index) => ({ dependency, index }))
-			.filter(({ dependency }) => dependency !== KERNEL)
+			.filter(({ dependency }) => dependency !== runtime)
 			.map(({ dependency, index }) => `['${dependency}', dependency_${index}]`);
 		add(`__pkg.dependencies.update([${registrations.join(', ')}]);`);
 		add('');

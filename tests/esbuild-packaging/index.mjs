@@ -9,7 +9,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Artifacts } from '@beyond-js/packages/artifacts';
@@ -71,6 +71,31 @@ try {
 		assert.ok(missing.report.errors.some(({ code }) => code === 'COMPILER_IMPORT_ERROR'));
 		assert.equal(missing.artifact('@suite/shared/message'), undefined);
 		return 'COMPILER_NOT_SELECTED, COMPILER_IMPORT_ERROR';
+	});
+
+	await step('compiler: a location relative to the declaring package, or named by a variable, selects the same fork', async () => {
+		const modes = { shared: 'esbuild', app: 'ts' };
+		const beside = await build(await fixture(modes, root => relative(join(root, 'shared'), fork.file)), { platform: 'node' });
+		assert.deepEqual(beside.report.errors, []);
+		const declared = beside.artifact('@suite/shared/message').compiler;
+		assert.match(declared.specifier, /^\.\.\//, 'The identity keeps the value as the manifest declares it');
+		assert.deepEqual([declared.location, declared.assigned, declared.version], [fork.file, true, await fork.version()]);
+
+		// Packages runs in this process, so the variable is read where the processor reads it
+		process.env.BEYOND_TRIAL_COMPILER = fork.file;
+		const named = await build(await fixture(modes, 'env:BEYOND_TRIAL_COMPILER'), { platform: 'node' });
+		assert.deepEqual(named.report.errors, []);
+		const variable = named.artifact('@suite/shared/message').compiler;
+		assert.deepEqual([variable.specifier, variable.location, variable.assigned], ['env:BEYOND_TRIAL_COMPILER', fork.file, true]);
+
+		for (const [value, expected] of [[undefined, /"BEYOND_TRIAL_COMPILER" is not set/], ['../elsewhere/main.js', /must hold an absolute path/]]) {
+			value === undefined ? delete process.env.BEYOND_TRIAL_COMPILER : (process.env.BEYOND_TRIAL_COMPILER = value);
+			const refused = await build(await fixture(modes, 'env:BEYOND_TRIAL_COMPILER'), { platform: 'node' });
+			assert.ok(refused.report.errors.some(({ code, message }) => code === 'COMPILER_NOT_SELECTED' && expected.test(message)));
+			assert.equal(refused.artifact('@suite/shared/message'), undefined, 'Nothing is built with a substitute');
+		}
+		delete process.env.BEYOND_TRIAL_COMPILER;
+		return `relative "${declared.specifier.slice(0, 12)}…" and env: both resolve to the fork; unset or relative variable is COMPILER_NOT_SELECTED`;
 	});
 
 	await step('compiler: selecting the upstream dependency is reported as upstream, and packages the module too', async () => {

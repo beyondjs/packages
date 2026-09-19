@@ -107,7 +107,8 @@ export /*bundle*/ class Compilation {
 		}
 
 		this.#conditional = conditional;
-		this.#resolved = await this.#dependencies.resolve(this.#pkg, conditional.artifact.dependencies, this.#errors);
+		const { dependencies, runtime } = conditional.artifact;
+		this.#resolved = await this.#dependencies.resolve(this.#pkg, dependencies, this.#errors, runtime);
 		return this;
 	}
 }
