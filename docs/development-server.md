@@ -16,6 +16,12 @@ Workspace project Docker installs Packages and pinned tools in local and cloud m
 
 CDN consumes the same packaging/artifact capabilities under immutable release/delivery policy. Do not make CDN production depend on a mutable working tree or live development environment. Template source/guidance/config may record compatibility but never copy this server or central administration implementation.
 
+## Local storage
+
+Saved project files, manifests and uncommitted work remain on the local filesystem: Workspace mounts a durable project volume in Docker, while standalone CLI uses a local directory without requiring Docker. Workspace central administration owns its separate product catalog and PostgreSQL migration.
+
+In the traced service path, Packages graphs, file/event indexes and delivery output live in memory and rebuild locally; explicit artifact builds write their configured output. SQLite is permitted for local development cache, but the optional persistence source was not proved initialized by the current service/bootstrap/Workspace/Delivery path. Project files and development caches remain local rather than becoming Supabase data. Preserve this storage model in local and cloud Workspace environments.
+
 ## Synchronization and durability contract
 
 Define source revisions, expected-write checks, external-write race handling and multi-file visibility. API-only locks do not serialize tools writing directly to disk. Create/change/delete/rename must reconcile trees and existing Packages invalidation, not a second graph. Realtime is primary; polling/manual refresh must inspect authoritative state when watcher events are missed. Replay valid cursors or snapshot/rescan after gaps/restart; no lossless watcher guarantee.
