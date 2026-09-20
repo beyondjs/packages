@@ -2,6 +2,7 @@ import type { IDiagnostic, IManifestModuleSpec } from '@beyond-js/packages/types
 import type { ModuleExports } from './exports';
 import type { ModuleManifests } from './manifests';
 import { ModuleSpec } from '@beyond-js/packages/module/spec';
+import { posix } from 'path';
 
 /**
  * One public module of a package, as declared by the package exports, by a module manifest, or by both
@@ -97,12 +98,29 @@ export class Declarations extends Map<string, IDeclaration> {
 				 */
 				const values = { entry: entry.entry };
 				this.set(subpath, { subpath, bundler: void 0, path: entry.path, values, sources: ['exports'] });
+			} else if (this.#stylesheet(spec.values)) {
+				/**
+				 * A stylesheet target declares a style public module: it is published and traced like any
+				 * module, and delivered as a stylesheet instead of code
+				 */
+				const { path, entry } = this.#stylesheet(spec.values);
+				this.set(subpath, { subpath, bundler: 'exports', path, values: { entry, kind: 'style' }, sources: ['exports'] });
 			} else {
 				// Any other target is an export of the package, packaged as such and not compiled from sources
 				const values = <Record<string, any>>spec.values;
 				this.set(subpath, { subpath, bundler: 'exports', values, sources: ['exports'] });
 			}
 		}
+	}
+
+	/**
+	 * The directory and the file of an exports target that is a stylesheet inside the package
+	 */
+	#stylesheet(target: unknown): { path: string; entry: string } | undefined {
+		if (typeof target !== 'string' || !target.startsWith('./') || posix.extname(target) !== '.css') return;
+		const normalized = posix.normalize(target);
+		if (normalized.startsWith('..')) return;
+		return { path: posix.dirname(normalized).replace(/^\.\/?/, ''), entry: posix.basename(normalized) };
 	}
 
 	/**

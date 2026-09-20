@@ -1,54 +1,79 @@
 import type { Node } from '../../../../node';
-import { intersects, maxSatisfying } from 'semver';
+import { satisfies, rcompare } from 'semver';
 
-export class Group extends Array<Node> {
+/**
+ * Picks versions of one package out of those published: the ones that satisfy every range of a set, and
+ * the preferred one among them (a pinned release first, the highest otherwise).
+ */
+export class Candidates {
 	#versions: string[];
+	#pinned: Set<string>;
 
-	// Current chosen version
-	#chosen: string;
-	get chosen() {
-		return this.#chosen;
-	}
-
-	constructor(versions: string[]) {
-		super();
-		this.#versions = versions;
-	}
-
-	intersects(version: string) {
-		return this.reduce((valid, { version: { resolved } }) => valid && intersects(version, resolved), true);
+	constructor(versions: string[], pinned: string[]) {
+		this.#versions = [...versions].sort(rcompare);
+		this.#pinned = new Set(pinned);
 	}
 
 	/**
-	 * Calculates the max version of the group and update the nodes of the group if it has changed
+	 * Versions in the intersection of the ranges, highest first. Each range is tested on its own, which
+	 * is what makes an alternative (`^1 || ^2`) intersect correctly with another range.
 	 */
-	#updateMax() {
-		const items = this.map(node => node.version.specified).join(' ');
+	of(ranges: string[]): string[] {
+		return this.#versions.filter(version => ranges.every(range => satisfies(version, range)));
+	}
 
-		const chosen = maxSatisfying(this.#versions, items)!;
+	best(ranges: string[]): string | undefined {
+		const candidates = this.of(ranges);
+		return candidates.find(version => this.#pinned.has(version)) || candidates[0];
+	}
+}
 
-		// If chosen version hasn't changed, just return
-		if (this.#chosen === chosen) return;
+/**
+ * Occurrences of one package whose ranges share at least one published version, and therefore share one
+ * release. Membership is decided on the full intersection of the ranges, never on the version that
+ * happened to be selected before.
+ */
+export class Group extends Array<Node> {
+	#candidates: Candidates;
+	#ranges: string[] = [];
 
-		this.#chosen = chosen;
+	// Peer requirements that constrain the group without being installed by it
+	#peers: Node[] = [];
+	get peers() {
+		return this.#peers;
+	}
 
-		// Update the new chosen version to all the nodes in the group
-		this.forEach(node => node.version.update({ version: chosen }));
+	/**
+	 * The release of the group: satisfies every member and every attached peer requirement
+	 */
+	get chosen(): string {
+		return this.#candidates.best(this.#ranges);
+	}
+
+	// Array methods that create arrays (map, filter) must not build groups
+	static get [Symbol.species]() {
+		return Array;
+	}
+
+	constructor(candidates: Candidates) {
+		super();
+		this.#candidates = candidates;
+	}
+
+	admits(range: string): boolean {
+		return this.#candidates.of([...this.#ranges, range]).length > 0;
 	}
 
 	register(node: Node) {
-		const { specified } = node.version;
-		if (!this.intersects(specified)) {
-			throw new Error(`Version "${specified}" doesn't intersect with current group`);
-		}
+		const { range } = node;
+		if (!this.admits(range)) throw new Error(`Version "${range}" doesn't intersect with current group`);
 
 		this.push(node);
-		node.version.update({ version: this.#chosen });
-		this.#updateMax();
+		this.#ranges.push(range);
 	}
 
-	unregister(node: Node) {
-		this.splice(this.indexOf(node), 1);
-		this.length && this.#updateMax();
+	attach(peer: Node) {
+		this.#peers.push(peer);
+		this.#ranges.push(peer.range);
 	}
 }

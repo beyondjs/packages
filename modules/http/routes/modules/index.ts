@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
-import { ContractError, ModulePath, Options } from '@beyond-js/artifact-api';
+import { ContractError, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
 import { Tag } from './helpers';
+import { Companions } from './companions';
 
 /**
  * The compiled-module routes of the shared contract, answered with the artifacts that Packages builds.
@@ -15,13 +16,30 @@ import { Tag } from './helpers';
 export class ModulesRoutes {
 	#delivery: Delivery;
 
+	#companions: Companions;
+
 	constructor(delivery: Delivery) {
 		this.#delivery = delivery;
+		this.#companions = new Companions(delivery, options => this.#supported(options));
 	}
 
 	static setup(app: Application, delivery: Delivery) {
 		const routes = new ModulesRoutes(delivery);
-		app.get('/m/*', (request, response, next) => routes.module(request, response, next));
+		app.get('/m/*', (request, response, next) => routes.resource(request, response, next));
+	}
+
+	/**
+	 * Sends a request to the family its path addresses. A module path is answered exactly as before the
+	 * sibling families existed; a path that cannot be read is reported by the module grammar.
+	 */
+	async resource(request: Request, response: Response, next: NextFunction) {
+		let kind = 'module';
+		try {
+			kind = ResourcePath.parse(request.path).kind;
+		} catch {
+			// The module handler reads the path again and reports the error of the contract
+		}
+		return kind === 'module' ? this.module(request, response, next) : this.#companions.answer(request, response, next);
 	}
 
 	/**

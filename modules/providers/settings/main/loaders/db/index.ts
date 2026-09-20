@@ -1,51 +1,59 @@
-import type { IProvidersSettings, IProviderData } from '@beyond-js/packages/providers/settings/types';
 import type { IProjectData } from '@beyond-js/packages/persistence/types/cdn';
-import { def } from '../../default';
+import { Layer } from '../../layer';
 
 /**
  * Firestore-based repository settings loader.
  */
-export class DbSettingsLoader implements IProvidersSettings {
-	#scopes: Map<string, IProviderData> = new Map();
-	get scopes() {
-		return this.#scopes;
+export class DbSettingsLoader {
+	#layer = new Layer('db');
+	get layer() {
+		return this.#layer;
 	}
-	#hosts: Map<string, IProviderData> = new Map();
-	get hosts() {
-		return this.#hosts;
-	}
-	#default: IProviderData = def;
-	get default() {
-		return this.#default;
+
+	#error?: { code: string; message: string };
+	/**
+	 * Set when the stored settings could not be read: the layer is then empty
+	 */
+	get error() {
+		return this.#error;
 	}
 
 	async load(project: string): Promise<void> {
-		const origin = 'db';
 		if (!project) throw new Error('Project ID is required to load CDN provider settings');
+		const layer = (this.#layer = new Layer('db'));
+		this.#error = void 0;
 
 		const { projects } = await import('@beyond-js/packages/persistence/cdn/db');
 		const response = await projects.data({ id: project });
 
-		// @TODO: handle errors
-		if (!response.error) return;
+		// The nominal path continues: this guard used to return when there was NO error
+		if (response.error) {
+			this.#error = { code: 'PROVIDER_SETTINGS_UNAVAILABLE', message: 'Stored provider settings failed to load' };
+			return;
+		}
 		if (response.data.error || !response.data.exists) return;
 
 		const data: IProjectData = response.data.data;
-		const settings = data.providers;
+		const settings: any = data.providers;
+		if (!settings) return;
 
-		// Apply default
-		if (settings.default) this.#default = { ...settings.default, origin };
-
-		// Apply scopes
-		const scopes = settings.scopes || {};
-		for (const scope in scopes) {
-			this.#scopes.set(scope, { ...scopes[scope], origin });
+		if (settings.default) {
+			settings.default.base && layer.default(settings.default.base);
+			settings.default.auth && layer.credentials(settings.default.auth);
 		}
 
-		// Apply hosts
+		const scopes = settings.scopes || {};
+		for (const scope of Object.keys(scopes)) {
+			const { base, auth } = scopes[scope];
+			if (!base) continue;
+			layer.scope(scope, base);
+			auth && auth.mode !== 'none' && layer.host(base, auth);
+		}
+
 		const hosts = settings.hosts || {};
-		for (const host in hosts || {}) {
-			this.#hosts.set(host, { ...hosts[host], origin });
+		for (const host of Object.keys(hosts)) {
+			const { base, auth } = hosts[host];
+			auth && auth.mode !== 'none' && layer.host(base || host, auth);
 		}
 	}
 }

@@ -7,46 +7,79 @@ import * as fs from 'fs';
 
 const execute = promisify(exec);
 
-export class LocalSettingsFiles extends Map<string, { path: string; origin: OriginType; content?: string }> {
-	// Tentative files that may not exist yet
-	#tentative: Map<string, { origin: OriginType }> = new Map();
+export interface ILocalFilesOptions {
+	// Path of the user rc file; false disables it. Defaults to the rc file of the home directory
+	user?: string | false;
+	// Path of the global rc file; false disables it. When undefined it is asked to the package manager
+	global?: string | false;
+}
 
-	constructor(pkg: string, workspace?: string) {
+export interface ILocalFile {
+	path: string;
+	origin: OriginType;
+	content: string;
+}
+
+/**
+ * The rc files that apply to a package, ordered from the most specific (project) to the broadest (global).
+ */
+export class LocalSettingsFiles extends Array<ILocalFile> {
+	#pkg: string;
+	#workspace?: string;
+	#options: ILocalFilesOptions;
+
+	constructor(pkg: string, workspace?: string, options: ILocalFilesOptions = {}) {
 		super();
-		let path: string;
+		this.#pkg = pkg;
+		this.#workspace = workspace;
+		this.#options = options;
+	}
 
-		// Set the default .npmrc file for the package
-		path = join(pkg, '.npmrc');
-		this.#tentative.set(path, { origin: 'project-rc' });
-
-		// If a workspace is provided, add its .npmrc file
-		if (workspace && workspace !== pkg) {
-			path = join(workspace, '.npmrc');
-			this.#tentative.set(path, { origin: 'workspace-rc' });
-		}
-
-		// Add the user .npmrc file
-		path = join(os.homedir(), '.npmrc');
-		this.#tentative.set(path, { origin: 'user-rc' });
-
-		// Add the global npm config file if it exists
-		try {
-			path = execute('npm config get globalconfig').toString().trim();
-			path && this.#tentative.set(path, { origin: 'global-rc' });
-		} catch {}
+	// Array methods that create arrays (map, filter) must produce plain arrays
+	static get [Symbol.species]() {
+		return Array;
 	}
 
 	/**
-	 * Processes the local settings files, checking if they exist and reading their content.
+	 * Asks the package manager where its global configuration lives. The subprocess is awaited: its
+	 * result used to be read from the unresolved promise, so the global file was never found.
+	 */
+	async #global(): Promise<string | undefined> {
+		const { global } = this.#options;
+		if (global === false) return;
+		if (typeof global === 'string') return global;
+
+		try {
+			const { stdout } = await execute('npm config get globalconfig', { timeout: 10_000 });
+			return stdout.toString().trim() || void 0;
+		} catch {
+			return;
+		}
+	}
+
+	/**
+	 * Finds the files that exist and reads their content
 	 */
 	async process(): Promise<void> {
-		for (const [path, { origin }] of this.#tentative) {
-			// Check if the file exists
-			try {
-				await fs.promises.access(path);
-			} catch {
-				continue;
-			}
+		const tentative: { path: string; origin: OriginType }[] = [];
+		tentative.push({ path: join(this.#pkg, '.npmrc'), origin: 'project-rc' });
+
+		if (this.#workspace && this.#workspace !== this.#pkg) {
+			tentative.push({ path: join(this.#workspace, '.npmrc'), origin: 'workspace-rc' });
+		}
+
+		const { user } = this.#options;
+		if (user !== false) tentative.push({ path: user || join(os.homedir(), '.npmrc'), origin: 'user-rc' });
+
+		const global = await this.#global();
+		global && tentative.push({ path: global, origin: 'global-rc' });
+
+		this.length = 0;
+		const seen = new Set<string>();
+		for (const { path, origin } of tentative) {
+			// The first role of a file wins: a workspace that is also the home directory stays workspace
+			if (seen.has(path)) continue;
+			seen.add(path);
 
 			let content: string;
 			try {
@@ -54,8 +87,7 @@ export class LocalSettingsFiles extends Map<string, { path: string; origin: Orig
 			} catch {
 				continue;
 			}
-
-			this.set(path, { path, origin, content });
+			this.push({ path, origin, content });
 		}
 	}
 }

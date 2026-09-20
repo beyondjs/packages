@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'fs';
  * Which compiler produced an artifact. `assigned` is a capability only the Beyond fork of esbuild has, so
  * it tells the fork from an upstream build that reports the same version.
  */
-export interface ICompilerIdentity {
+export /*bundle*/ interface ICompilerIdentity {
 	specifier: string;
 	version: string;
 	location?: string;
@@ -33,7 +33,7 @@ export interface ICompilerIdentity {
  * module that selects none, or names a variable that is not set, reports it. The identity keeps the value as
  * declared next to the location it resolved to.
  */
-export class Compiler {
+export /*bundle*/ class Compiler {
 	static #loaded: Map<string, Promise<Compiler>> = new Map();
 
 	#api: typeof import('esbuild');

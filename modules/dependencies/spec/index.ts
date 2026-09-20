@@ -5,17 +5,30 @@ interface IDependencies {
 	devDependencies?: unknown;
 	peerDependencies?: unknown;
 	optionalDependencies?: unknown;
+	peerDependenciesMeta?: unknown;
 	overrides?: Record<string, string | Record<string, string>>;
 }
 
 export /*bundle*/ type DependencyKind = 'main' | 'development' | 'peer' | 'optional';
 
+/**
+ * The kind a name keeps when several groups declare it, as package managers install it: an optional
+ * declaration replaces a regular one, and a regular one makes the package a dependency of its own even
+ * if it is also declared as a peer.
+ */
 const priority: Record<DependencyKind, number> = {
-	peer: 4,
-	optional: 3,
-	main: 2,
+	optional: 4,
+	main: 3,
+	peer: 2,
 	development: 1
 };
+
+export /*bundle*/ interface IDependencySpec {
+	version: string;
+	kind: DependencyKind;
+	// True for a peer that `peerDependenciesMeta` marks as optional
+	optional?: boolean;
+}
 
 /**
  * Represents a structured list of dependencies from a `package.json`.
@@ -27,7 +40,7 @@ const priority: Record<DependencyKind, number> = {
  * - raw `overrides`
  * - a list of warnings if the input structure is invalid
  */
-export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; kind: DependencyKind }> {
+export /*bundle*/ class DependenciesSpec extends Map<string, IDependencySpec> {
 	#hash?: Hash;
 	get hash(): string {
 		return this.#hash.value;
@@ -78,6 +91,15 @@ export /*bundle*/ class DependenciesSpec extends Map<string, { version: string; 
 		read(json.devDependencies, 'devDependencies', 'development');
 		read(json.peerDependencies, 'peerDependencies', 'peer');
 		read(json.optionalDependencies, 'optionalDependencies', 'optional');
+
+		// Peers marked optional are tolerated when nobody provides them
+		const meta = json.peerDependenciesMeta;
+		if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+			for (const [name, value] of Object.entries(meta as Record<string, { optional?: boolean }>)) {
+				const current = this.get(name);
+				if (current?.kind === 'peer' && value?.optional === true) current.optional = true;
+			}
+		}
 
 		this.#overrides = json.overrides;
 

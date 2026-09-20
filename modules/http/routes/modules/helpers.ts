@@ -16,7 +16,7 @@ export class Tag {
 	 * @param content The body the tag identifies
 	 * @param cache The Cache-Control of the response, which a 304 repeats
 	 */
-	constructor(content: string, cache: string) {
+	constructor(content: string | Uint8Array, cache: string) {
 		const hex = createHash('sha256').update(content).digest('hex');
 		this.#value = `"sha256-${hex}"`;
 		this.#cache = cache;

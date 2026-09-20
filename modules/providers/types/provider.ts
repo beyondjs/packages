@@ -1,7 +1,7 @@
-import type { IPackageManifestResponse, IPackumentResponse } from './providers';
+import type { IPackageManifestResponse, IPackumentResponse, IPackageCommitResponse, ICacheOptions } from './providers';
 import type { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
 import type { DependencySourceRelease } from '@beyond-js/packages/dependency-source/release';
-import type { ICacheOptions } from './providers';
+import type { IDist } from '@beyond-js/packages/types';
 
 export /*bundle*/ interface IPackageProvider {
 	/**
@@ -15,7 +15,16 @@ export /*bundle*/ interface IPackageProvider {
 	manifest(dependency: DependencySourceRelease, cache?: ICacheOptions): Promise<IPackageManifestResponse>;
 
 	/**
-	 * Builds a download URL for a package given its scope and name
+	 * Pins a git reference to a commit (only for git)
 	 */
-	tarball(dependency: DependencySourceRelease): Promise<{ url: string; headers: Record<string, string> }>;
+	commit?(dependency: DependencySourceProvider): Promise<IPackageCommitResponse>;
+
+	/**
+	 * Builds the download request of a release. Registries require the `dist` of the release: the archive
+	 * URL is the one the registry published, never a synthesized one.
+	 */
+	tarball(
+		dependency: DependencySourceRelease,
+		dist?: IDist
+	): Promise<{ url?: string; headers?: Record<string, string>; error?: { code: string; message: string } }>;
 }

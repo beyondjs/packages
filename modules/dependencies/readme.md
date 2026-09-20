@@ -15,8 +15,9 @@ the "list" is a collection of all packages required across the project. For a de
 
 The `spec` component is a class that transforms the dependencies of the `package.json` (including `dependencies`,
 `devDependencies`, and `peerDependencies`) into a Map. Each key in the Map is a package name, and the corresponding
-value is an object with two properties: `.version` (the value specified in the `package.json`) and `.kind` (the type of
-dependency - either 'dependency', 'development', or 'peer').
+value is an object with `.version` (the value specified in the `package.json`), `.kind` ('main', 'development', 'peer'
+or 'optional') and `.optional` for a peer that `peerDependenciesMeta` marks as optional. A name declared in several
+groups keeps the kind with the highest precedence: optional, main, peer, development.
 
 ## Printer
 

@@ -1,22 +1,17 @@
 import type { Conditional, ProcessorOutputs } from '@beyond-js/packages/sdk';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import type { ICompilerIdentity } from './compiler';
 import { ConditionalProcessor } from '@beyond-js/packages/sdk';
 import { join } from 'path';
 import { realpathSync } from 'fs';
 import { Compiler } from './compiler';
-import { Boundary } from './boundary';
+import { Bundle, type IBundled } from './bundle';
 
-export /*bundle*/ interface IBundle {
-	code: string;
-	map: string;
-	exports: string[];
-	stars: string[];
-	dependencies: string[];
-	inputs: string[];
-	compiler: ICompilerIdentity;
-}
+/**
+ * What the processor leaves for its conditional: the bundle of the whole module, with its stylesheet and
+ * the static files it uses when the sources have them
+ */
+export /*bundle*/ type IBundle = IBundled;
 
 /**
  * Bundles the sources of a public module into one native ES module with the selected esbuild compiler.
@@ -82,50 +77,17 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 		}
 
 		const root = realpathSync(join(module.package.path, module.spec.path));
-		const boundary = new Boundary(this.#entries());
-		const production = environment === 'production';
+		const bundle = new Bundle(compiler, {
+			root,
+			entry: join(root, module.spec.entry),
+			entries: this.#entries(),
+			package: { root: module.package.path, subpath: module.spec.subpath },
+			platform,
+			environment,
+			minify: environment === 'production'
+		});
 
-		try {
-			const built = await compiler.api.build({
-				absWorkingDir: root,
-				entryPoints: [join(root, module.spec.entry)],
-				bundle: true,
-				format: 'esm',
-				platform: platform === 'node' ? 'node' : 'browser',
-				conditions: environment ? ['module', environment] : ['module'],
-				define: environment ? { 'process.env.NODE_ENV': JSON.stringify(environment) } : {},
-				target: 'es2022',
-				minify: production,
-				sourcemap: 'external',
-				sourcesContent: true,
-				metafile: true,
-				write: false,
-				outfile: 'out.js',
-				logLevel: 'silent',
-				plugins: [boundary]
-			});
-
-			const text = (suffix: string) => built.outputFiles.find(({ path }) => path.endsWith(suffix))?.text;
-			const code = text('out.js');
-			const stars: string[] = [];
-			const pattern = /export\s*\*\s*from\s*["']([^"']+)["']/g;
-			for (let match = pattern.exec(code); match; match = pattern.exec(code)) stars.push(match[1]);
-			done({
-				code,
-				map: text('out.js.map'),
-				exports: [...built.metafile.outputs['out.js'].exports].sort(),
-				stars: [...new Set(stars)].sort(),
-				dependencies: boundary.references,
-				inputs: Object.keys(built.metafile.inputs).sort(),
-				compiler: compiler.identity
-			}, []);
-		} catch (exc) {
-			const failures: { text: string; location?: { file: string; line: number; column: number } }[] = exc.errors ?? [];
-			const diagnostics = failures.map(({ text, location }) => {
-				const at = location ? `${location.file} (${location.line}:${location.column}): ` : '';
-				return { code: 'BUNDLE_ERROR', message: at + text };
-			});
-			done(void 0, diagnostics.length ? diagnostics : [{ code: 'BUNDLE_ERROR', message: exc.message }]);
-		}
+		const { bundled, diagnostics } = await bundle.run();
+		done(bundled, diagnostics);
 	}
 }

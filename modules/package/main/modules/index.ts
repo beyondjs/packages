@@ -45,6 +45,15 @@ export class Modules extends DynamicProcessor(Map<string, BaseModule>) {
 	 */
 	#specs: Map<string, ModuleSpec> = new Map();
 
+	/**
+	 * What the package declares, by subpath, whether or not the bundler of each module could be resolved.
+	 * It is what a reader that only needs the declarations uses: tracing a published package must not
+	 * depend on importing the bundlers it names.
+	 */
+	get specs(): Map<string, ModuleSpec> {
+		return this.#specs;
+	}
+
 	#resolvers: Map<string, ModuleResolver> = new Map();
 
 	/**

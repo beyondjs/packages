@@ -31,24 +31,28 @@ export /*bundle*/ interface ISemverDependencySource {
 
 export /*bundle*/ interface IGitDependencySource {
 	is: DependencySourceIsType.Git;
-	baseurl: string; // The base URL of the Git provider (e.g., 'github.com', 'gitlab.com').
+	baseurl: string; // The host of the Git provider (e.g., 'github.com', 'gitlab.com').
+	base: string; // The scheme and host the provider is requested at (e.g., 'https://github.com').
 	owner: string; // The owner or organization of the repository (e.g., 'user' or 'org').
 	repo: string; // The name of the repository (e.g., 'my-lib').
 	ref?: string; // Optional reference (branch, tag, or commit hash).
+	pinned: boolean; // True when the reference is a full commit hash
 }
 
 export /*bundle*/ interface IUrlDependencySource {
 	is: DependencySourceIsType.Url;
-	hostname: string; // Hostname extracted from the URL (e.g., 'my-domain.com')
-	url: string; // Direct URL for tarball
+	hostname: string; // Host extracted from the URL, with its port when present (e.g., 'my-domain.com')
+	url: string; // Direct URL for tarball, without the integrity fragment
 	file: string; // Filename (e.g., 'mypackage.tgz')
 	fname: string; // Filename without extension (e.g., 'mypackage')
 	pathname: string; // URL pathname (e.g., '/path/to/mypackage.tgz')
+	integrity?: string; // Subresource integrity declared as the URL fragment (e.g., 'sha512-…')
 }
 
 export /*bundle*/ interface IAliasDependencySource {
 	is: DependencySourceIsType.Alias;
 	target: string; // The target package name being aliased (e.g., 'lodash')
+	spec: string; // The version specifier of the target (e.g., '^4.17.0')
 }
 
 export /*bundle*/ interface IDependencySourceError {

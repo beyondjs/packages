@@ -1,116 +1,70 @@
 import type { Project } from '../..';
 import type { ILockFile } from '../lockfile';
-import { File } from '@beyond-js/packages/persistence/storage';
-import { DependencySource } from '@beyond-js/packages/dependency-source';
-import { sanitize } from './sanitize';
-import { Queue } from './queue';
-import { db } from '@beyond-js/packages/persistence/db';
-import { createGunzip } from 'zlib';
-import * as stream from 'stream';
-import * as tar from 'tar-stream';
-import { join, resolve, relative } from 'path';
-
-const { pipeline } = stream.promises;
-const ROOT = 'packages';
+import type { ISourcesReport } from '@beyond-js/packages/sources';
+import { Sources, FilesystemStore } from '@beyond-js/packages/sources';
+import { join } from 'path';
 
 /**
- * Downloads and extracts a tarball into the appropriate storage backend.
+ * Downloads the packages of a lock file into the local source store.
+ *
+ * It delegates to `Sources`: the archive of each release is the one its registry published (never a URL
+ * built from the package name), its integrity is verified before anything is stored, its size and
+ * entries are bounded, and a release obtained with credentials is stored as private.
  */
 export /*bundle*/ class DependenciesDownloader {
 	readonly #project: Project;
+
+	#report?: ISourcesReport;
+	/**
+	 * What the last download did: fetched and reused packages, and the diagnostics of those that failed
+	 */
+	get report() {
+		return this.#report;
+	}
 
 	constructor(project: Project) {
 		this.#project = project;
 	}
 
 	/**
-	 * Downloads the tarball and extracts its content to file storage.
+	 * Where sources are kept: BEYOND_SOURCES_DIR, or the cache directory of the user
 	 */
-	async #download(id: string, path: string, url: string, headers: Record<string, string>): Promise<void> {
-		// Download tarball as stream
-		// Comments in English: add a request timeout
-		const ac = new AbortController();
-		const t = setTimeout(() => ac.abort(), 30_000); // 30s, tune as needed
+	async #root(): Promise<string> {
+		if (process.env.BEYOND_SOURCES_DIR) return process.env.BEYOND_SOURCES_DIR;
 
-		let response: Response;
-		try {
-			response = await fetch(url, { headers, signal: ac.signal });
-		} finally {
-			clearTimeout(t);
-		}
-
-		if (!response.ok || !response.body) {
-			throw new Error(`Failed to fetch tarball from ${url}: ${response.statusText}`);
-		}
-
-		// Base dir where all files must land (absolute)
-		const base = resolve(ROOT, path);
-
-		const extract = tar.extract();
-		extract.on('entry', async (header, entryStream, next) => {
-			try {
-				// Reject links explicitly
-				if (header.type === 'symlink' || header.type === 'link') {
-					entryStream.resume();
-					return next(new Error(`Links are not allowed: ${header.name}`)); // Security hard fail
-				}
-				if (header.type !== 'file') {
-					entryStream.resume(); // skip directories, etc.
-					return next();
-				}
-
-				const sanitized = sanitize(header.name, base);
-				const relbase = relative(ROOT, base);
-				const target = join(relbase, sanitized);
-
-				const file = new File(ROOT, target);
-
-				const writeStream = await file.stream();
-				await pipeline(entryStream, writeStream);
-				next();
-			} catch (exc) {
-				entryStream.resume();
-				next(exc);
-				return;
-			}
-		});
-
-		const gunzip = createGunzip();
-
-		extract.once('error', e => {
-			throw e;
-		});
-		gunzip.once('error', e => {
-			throw e;
-		});
-
-		// Convert Web ReadableStream (returned by fetch in Node 18+) to a Node.js Readable stream.
-		// This ensures compatibility with stream.pipeline(), which expects Node streams.
-		// Required for Node versions <18.17 (automatic conversion added in 18.17+, stable in 20+).
-		const { Readable } = stream;
-		const src = Readable.fromWeb(response.body as any);
-		await pipeline(src, gunzip, extract);
-
-		const data = { id, path, public: true };
-		await db.installed.set({ id, data });
+		// As BeyondJS transpiles to CJS, we need to use dynamic import
+		const envpaths = (await import('env-paths')).default;
+		return join(envpaths('beyond-js').cache, 'sources');
 	}
 
-	async process(lockfile: ILockFile): Promise<void> {
-		const list = Object.values(lockfile);
-		const project = this.#project;
+	async process(lockfile: ILockFile): Promise<ISourcesReport> {
+		// The lock file describes each release as the graph pinned it: it is fetched as a graph
+		const nodes: Record<string, any> = {};
+		const diagnostics: { code: string; message: string; severity: 'error' }[] = [];
 
-		const queue = new Queue(6); // A concurrency of 4–8 usually works well.
+		for (const entry of Object.values(lockfile || {})) {
+			const { name, version, dist, provider } = entry;
+			if (!dist?.tarball || !provider) {
+				const message = `The lock entry of "${name}@${version.resolved}" does not pin an archive: install again`;
+				diagnostics.push({ code: 'LOCK_ENTRY_INCOMPLETE', message, severity: 'error' });
+				continue;
+			}
 
-		const tasks = list.map(v => {
-			return queue.run(async () => {
-				const { name, version } = v;
-				const src = new DependencySource(name, version.specified);
-				const info = await project.packages.tarball(src, version.resolved);
-				const { id, path, url, headers } = info;
-				await this.#download(id, path, url, headers);
-			});
-		});
+			nodes[`${provider.registry}:${name}@${version.resolved}`] = {
+				name,
+				version: version.resolved,
+				origin: { provider: provider.registry, registry: provider.base },
+				visibility: provider.visibility,
+				integrity: dist.integrity,
+				tarball: dist.tarball
+			};
+		}
 
-		await Promise.all(tasks);
+		const graph: any = { protocol: 'beyond-graph/1', digest: 'local-install', nodes, exceptions: [], diagnostics };
+		const store = new FilesystemStore(await this.#root());
+
+		// A local installation has a single tenant: what needs credentials is stored for it alone
+		this.#report = await Sources.fetch(graph, store, {}, 'local', this.#project.packages.providers);
+		return this.#report;
 	}
 }

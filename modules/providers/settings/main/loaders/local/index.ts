@@ -1,144 +1,88 @@
-import type {
-	IProvidersSettings,
-	IProviderData,
-	IProviderAuthData
-} from '@beyond-js/packages/providers/settings/types';
-import { def } from '../../default';
+import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
+import type { ILocalFilesOptions } from './files';
 import { LocalSettingsFiles } from './files';
 import { TokenTools } from './tools';
+import { Layer } from '../../layer';
 
 /**
- * Load registry and scope configurations from local .npmrc files.
+ * Reads registry, scope and credential declarations from the rc files that apply to a package.
+ * Each file becomes its own layer, so a broader file can never overwrite a more specific one.
  */
-export class LocalLoader implements IProvidersSettings {
-	#scopes: Map<string, IProviderData> = new Map();
-	get scopes() {
-		return this.#scopes;
+export class LocalLoader {
+	#layers: Layer[] = [];
+	/**
+	 * One layer per file found, from the most specific (project) to the broadest (global)
+	 */
+	get layers() {
+		return this.#layers;
 	}
-	#hosts: Map<string, IProviderData> = new Map();
-	get hosts() {
-		return this.#hosts;
-	}
-	#default: IProviderData = def;
-	get default() {
-		return this.#default;
+
+	#env: Record<string, string | undefined>;
+	#options: ILocalFilesOptions;
+
+	constructor(options: ILocalFilesOptions = {}, env: Record<string, string | undefined> = {}) {
+		this.#options = options;
+		this.#env = env;
 	}
 
 	async load(pkg: string, workspace?: string): Promise<void> {
-		const files = new LocalSettingsFiles(pkg, workspace);
+		const files = new LocalSettingsFiles(pkg, workspace, this.#options);
 		await files.process();
 
-		const scopes: Map<string, string> = new Map();
-		const hosts: Map<string, IProviderAuthData> = new Map();
+		this.#layers = files.map(({ content, origin }) => this.#parse(new Layer(origin), content));
+	}
 
-		for (const [, { content, origin }] of files) {
-			if (!content) continue;
+	#parse(layer: Layer, content: string): Layer {
+		const users: Map<string, string> = new Map();
+		const passwords: Map<string, string> = new Map();
 
-			const lines = content
-				.split('\n')
-				.map(line => line.trim())
-				.filter(Boolean);
+		for (const raw of content.split('\n')) {
+			const line = raw.trim();
+			if (!line || line.startsWith('#') || line.startsWith(';')) continue;
 
-			for (const line of lines) {
-				if (line.startsWith('#') || line.startsWith(';')) continue;
+			const index = line.indexOf('=');
+			if (index === -1) continue;
+			const key = line.slice(0, index).trim();
+			const value = TokenTools.clean(line.slice(index + 1), this.#env);
+			if (!value) continue;
 
-				let match: RegExpMatchArray | null;
-
-				// 1. Default Registry Base URL: registry=https://host/
-				match = line.match(/^registry=(.+)$/);
-				if (match) {
-					const url = match[1];
-					this.#default.base = url;
-					this.#default.hostname = url.replace(/^https?:\/\//, '');
-				}
-
-				// 2. Default Registry Auth Token: _authToken=token
-				match = line.match(/^_authToken=(.+)$/);
-				if (match) {
-					const token = TokenTools.clean(match[1]);
-					this.#default.origin = origin;
-					this.#default.auth = { mode: 'token', token };
-					continue;
-				}
-
-				// 3. Default Registry Basic Auth: _auth=base64
-				match = line.match(/^_auth=(.+)$/);
-				if (match) {
-					const token = TokenTools.clean(match[1]);
-					this.#default.auth = { mode: 'basic', token };
-					continue;
-				}
-
-				// 4. Default Registry User/pass Auth: username=token
-				match = line.match(/^username=(.+)$/);
-				if (match) {
-					const user = match[1];
-					const passLine = lines.find(l => l.startsWith('password='));
-					if (passLine) {
-						const [, password] = passLine.split(/=(.+)/);
-						this.#default.origin = origin;
-						this.#default.auth = { mode: 'user-pass', user, token: password };
-					}
-					continue;
-				}
-
-				// 4. Scope to registry mapping: @scope:registry=https://host/
-				match = line.match(/^(@[^:]+):registry=(.+)$/);
-				if (match) {
-					const [, scope, base] = match;
-					scopes.set(scope, base);
-					continue;
-				}
-
-				// 5. Host-specific auth token: //host/:_authToken=token
-				match = line.match(/^\/\/([^/]+)\/?:_authToken=(.+)$/);
-				if (match) {
-					const [, host, token] = match;
-					hosts.set(host, { mode: 'token', token });
-					continue;
-				}
-
-				// 6. Host-specific user/pass Auth: //host/:username=user
-				// and //host/:password=pass
-				// Note: This handles both user and password in the same line
-				match = line.match(/^\/\/([^/]+)\/?:username=(.+)$/);
-				if (match) {
-					const [, host, user] = match;
-					const passLine = lines.find(l => l.startsWith(`//${host}/:password=`));
-					if (!passLine) continue;
-
-					// Extract the password part even if it contains '=' characters
-					const [, password] = passLine.split(/=(.+)/);
-					hosts.set(host, { mode: 'user-pass', user, token: password });
-				}
+			// Credentials of a host: //host[:port][/path]/:_authToken=…
+			const hosted = /^(\/\/.+?)\/?:(_authToken|_auth|username|_password|password)$/.exec(key);
+			if (hosted) {
+				const [, host, field] = hosted;
+				if (field === '_authToken') layer.host(host, { mode: 'token', token: value });
+				else if (field === '_auth') layer.host(host, { mode: 'basic', token: value });
+				else if (field === 'username') users.set(host, value);
+				else passwords.set(host, field === '_password' ? this.#decode(value) : value);
+				continue;
 			}
 
-			// Apply scopes
-			for (const [scope, hostname] of scopes) {
-				const base = hostname
-					.replace(/^https?:\/\//, '')
-					.replace(/^www\./, '')
-					.replace(/\/+$/, '')
-					.toLowerCase();
-				const data: IProviderData = {
-					origin,
-					base,
-					hostname,
-					auth: { mode: 'none' }
-				};
-				if (hosts.has(hostname)) {
-					const auth = hosts.get(hostname)!;
-					data.auth = { ...auth };
-				}
-				this.#scopes.set(scope, data);
+			// Scope to registry mapping: @scope:registry=https://host/
+			const scoped = /^(@[^:]+):registry$/.exec(key);
+			if (scoped) {
+				layer.scope(scoped[1], value);
+				continue;
 			}
 
-			// Apply hosts
-			for (const [host, auth] of hosts) {
-				const base = `https://${host}/`;
-				const data: IProviderData = { origin, base, hostname: host, auth: { ...auth } };
-				this.#hosts.set(host, data);
-			}
+			if (key === 'registry') layer.default(value);
+			else if (key === '_authToken') layer.credentials({ mode: 'token', token: value });
+			else if (key === '_auth') layer.credentials({ mode: 'basic', token: value });
+			else if (key === 'username') users.set('', value);
+			else if (key === '_password') passwords.set('', this.#decode(value));
+			else if (key === 'password') passwords.set('', value);
 		}
+
+		// A user is a credential only together with its password, whatever the order of the lines
+		for (const [host, user] of users) {
+			if (!passwords.has(host)) continue;
+			const auth: IProviderAuthData = { mode: 'user-pass', user, token: passwords.get(host) };
+			host ? layer.host(host, auth) : layer.credentials(auth);
+		}
+
+		return layer;
+	}
+
+	#decode(value: string): string {
+		return Buffer.from(value, 'base64').toString('utf8');
 	}
 }

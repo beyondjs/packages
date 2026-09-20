@@ -15,8 +15,9 @@ export /*bundle*/ class DependencySource {
 	 * Examples:
 	 * - 'semver:@beyond-js/http'
 	 * - 'git:github:user/repo#ref'
-	 * - 'url:https://cdn.example.com/pkg.tgz'
-	 * - undefined for the rest of sources
+	 * - 'url:cdn.example.com/pkg.tgz'
+	 * - the id of the aliased package for an alias ('npm:lodash@^4' is 'semver:lodash')
+	 * - undefined for unrecognized specifiers
 	 */
 	get id() {
 		return this.#id;
@@ -68,6 +69,15 @@ export /*bundle*/ class DependencySource {
 		return this.#data;
 	}
 
+	#target?: DependencySource;
+	/**
+	 * The source that identifies the package actually resolved: the aliased package of an alias
+	 * ("npm:lodash@^4"), and this same source otherwise. The alias keeps the declared name in `package`.
+	 */
+	get target(): DependencySource {
+		return this.#target || this;
+	}
+
 	/**
 	 * Creates a new DependencyInfo instance by parsing the package name and version specifier.
 	 *
@@ -88,10 +98,10 @@ export /*bundle*/ class DependencySource {
 			this.#name = pkg;
 		}
 
+		// Undefined spec is a programming error; an empty one means any version, as package managers read it
+		if (spec === void 0 || spec === null) throw new Error('Dependency specificaction cannot be undefined');
+		if (spec === '') spec = '*';
 		this.#spec = spec;
-
-		// Undefined or empty spec
-		if (!spec) throw new Error('Dependency specificaction cannot be undefined');
 
 		// Semver source (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(spec) || semver.validRange(spec)) {
@@ -103,37 +113,76 @@ export /*bundle*/ class DependencySource {
 			return;
 		}
 
-		// Git source (shorthand or git+ protocol)
-		const git = new GitInfo(spec);
+		// Git source (shorthand or git+ protocol). An unmatched specifier yields no info: never test the
+		// instance itself, which is always truthy
+		const git = GitInfo.parse(spec);
 		if (git) {
-			const { error, baseurl, owner, repo, ref } = git;
+			const { error, baseurl, base, owner, repo, ref, pinned } = git;
 			if (error) {
 				this.#data = { is: DependencySourceIsType.Error, error };
 				return;
 			}
 
 			this.#id = `git:${baseurl}/${owner}/${repo}${ref ? `#${ref}` : ''}`;
-			this.#data = { is: DependencySourceIsType.Git, baseurl, owner, repo, ref };
+			this.#data = { is: DependencySourceIsType.Git, baseurl, base, owner, repo, ref, pinned };
 			return;
 		}
 
-		// Tarball source (e.g., "https://.../mypackage.tgz")
-		if (spec.endsWith('.tgz') && /^https?:\/\//.test(spec)) {
-			const parsed = new URL(spec);
-			const { hostname, pathname } = parsed;
-			const file = parsed.pathname.split('/').pop();
-			const fname = file.replace(/\.tgz$/, '');
+		// Tarball source (e.g., "https://.../mypackage.tgz#sha512-…")
+		if (/^https?:\/\//.test(spec)) {
+			let parsed: URL;
+			try {
+				parsed = new URL(spec);
+			} catch {
+				parsed = void 0;
+			}
 
-			this.#id = `url:${hostname}${pathname}`;
-			this.#data = { is: DependencySourceIsType.Url, hostname, url: spec, pathname, file, fname };
-			return;
+			if (parsed && /\.(tgz|tar\.gz)$/.test(parsed.pathname)) {
+				const { host, pathname } = parsed;
+				const file = pathname.split('/').pop();
+				const fname = file.replace(/\.(tgz|tar\.gz)$/, '');
+				const integrity = parsed.hash ? decodeURIComponent(parsed.hash.slice(1)) : undefined;
+				parsed.hash = '';
+
+				// Credentials embedded in a URL never become part of an identity or of a stored URL
+				parsed.username = '';
+				parsed.password = '';
+
+				const hostname = host.toLowerCase();
+				this.#id = `url:${hostname}${pathname}`;
+				this.#data = {
+					is: DependencySourceIsType.Url,
+					hostname,
+					url: parsed.href,
+					pathname,
+					file,
+					fname,
+					integrity
+				};
+				return;
+			}
 		}
 
-		// Alias source (e.g., "npm:lodash@^4.17.0")
+		// Alias source (e.g., "npm:lodash@^4.17.0"): the identity is the one of the target package
 		if (spec.startsWith('npm:')) {
-			const [, target] = spec.split(':');
-			this.#data = { is: DependencySourceIsType.Alias, target };
-			return;
+			const value = spec.slice('npm:'.length);
+			const at = value.lastIndexOf('@');
+			const name = at > 0 ? value.slice(0, at) : value;
+			const range = at > 0 ? value.slice(at + 1) : '*';
+
+			let target: DependencySource;
+			try {
+				target = new DependencySource(name, range);
+			} catch {
+				target = void 0;
+			}
+
+			if (target && target.data.is === DependencySourceIsType.Semver) {
+				this.#target = target;
+				this.#id = target.id;
+				this.#data = { is: DependencySourceIsType.Alias, target: name, spec: range };
+				return;
+			}
 		}
 
 		// Fallback: invalid or unsupported version specifier

@@ -1,5 +1,7 @@
 # Node Class/Object
 
+This is the original design note of the node. A node is one occurrence of a dependency, identified by the path of declared names from the root; see [package resolution and source fetching](../../../../docs/cdn-resolution.md#the-dependency-graph) for its current contract (`id`, `link`, `release`, `soft`, `provider`, error-aware `processed`).
+
 The Node class represents individual packages within the project dependency graph.
 
 ## Properties

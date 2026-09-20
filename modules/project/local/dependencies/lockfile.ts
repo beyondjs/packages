@@ -20,6 +20,10 @@ interface ILockDependencySpec {
  */
 interface ILockEntry extends ILockDependencySpec {
 	kind: string;
+	// The archive the provider published for the release, and its integrity
+	dist?: { tarball: string; integrity?: string };
+	// Who served the release. It never includes credentials
+	provider?: { registry: string; base?: string; visibility: 'public' | 'private' };
 	dependencies?: Record<string, ILockDependencySpec>;
 }
 
@@ -146,7 +150,9 @@ export class LockFile {
 		const lock: ILockFile = {};
 		const traverse = (node: Node) => {
 			const { version } = node;
-			const key = node.package + (version.resolved ? `@${version.resolved}` : '');
+			// The identity is the resolved package: an alias locks the package it targets
+			const resolved = node.source?.package || node.package;
+			const key = resolved + (version.resolved ? `@${version.resolved}` : '');
 			if ((node.error || version.error) && node.parent) {
 				console.warn(`Node "${key}" has errors and is not being processed.`);
 				return;
@@ -159,14 +165,21 @@ export class LockFile {
 			if (lock[key]) return;
 
 			const entry: ILockEntry = {
-				name: node.package,
+				name: resolved,
 				version: { specified: version.specified, resolved: version.resolved },
 				kind: node.kind
 			};
 
-			if (node.dependencies.size > 0) {
+			const release = node.release;
+			const dist = release?.manifest?.dist;
+			if (dist?.tarball) entry.dist = { tarball: dist.tarball, integrity: dist.integrity };
+			if (release?.provider) entry.provider = release.provider;
+
+			// The release is expanded by one occurrence; the others link to it and only hold their peers
+			const expanded = new Map([...(node.link || node).dependencies.entries(), ...node.dependencies.entries()]);
+			if (expanded.size > 0) {
 				entry.dependencies = {};
-				for (const [name, dependency] of node.dependencies.entries()) {
+				for (const [name, dependency] of expanded.entries()) {
 					const { version } = dependency;
 
 					// Skip dependencies with errors or unresolved versions
@@ -197,8 +210,9 @@ export class LockFile {
 
 			// Add the entry to the lock file
 			lock[key] = entry;
-			for (const child of node.dependencies.values()) {
-				traverse(child);
+			for (const child of expanded.values()) {
+				// A peer requirement is the release of whoever provides it, which is traversed there
+				!child.soft && traverse(child);
 			}
 		};
 

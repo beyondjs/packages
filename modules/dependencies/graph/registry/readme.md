@@ -1,5 +1,7 @@
 # List Concept
 
+This is the original design note of the registry. The current behavior, where the groups of a package are recomputed from all of its occurrences when a pass ends instead of being updated on every registration, is described in [package resolution and source fetching](../../../../docs/cdn-resolution.md#the-dependency-graph).
+
 The list is a collection of all packages required throughout the project dependency graph.
 
 ## Properties

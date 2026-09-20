@@ -21,9 +21,10 @@ export default class DependenciesHash {
 	 * @returns The MD5 hash as a string.
 	 */
 	update(): void {
-		const compute: Record<string, { version: string; kind: string }> = {};
-		this.#spec.forEach(({ version, kind }, key) => {
-			compute[key] = { version, kind };
+		const compute: Record<string, { version: string; kind: string; optional?: boolean }> = {};
+		[...this.#spec.keys()].sort().forEach(key => {
+			const { version, kind, optional } = this.#spec.get(key);
+			compute[key] = optional ? { version, kind, optional } : { version, kind };
 		});
 		this.#value = createHash('md5').update(equal.generate(compute)).digest('hex');
 	}

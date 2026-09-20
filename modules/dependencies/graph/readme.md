@@ -4,6 +4,10 @@
 
 This retained conceptual guide describes package/version grouping. The current implementation is in [index.ts](index.ts), with a [registry](registry/index.ts) rather than the older List directory. Public-module resolution and internal source evaluation are separate graphs; see [Packages architecture](../../../docs/architecture.md). The design description below does not imply that every conflict or invalidation path is complete.
 
+## Current implementation
+
+The maintained description of the resolver is [package resolution and source fetching](../../../docs/cdn-resolution.md): occurrences and releases, canonical grouping by range intersection, pass-based resolution with a limit, error-aware completion, peers, overrides and the lock. The conceptual text below predates it: nodes no longer reprocess themselves when a version changes (a pass is walked again instead), and the "list" is the [registry](registry/index.ts).
+
 ## Graph Dependencies Resolver
 
 The Graph Dependencies Resolver constructs a project dependency graph and resolves all dependencies, ensuring satisfaction of version requirements and handling potential conflicts.

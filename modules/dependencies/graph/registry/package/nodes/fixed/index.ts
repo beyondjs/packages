@@ -2,6 +2,13 @@ import type { DependencyPackage } from '../..';
 import type { Node } from '../../../../node';
 import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
+const SRI = /^(sha512|sha384|sha256|sha1)-([A-Za-z0-9+/]+={0,2})$/;
+
+/**
+ * Occurrences whose release is fixed by the source itself instead of selected from a range: a git
+ * reference pinned to a commit, and an archive URL pinned by its content integrity. A source that cannot
+ * be pinned is reported on the occurrence; nothing is ever pinned to a placeholder.
+ */
 export class FixedNodes extends Map<string, Array<Node>> {
 	#package: DependencyPackage;
 
@@ -10,45 +17,66 @@ export class FixedNodes extends Map<string, Array<Node>> {
 		this.#package = pkg;
 	}
 
-	async register(node: Node, update: boolean) {
-		if (node.source.data.is === DependencySourceIsType.Git) {
-			// Get the commit version
-			const { ref } = node.source.data;
-			const { project } = this.#package;
-			const commit = 'the commit'; // await project.packages.commit(this.#package.name, ref);
+	#unsupported(message: string) {
+		return { code: 'SOURCE_UNSUPPORTED', message };
+	}
 
-			node.version.update({ version: commit });
+	/**
+	 * The release of the occurrence, or why it cannot be pinned
+	 */
+	async #pin(node: Node): Promise<{ release?: string; error?: { code: string; message: string } }> {
+		const { data } = node.source;
+		const { packages } = this.#package.project;
 
-			if (!this.has(commit)) this.set(commit, []);
-			this.get(commit)!.push(node);
+		if (data.is === DependencySourceIsType.Git) {
+			if (typeof packages.commit !== 'function') {
+				return { error: this.#unsupported('The package providers of the project cannot pin git references') };
+			}
 
-			throw new Error('Not implemented');
-		} else if (node.source.data.is === DependencySourceIsType.Url) {
-			throw new Error('Not implemented');
-		} else if (node.source.data.is === DependencySourceIsType.Alias) {
-			throw new Error('Not implemented');
+			const { commit, error } = await packages.commit(node.source);
+			if (error) return { error };
+			if (!commit) return { error: this.#unsupported(`No commit was obtained for "${node.source.id}"`) };
+			return { release: commit };
 		}
+
+		if (data.is === DependencySourceIsType.Url) {
+			const match = SRI.exec(data.integrity || '');
+			if (!match) {
+				const code = 'INTEGRITY_REQUIRED';
+				const message =
+					`The archive URL required for "${node.package}" must declare its content integrity as the ` +
+					`URL fragment ("#sha512-…"): its content cannot be pinned otherwise`;
+				return { error: { code, message } };
+			}
+
+			const digest = Buffer.from(match[2], 'base64').toString('hex');
+			return { release: `0.0.0-url.${digest.slice(0, 32)}` };
+		}
+
+		return { error: this.#unsupported(`Dependency sources of type "${data.is}" are not supported`) };
+	}
+
+	async register(node: Node, update: boolean) {
+		const { release, error } = await this.#pin(node);
+		if (error) {
+			// Registered under no release, so that unregistering it stays symmetrical
+			node.version.update({ error });
+			this.set('', [...(this.get('') || []), node]);
+			return;
+		}
+
+		node.version.update({ version: release });
+		this.set(release, [...(this.get(release) || []), node]);
 	}
 
 	unregister(node: Node) {
-		let key: string;
-		if (node.source.data.is === DependencySourceIsType.Git) {
-			const key = ''; // node.source.data.key;
-		} else if (node.source.data.is === DependencySourceIsType.Url) {
-			throw new Error('Not implemented');
-		} else if (node.source.data.is === DependencySourceIsType.Alias) {
-			throw new Error('Not implemented');
+		for (const [release, nodes] of this) {
+			const index = nodes.indexOf(node);
+			if (index === -1) continue;
+
+			nodes.splice(index, 1);
+			!nodes.length && this.delete(release);
+			return;
 		}
-
-		const nodes = this.get(key);
-		if (!nodes) throw new Error(`No nodes found for key: ${key}`);
-
-		// Find and remove the node from the array
-		const index = nodes.indexOf(node);
-		if (index === -1) throw new Error('Node not found in the list for the given key');
-		nodes.splice(index, 1);
-
-		// If the array is empty after removal, delete the key from the map
-		!nodes.length && this.delete(key);
 	}
 }

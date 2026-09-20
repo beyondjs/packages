@@ -1,135 +1,56 @@
-import type {
-	IProvidersSettings,
-	IProviderAuthData,
-	IProviderData
-} from '@beyond-js/packages/providers/settings/types';
-import { def } from '../../default';
-import * as dotenv from 'dotenv';
-
-dotenv.config();
+import type { IProviderAuthData } from '@beyond-js/packages/providers/settings/types';
+import { Layer } from '../../layer';
 
 /**
- * Load repository and scope configurations from environment variables for CI environments.
+ * Reads registry, scope and credential declarations from environment variables, for CI environments.
+ *
+ * - NPM_REGISTRY: default registry, with or without scheme (`https://host/npm`, `host:4873`)
+ * - NPM_TOKEN, NPM_AUTH, NPM_USERNAME + NPM_PASSWORD: credentials of the default registry
+ * - NPM_SCOPE_<@scope>: registry of a scope
+ * - NPM_HOST_TOKEN_<host>, NPM_HOST_BASIC_<host>, NPM_HOST_USERPASS_<host>: credentials of a host
  */
-export class VarsSettingsLoader implements IProvidersSettings {
-	#scopes: Map<string, IProviderData> = new Map();
-	get scopes() {
-		return this.#scopes;
-	}
-	#hosts: Map<string, IProviderData> = new Map();
-	get hosts() {
-		return this.#hosts;
-	}
-	#default: IProviderData = def;
-	get default() {
-		return this.#default;
+export class VarsSettingsLoader {
+	#layer = new Layer('env-vars');
+	get layer() {
+		return this.#layer;
 	}
 
-	async load(): Promise<void> {
-		const origin = 'env-vars';
+	async load(env: Record<string, string | undefined>): Promise<void> {
+		const layer = (this.#layer = new Layer('env-vars'));
 
-		// 1. Default registry override
-		if (process.env.NPM_REGISTRY) {
-			this.#default.origin = origin;
+		// The address is normalized by the layer whatever its form: a value with a scheme used to receive
+		// a second scheme, and one without it was stored as a base without scheme
+		if (env.NPM_REGISTRY) layer.default(env.NPM_REGISTRY);
 
-			if (!process.env.NPM_REGISTRY.startsWith('https://')) {
-				this.#default.base = process.env.NPM_REGISTRY;
-				this.#default.hostname = process.env.NPM_REGISTRY.replace(/^https?:\/\//, '');
-
-				// Remove trailing slash if present
-				this.#default.base = this.#default.base.replace(/\/+$/, '');
-			} else {
-				this.#default.hostname = process.env.NPM_REGISTRY;
-				this.#default.base = `https://${process.env.NPM_REGISTRY}`;
-			}
+		if (env.NPM_USERNAME && env.NPM_PASSWORD) {
+			layer.credentials({ mode: 'user-pass', user: env.NPM_USERNAME, token: env.NPM_PASSWORD });
 		}
+		if (env.NPM_AUTH) layer.credentials({ mode: 'basic', token: env.NPM_AUTH });
+		if (env.NPM_TOKEN) layer.credentials({ mode: 'token', token: env.NPM_TOKEN });
 
-		// 2. Default registry auth token
-		if (process.env.NPM_TOKEN) {
-			this.#default.origin = origin;
-			const token = process.env.NPM_TOKEN;
-			this.#default.auth = { mode: 'token', token };
-		}
-
-		// 3. Default basic auth (base64)
-		if (process.env.NPM_AUTH) {
-			this.#default.origin = origin;
-			const token = process.env.NPM_AUTH;
-			this.#default.auth = { mode: 'basic', token };
-		}
-
-		// 4. Default user/pass auth
-		if (process.env.NPM_USERNAME && process.env.NPM_PASSWORD) {
-			this.#default.origin = origin;
-			const user = process.env.NPM_USERNAME;
-			const token = process.env.NPM_PASSWORD;
-			this.#default.auth = { mode: 'user-pass', user, token };
-		}
-
-		const scopes: Map<string, string> = new Map();
-		const hosts: Map<string, IProviderAuthData> = new Map();
-
-		// 5. Scoped registry routing (e.g. NPM_SCOPE_@myorg=registry.mycompany.com)
-		for (const key in process.env) {
-			if (!key.startsWith('NPM_SCOPE_')) continue;
-			const scope = key.slice('NPM_SCOPE_'.length);
-
-			const hostname = process.env[key];
-			if (!hostname) continue;
-
-			scopes.set(scope, hostname);
-		}
-
-		// 6. Host-specific auth (e.g. NPM_HOST_TOKEN_registry.myco.com)
-		for (const key in process.env) {
-			const match = key.match(/^NPM_HOST_(TOKEN|BASIC|USERPASS)_(.+)$/);
-			if (!match) continue;
-
-			const [, mode, host] = match;
-			const value = process.env[key];
+		for (const key of Object.keys(env).sort()) {
+			const value = env[key];
 			if (!value) continue;
 
-			switch (mode) {
-				case 'TOKEN':
-					hosts.set(host, { mode: 'token', token: value });
-					break;
-
-				case 'BASIC':
-					hosts.set(host, { mode: 'basic', token: value });
-					break;
-
-				case 'USERPASS': {
-					const [user, pass] = value.split(':');
-					if (!user || !pass) continue;
-					hosts.set(host, { mode: 'user-pass', user, token: pass });
-					break;
-				}
+			if (key.startsWith('NPM_SCOPE_')) {
+				layer.scope(key.slice('NPM_SCOPE_'.length), value);
+				continue;
 			}
-		}
 
-		// Apply scopes
-		for (const [scope, base] of scopes) {
-			const hostname = base.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-			this.#scopes.set(scope, {
-				hostname,
-				base: base.replace(/\/+$/, ''),
-				auth: hosts.get(hostname) || { mode: 'none' },
-				origin
-			});
-		}
+			const match = /^NPM_HOST_(TOKEN|BASIC|USERPASS)_(.+)$/.exec(key);
+			if (!match) continue;
+			const [, mode, host] = match;
 
-		// Apply hosts
-		for (const [host, auth] of hosts) {
-			const { hostname, base } = (() => {
-				if (host.startsWith('https://') || host.startsWith('http://')) {
-					// Clean host to get hostname (remove protocol and trailing slash)
-					const hostname = host.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-					return { hostname, base: host.replace(/\/+$/, '') };
-				}
-				return { hostname: host, base: `https://${host}` };
-			})();
-
-			this.#hosts.set(hostname, { origin, hostname, base, auth });
+			let auth: IProviderAuthData;
+			if (mode === 'TOKEN') auth = { mode: 'token', token: value };
+			else if (mode === 'BASIC') auth = { mode: 'basic', token: value };
+			else {
+				// Only the first colon separates: a password may contain colons
+				const index = value.indexOf(':');
+				if (index < 1 || index === value.length - 1) continue;
+				auth = { mode: 'user-pass', user: value.slice(0, index), token: value.slice(index + 1) };
+			}
+			layer.host(host, auth);
 		}
 	}
 }

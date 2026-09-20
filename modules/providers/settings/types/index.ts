@@ -9,14 +9,20 @@ export /*bundle*/ type OriginType =
 	| 'user-rc'
 	| 'global-rc'
 	| 'env-vars'
-	| 'db';
+	| 'db'
+	| 'options';
 
 export /*bundle*/ interface IProviderData {
-	// Registry domain, e.g., "registry.npmjs.org"
+	// Registry host name without port, e.g., "registry.npmjs.org"
 	hostname: string;
 
-	// Base endpoint of the registry including protocol, e.g., "https://registry.npmjs.org"
+	// Normalized base endpoint: scheme, host, non-default port and path prefix, without a trailing slash,
+	// e.g., "https://registry.npmjs.org" or "http://localhost:4873/npm". Every request is built from it.
 	base: string;
+
+	// Identity of the registry: host, non-default port and path prefix, e.g., "localhost:4873/npm".
+	// It is what cache records, release identities and graph origins are keyed by.
+	registry?: string;
 
 	// Authentication method used for the provider
 	auth: IProviderAuthData;
@@ -44,4 +50,14 @@ export /*bundle*/ interface IProviderAuthData {
 	mode: ProviderAuthMode;
 	token?: string;
 	user?: string;
+}
+
+/**
+ * Settings given explicitly by the consumer, for example the registries of one tenant. They take
+ * precedence over every discovered source.
+ */
+export /*bundle*/ interface IProvidersValues {
+	default?: { registry?: string; auth?: IProviderAuthData };
+	scopes?: Record<string, { registry: string; auth?: IProviderAuthData }>;
+	hosts?: Record<string, IProviderAuthData>;
 }

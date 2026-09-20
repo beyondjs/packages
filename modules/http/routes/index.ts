@@ -3,6 +3,7 @@ import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, Schema } from '@beyond-js/artifact-api';
 import { ModulesRoutes } from './modules';
 import { UpdatesRoutes } from './updates';
+import { Failure } from './failure';
 
 /**
  * The HTTP building blocks of the compiled-module API, mounted on an Express application that the caller
@@ -27,8 +28,9 @@ export /*bundle*/ class Routes {
 	}
 
 	/**
-	 * Answers contract errors with the JSON body of the contract. It is mounted after every route, the ones
-	 * of the caller included, so all of them fail in one shape.
+	 * Answers contract errors with the JSON body of the contract, `no-store` and without an `ETag`, which the
+	 * contract defines for artifact answers only. It is mounted after every route, the ones of the caller
+	 * included, so all of them fail in one shape.
 	 */
 	static errors(app: Application) {
 		app.use((error: Error, request: Request, response: Response, next: NextFunction) => {
@@ -36,7 +38,7 @@ export /*bundle*/ class Routes {
 
 			const known = error instanceof ContractError;
 			const reported = known ? error : new ContractError('INTERNAL_ERROR', error.message, { status: 500 });
-			response.status(reported.status).json(reported.body);
+			Failure.send(response, reported.status, reported.body);
 		});
 	}
 }

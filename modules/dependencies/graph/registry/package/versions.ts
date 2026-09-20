@@ -1,12 +1,15 @@
-import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import type { DependencyPackage } from './';
 import type { IDiagnostic } from '@beyond-js/packages/types';
-import { PendingPromise } from '@beyond-js/pending-promise/main';
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
+import { valid } from 'semver';
 
+/**
+ * The versions a registry publishes for a package
+ */
 export class PackageSemverVersions {
 	#package: DependencyPackage;
 
-	#value: string[];
+	#value: string[] = [];
 	get value() {
 		return this.#value;
 	}
@@ -16,35 +19,47 @@ export class PackageSemverVersions {
 		return this.#error;
 	}
 
-	#ready: PendingPromise<void>;
+	#ready: Promise<void>;
 	get ready() {
-		if (this.#ready) return this.#ready;
-
-		this.update();
-		return this.#ready;
+		return this.#ready || this.update();
 	}
 
 	constructor(pkg: DependencyPackage) {
 		this.#package = pkg;
 	}
 
-	async update() {
-		this.#ready = new PendingPromise<void>();
+	update(): Promise<void> {
+		this.#ready = this.#load();
+		return this.#ready;
+	}
 
-		if (this.#package.source.data.is !== DependencySourceIsType.Semver) {
-			throw new Error('Package versions are only available on semver sources');
-		}
-
-		// Retrieve the versions of the package
+	/**
+	 * Never rejects: a failure is kept as `error`, which every occurrence of the package then reports
+	 */
+	async #load(): Promise<void> {
 		const { project, source } = this.#package;
-		const { error, versions } = await project.packages.versions(source.package);
-		if (error) {
-			this.#error = error;
-			this.#ready.resolve();
+		this.#value = [];
+		this.#error = void 0;
+
+		if (source.data.is !== DependencySourceIsType.Semver) {
+			const code = 'SOURCE_UNSUPPORTED';
+			this.#error = { code, message: `Versions are only published for registry packages: "${source.package}"` };
 			return;
 		}
 
-		this.#value = versions;
-		this.#ready.resolve();
+		try {
+			const { error, found, versions } = await project.packages.versions(source.package);
+			if (error) {
+				this.#error = error;
+			} else if (found === false || !versions) {
+				const code = 'PACKAGE_NOT_FOUND';
+				this.#error = { code, message: `Package "${source.package}" was not found in its registry` };
+			} else {
+				this.#value = versions.filter(version => valid(version));
+			}
+		} catch (exc) {
+			const code = 'PACKAGE_VERSIONS_FAILED';
+			this.#error = { code, message: `The versions of "${source.package}" could not be obtained` };
+		}
 	}
 }

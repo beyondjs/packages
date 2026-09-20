@@ -1,7 +1,6 @@
 import type { Project } from '../';
 import { DependenciesGraph } from '@beyond-js/packages/dependencies/graph';
 import * as printer from '@beyond-js/packages/dependencies/printer';
-import * as fs from 'fs';
 import { DependenciesDownloader } from './downloader';
 
 export class DependenciesInstaller {
@@ -30,6 +29,7 @@ export class DependenciesInstaller {
 
 	async #done(graph: DependenciesGraph) {
 		this.#installing = false;
+		this.#updating = false;
 
 		// Generate the installation print for console output
 		this.#print = {
@@ -37,8 +37,12 @@ export class DependenciesInstaller {
 			tree: printer.tree(graph)
 		};
 
+		// A graph with a failed occurrence is processed but never completed: nothing is locked or
+		// downloaded from it
 		if (!graph.completed) {
 			console.warn('Dependencies graph could not be completed');
+			graph.diagnostics.forEach(({ code, message }) => console.warn(`  ${code}: ${message}`));
+			graph.closure?.errors.forEach(({ id, error }) => console.warn(`  ${id}: ${error.code}: ${error.message}`));
 			return;
 		}
 
@@ -47,14 +51,24 @@ export class DependenciesInstaller {
 
 		// Download the dependencies
 		const { lockfile } = this.#project.dependencies;
-		await this.#downloader.process(lockfile.data);
+		const report = await this.#downloader.process(lockfile.data);
+		report.diagnostics.forEach(({ code, message }) => console.warn(`  ${code}: ${message}`));
+	}
+
+	/**
+	 * A local project follows its development dependencies, and its lock file drives the selection
+	 */
+	#graph(): DependenciesGraph {
+		const { lockfile } = this.#project.dependencies;
+		const lock = lockfile.loaded ? lockfile.data : void 0;
+		return new DependenciesGraph(this.#project, { development: true, lock });
 	}
 
 	async install() {
 		this.#installing = true;
 
 		// Build the dependencies graph
-		const graph = new DependenciesGraph(this.#project);
+		const graph = this.#graph();
 		await graph.process({ update: false });
 
 		// Finalize the installation, generating the lock file and downloading packages
@@ -65,7 +79,7 @@ export class DependenciesInstaller {
 		this.#updating = true;
 
 		// Build the dependencies graph
-		const graph = new DependenciesGraph(this.#project);
+		const graph = this.#graph();
 		await graph.process({ update: true });
 
 		// Finalize the update, generating the lock file and downloading packages

@@ -1,10 +1,17 @@
 import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
-import type { DependencySourceType } from '@beyond-js/packages/dependency-source';
+import {
+	type DependencySourceType,
+	type DependencySource,
+	DependencySourceIsType
+} from '@beyond-js/packages/dependency-source';
 import type { ProvidersSettings } from '@beyond-js/packages/providers/settings';
-import { DependencySource, DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
 export /*bundle*/ type DependencyInfoType = DependencySourceType & { provider?: IProviderData };
 
+/**
+ * Selects the provider (registry or host, with its authentication) that serves a dependency source.
+ * An alias is served by the provider of the package it targets.
+ */
 export /*bundle*/ class DependencySourceProvider {
 	#source: DependencySource;
 	get source() {
@@ -19,6 +26,8 @@ export /*bundle*/ class DependencySourceProvider {
 	constructor(source: DependencySource, settings: ProvidersSettings) {
 		if (!settings) throw new Error('Providers settings instance is required');
 
+		// The identity of an alias is its target: requests and records never use the declared alias name
+		source = source.target;
 		this.#source = source;
 
 		if (source.data.is === DependencySourceIsType.Semver) {
@@ -28,17 +37,14 @@ export /*bundle*/ class DependencySourceProvider {
 		}
 
 		if (source.data.is === DependencySourceIsType.Git) {
-			this.#provider = settings.get({ hostname: source.data.baseurl });
+			this.#provider = settings.get({ hostname: source.data.baseurl, base: source.data.base });
 			return;
 		}
 
 		// Tarball data (e.g., "https://.../mypackage.tgz")
 		if (source.data.is === DependencySourceIsType.Url) {
-			this.#provider = settings.get({ hostname: source.data.hostname });
-			return;
-		}
-
-		if (source.data.is === DependencySourceIsType.Alias) {
+			const base = new URL(source.data.url).origin;
+			this.#provider = settings.get({ hostname: source.data.hostname, base });
 			return;
 		}
 	}

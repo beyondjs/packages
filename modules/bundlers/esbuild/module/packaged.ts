@@ -12,6 +12,9 @@ import { equal } from '@beyond-js/equal/main';
 interface IBundle {
 	code: string;
 	map: string;
+	css?: string;
+	cssmap?: string;
+	resources?: { path: string; file: string; via: 'css' | 'js' }[];
 	exports: string[];
 	stars: string[];
 	dependencies: string[];
@@ -42,6 +45,25 @@ export /*bundle*/ class Packaged extends Conditional {
 		return this.#artifact;
 	}
 
+	#styles: ConditionalOutput;
+
+	/**
+	 * The stylesheet the sources of the module import, bundled as one separate output. It is undefined for a
+	 * module that imports none: styles are never injected into the code.
+	 */
+	get styles(): ConditionalOutput | undefined {
+		return this.#styles;
+	}
+
+	#resources: IBundle['resources'] = [];
+
+	/**
+	 * The static files the module uses, which its outputs address under `assets/` by their path in the package
+	 */
+	get resources() {
+		return this.#resources;
+	}
+
 	#errors: IDiagnostic[] = [];
 	get errors(): IDiagnostic[] {
 		return this.#errors.concat(super.errors);
@@ -70,6 +92,7 @@ export /*bundle*/ class Packaged extends Conditional {
 		!errors.length && !bundle && errors.push({ code: 'OUTPUT_MISSING', message: 'The module was not bundled' });
 
 		let output: ConditionalOutput;
+		let styles: ConditionalOutput;
 		let artifact: IESMArtifact;
 		if (!errors.length) {
 			const { module } = this;
@@ -78,6 +101,10 @@ export /*bundle*/ class Packaged extends Conditional {
 
 			output = new ConditionalOutput();
 			output.set({ code: bundle.code, map: bundle.map });
+			if (typeof bundle.css === 'string') {
+				styles = new ConditionalOutput();
+				styles.set({ code: bundle.css, map: bundle.cssmap });
+			}
 			artifact = {
 				vspecifier,
 				dependencies: bundle.dependencies,
@@ -90,9 +117,12 @@ export /*bundle*/ class Packaged extends Conditional {
 			};
 		}
 
-		const changed = !equal({ errors: this.#errors, hash: this.#output?.hash }, { errors, hash: output?.hash });
+		const previous = { errors: this.#errors, hash: this.#output?.hash, styles: this.#styles?.hash };
+		const changed = !equal(previous, { errors, hash: output?.hash, styles: styles?.hash });
 		this.#errors = errors;
 		this.#output = output;
+		this.#styles = styles;
+		this.#resources = (!errors.length && bundle.resources) || [];
 		this.#artifact = artifact;
 		return changed;
 	}

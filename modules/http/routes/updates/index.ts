@@ -1,3 +1,4 @@
+import { Failure } from '../failure';
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ModulePath, Options } from '@beyond-js/artifact-api';
@@ -33,7 +34,7 @@ export class UpdatesRoutes {
 	}
 
 	#refuse(response: Response, status: number, code: string, message: string, extra: object = {}) {
-		response.status(status).set('Cache-Control', 'no-store').json({ error: { code, message, ...extra } });
+		Failure.send(response, status, { error: { code, message, ...extra } });
 	}
 
 	async update(request: Request, response: Response, next: NextFunction) {

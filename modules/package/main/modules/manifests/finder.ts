@@ -38,7 +38,9 @@ export class ModuleManifestsFinder extends FinderCollection<typeof Manifest> {
 		if (!require(this.#config, 'package-config')) return false;
 
 		const config = <IBeyondPackageManifest>this.#config.value;
-		const modules = config.beyond?.modules;
+		// A published source package may name the root of its module sources in its publication declaration
+		const published = (<{ publication?: { modules?: unknown } }>(<unknown>config.beyond))?.publication?.modules;
+		const modules = config.beyond?.modules ?? (typeof published === 'string' ? published : void 0);
 
 		if (!this.#config.valid || !modules) {
 			this.configure();

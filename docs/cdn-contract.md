@@ -55,6 +55,18 @@ Backend targets produce a delivery closure usable by an external execution envir
 
 These checks are part of the CDN implementation assignment. Exact public API additions and metadata versions must be specified with fixtures before wiring consumers. Routine configurable defaults may be selected with rationale; commercial pricing and product authority must not be invented.
 
+## Implementation status
+
+The capabilities below were added for this contract on 2026-09-19. Each guide states its public API, its engineering defaults, the exact validation command and its remaining limits. The results are executed Packages validations under BEE Node with a bootstrap Engine; they are not CDN acceptance gates, which are judged on the integrated system.
+
+| Public module | Guide | Executed validation |
+| --- | --- | --- |
+| `@beyond-js/packages/resolution`, `@beyond-js/packages/sources`, with the graph, provider, settings, cache and source-parsing repairs | [Resolution and sources](cdn-resolution.md) | `tests/cdn-resolution` 33 steps, `tests/cdn-sources` 16 steps, against in-test public and private registries |
+| `@beyond-js/packages/analysis`, `@beyond-js/packages/generation`, `@beyond-js/packages/publication`, stylesheet and asset emission, development delivery of `/styles/` and `/assets/` | [Analysis, generation and publication forms](cdn-outputs.md) | `tests/cdn-analysis` 12 steps, `tests/cdn-outputs` 21 steps, including real React 19 units sharing one React instance in `esm` and `System.register` form, outputs that are byte-identical whatever directory a package was extracted into, and the headers of every contract error |
+| `@beyond-js/packages/diagnostics` | [Semantic TypeScript Diagnostics](cdn-diagnostics.md) | `tests/cdn-diagnostics` 24 steps |
+
+The earlier validations were rerun against these changes together: stage-1 21, esbuild packaging 8, unified runtime 6 and 7, CLI baseline 22 and development 15 steps. The [source audit](reviews/2026-09-19-cdn-readiness.md) is retained as the record of the state before this work; its findings are answered in the guides above, which also list what was repaired in source only and could not be executed (the database settings loader and the local-install downloader, which depend on legacy persistence loading). Browser execution, real registries, a real SystemJS loader and an Engine-independent compiled distribution of Packages remain unproven.
+
 ## Shared consumer API, separate HTTP adapters
 
 The existing public contract is `@beyond-js/artifact-api`, owned by the independent artifact-api repository. Reuse its module identity/URL and option codec, error vocabulary and conformance fixtures. Packages Dev Server serves development through its own adapter over `Delivery`; CDN implements its own HTTP adapter for retained published outputs. Do not start Packages Dev Server inside CDN or turn published GET/miss into generation.

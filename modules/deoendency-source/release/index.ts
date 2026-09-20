@@ -1,7 +1,6 @@
-import type { DependencySource } from '@beyond-js/packages/dependency-source';
+import { type DependencySource, DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import type { DependencySourceProvider } from '@beyond-js/packages/dependency-source/provider';
 import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
-import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
 export /*bundle*/ class DependencySourceRelease {
 	#source: DependencySource;
@@ -34,14 +33,15 @@ export /*bundle*/ class DependencySourceRelease {
 	 */
 	constructor(dependency: DependencySourceProvider, release: string) {
 		const { source, provider } = dependency;
+		if (!release) throw new Error('The release of the dependency is required');
 		this.#source = source;
 		this.#provider = provider;
 		this.#release = release;
 
 		switch (source.data.is) {
 			case DependencySourceIsType.Semver: {
-				// expect: hostname, package, version
-				const hostname = provider.hostname;
+				// The registry identity carries host, port and path prefix: two registries of one host differ
+				const hostname = provider.registry || provider.hostname;
 				const pkg = source.package;
 				this.#id = `semver://${hostname}/${pkg}@${release}`;
 				this.#path = `${hostname}/${pkg}/${release}`;
@@ -49,7 +49,7 @@ export /*bundle*/ class DependencySourceRelease {
 			}
 
 			case DependencySourceIsType.Git: {
-				const hostname = provider.hostname;
+				const hostname = provider.registry || provider.hostname;
 				const owner = source.data.owner;
 				const repo = source.data.repo;
 				this.#id = `git://${hostname}/${owner}/${repo}@${release}`;

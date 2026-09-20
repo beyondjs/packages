@@ -5,6 +5,7 @@ import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import { Conditions } from './conditions';
 import { Compilation } from './compilation';
 import { Dependencies } from './dependencies';
+import { Resources } from './resources';
 import type { IArtifactDependency } from './types';
 
 /**
@@ -79,10 +80,20 @@ export /*bundle*/ class Delivery {
 		return this.#selection;
 	}
 
+	#resources: Resources;
+
+	/**
+	 * The companion resources of the modules: stylesheets and declared static files
+	 */
+	get resources() {
+		return this.#resources;
+	}
+
 	constructor(workspace: Workspace) {
 		this.#workspace = workspace;
 		this.#selection = new Selection(workspace);
 		this.#dependencies = new Dependencies(workspace);
+		this.#resources = new Resources(workspace, this.#selection, this.#dependencies);
 	}
 
 	/**

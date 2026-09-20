@@ -1,6 +1,9 @@
 import type { DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
 import type { Node as DependencyNode } from '.';
 
+/**
+ * The dependencies of one occurrence, by declared name
+ */
 export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 	#node: DependencyNode;
 
@@ -14,11 +17,30 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		return this.#processed;
 	}
 
-	get completed(): boolean {
-		for (const dependency of [...this.values()]) {
-			if (!dependency.processed) return false;
+	/**
+	 * True when every occurrence below was processed, all the way down. It says nothing about errors: a
+	 * failed occurrence is processed too. See `Closure` for validity.
+	 */
+	get settled(): boolean {
+		// An occurrence that failed, a peer requirement and a release without metadata expand nothing:
+		// what matters is that nothing is left being processed or waiting to be
+		if (this.#processing) return false;
+		for (const dependency of this.values()) {
+			if (dependency.processing || !dependency.processed) return false;
+			if (!dependency.dependencies.settled) return false;
 		}
+		return true;
+	}
 
+	/**
+	 * True when every occurrence below was processed and none failed, all the way down. A failure that is
+	 * only reachable through an optional dependency is judged by `Closure`, not here.
+	 */
+	get completed(): boolean {
+		if (!this.settled) return false;
+		for (const dependency of this.values()) {
+			if (dependency.error || !dependency.dependencies.completed) return false;
+		}
 		return true;
 	}
 
@@ -27,16 +49,20 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		this.#node = node;
 	}
 
-	invalidate() {
-		if (!this.#processed) return;
-		this.#processed = false;
-
-		this.forEach((node, pkg) => {
+	/**
+	 * Forgets the occurrences below, unregistering them, so that the node can be processed again
+	 */
+	reset() {
+		for (const node of [...this.values()]) {
+			node.dependencies.reset();
 			this.#node.registry.nodes.unregister(node);
-			node.invalidate();
+		}
+		this.clear();
+		this.#processed = false;
+	}
 
-			this.delete(pkg);
-		});
+	invalidate() {
+		this.reset();
 	}
 
 	async process(spec: DependenciesSpec, update: boolean) {
@@ -45,30 +71,44 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		}
 		this.#processing = true;
 
-		/**
-		 * Node has to be dynamically required to avoid a cyclical import
-		 */
-		const m = require('./');
-		const Node: typeof DependencyNode = m.Node;
+		try {
+			/**
+			 * Node has to be dynamically required to avoid a cyclical import
+			 */
+			const m = require('./');
+			const Node: typeof DependencyNode = m.Node;
 
-		for (const [name, { kind, version }] of spec) {
-			const node = new Node({
-				project: this.#node.project,
-				registry: this.#node.registry,
-				logger: this.#node.logger,
-				dependency: { kind, package: name, version },
-				parent: this.#node
+			const parent = this.#node;
+			const { policy } = parent.registry;
+			const root = !parent.parent;
+
+			// An occurrence linked to the one that expands its release only evaluates its own peers:
+			// they depend on where the occurrence is, the rest of the release is expanded once
+			const names = [...spec.keys()].sort().filter(name => {
+				const { kind } = spec.get(name);
+				if (policy && !policy.follows(kind, root)) return false;
+				return !parent.link || (kind === 'peer' && !root);
 			});
-			await node.register(update);
-			this.set(name, node);
-		}
 
-		for (const node of this.values()) {
-			await node.process({ update });
-		}
+			// Every occurrence is created and versioned before any is expanded: siblings are what
+			// provides the peers of each other
+			for (const name of names) {
+				const { kind, version: declared, optional } = spec.get(name);
+				const version = policy ? policy.overrides.apply(name, declared, parent.path) : declared;
 
-		this.#processing = false;
-		this.#processed = true;
+				const dependency = { kind, package: name, version, declared, optional };
+				const { project, registry, logger } = parent;
+				const node = new Node({ project, registry, logger, dependency, parent });
+				this.set(name, node);
+			}
+
+			for (const node of this.values()) await node.register(update);
+			for (const node of this.values()) await node.process({ update });
+
+			this.#processed = true;
+		} finally {
+			this.#processing = false;
+		}
 	}
 
 	async reprocess(update: boolean) {
@@ -80,9 +120,10 @@ export /*bundle*/ class NodeDependencies extends Map<string, DependencyNode> {
 		}
 
 		this.#processing = true;
-		for (const node of [...this.values()]) {
-			await node.reprocess(update);
+		try {
+			for (const node of [...this.values()]) await node.reprocess(update);
+		} finally {
+			this.#processing = false;
 		}
-		this.#processing = false;
 	}
 }

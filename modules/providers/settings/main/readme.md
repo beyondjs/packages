@@ -9,6 +9,12 @@ their registries from multiple sources:
 
 It is written so that **someone with zero prior `.npmrc` knowledge** can understand the model.
 
+The rules in force — address normalization (`Endpoint`), precedence (explicit values > database > environment >
+project > workspace > user > global rc > default), credential matching by host, port and prefix, instance-local state
+and the options that isolate a load from the host (`user`, `global`, `env`, `values`) — are maintained in
+[package resolution and source fetching](../../../../docs/cdn-resolution.md#providers-and-settings). Where the text
+below differs, that guide and the source prevail.
+
 ---
 
 ## 1. Core Concepts
