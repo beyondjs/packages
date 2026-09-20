@@ -17,9 +17,15 @@ export class Root {
 	}
 
 	/**
+	 * The directory of the root where this service keeps the state of the working copy, such as the
+	 * development selection. It is not source: it is never listed, announced or reachable as a file.
+	 */
+	static STATE = '.beyond';
+
+	/**
 	 * Directory names that are never indexed, watched or announced
 	 */
-	static EXCLUDED = new Set(['.git', 'node_modules']);
+	static EXCLUDED = new Set(['.git', 'node_modules', Root.STATE]);
 
 	constructor(path: string) {
 		this.#path = realpathSync(path);
@@ -47,6 +53,7 @@ export class Root {
 		if (path.startsWith('/') || path.endsWith('/')) throw invalid();
 		if (path.split('/').some(segment => !segment || segment === '.' || segment === '..')) throw invalid();
 		if (path.split('/')[0] === '.git') throw new DevelopmentError('PATH_FORBIDDEN', 'Repository internals are not served', 403);
+		if (path.split('/')[0] === Root.STATE) throw new DevelopmentError('PATH_FORBIDDEN', 'The state of the development service is not a source file', 403);
 		return path;
 	}
 

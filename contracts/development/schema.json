@@ -162,10 +162,104 @@
 						"additionalProperties": false,
 						"properties": {
 							"vspecifier": { "type": "string" },
+							"platform": {
+								"enum": ["node", "web"],
+								"description": "The platform the artifact was built for. A module is listed once for each platform it declares, and a consumer applies the artifact of its own platform. Absent when the module declares none of the platforms the service builds for, which is reported as invalid."
+							},
 							"status": { "enum": ["valid", "invalid"] },
 							"hash": { "type": "string" }
 						}
 					}
+				},
+				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+			}
+		},
+		"selection": {
+			"type": "object",
+			"description": "Which packages and public modules of the workspace are in development: a preview loads them from this environment and every other dependency from the CDN. Only a replacement changes it. `explicit: false` means nobody selected yet, and then `packages` lists every package of the workspace.",
+			"required": ["explicit", "packages", "modules", "unknown"],
+			"additionalProperties": false,
+			"properties": {
+				"explicit": { "type": "boolean" },
+				"packages": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+				"modules": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+				"unknown": {
+					"type": "array",
+					"description": "Selected names that the workspace no longer declares. They select nothing and are kept.",
+					"items": { "type": "string", "minLength": 1 }
+				}
+			}
+		},
+		"preview": {
+			"type": "object",
+			"description": "What the entry document of a preview loads and where from. Addresses of this environment are relative to the document, so they hold behind a proxy that publishes the service under a path prefix; addresses of the CDN are absolute. No address carries a credential.",
+			"required": ["protocol", "entry", "options", "cdn", "selection", "modules", "importmap", "updates", "diagnostics"],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": { "const": "beyond-dev-files/1" },
+				"entry": {
+					"type": "object",
+					"required": ["specifier", "vspecifier"],
+					"additionalProperties": false,
+					"properties": { "specifier": { "type": "string", "minLength": 1 }, "vspecifier": { "type": "string", "minLength": 1 } }
+				},
+				"options": { "type": "string", "description": "The query of the modules in development, which their updates are requested with" },
+				"cdn": {
+					"type": "object",
+					"description": "The configured CDN origin, or the reason there is none. An origin is never invented.",
+					"additionalProperties": false,
+					"properties": { "origin": { "type": "string", "pattern": "^https?://" }, "reason": { "type": "string", "minLength": 1 } },
+					"oneOf": [{ "required": ["origin"] }, { "required": ["reason"] }]
+				},
+				"selection": {
+					"type": "object",
+					"required": ["explicit"],
+					"additionalProperties": false,
+					"properties": { "explicit": { "type": "boolean" } }
+				},
+				"modules": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"required": ["specifier", "source"],
+						"additionalProperties": false,
+						"properties": {
+							"specifier": { "type": "string", "minLength": 1 },
+							"source": { "enum": ["environment", "cdn", "unresolved"] },
+							"version": { "type": "string" },
+							"url": { "type": "string" },
+							"reason": { "type": "string" }
+						},
+						"allOf": [
+							{
+								"if": { "properties": { "source": { "const": "environment" } } },
+								"then": { "required": ["url", "version"], "properties": { "url": { "type": "string", "pattern": "^\\.\\./m/" } } }
+							},
+							{
+								"if": { "properties": { "source": { "const": "cdn" } } },
+								"then": { "required": ["url", "version"], "properties": { "url": { "type": "string", "pattern": "^https?://" } } }
+							},
+							{
+								"if": { "properties": { "source": { "const": "unresolved" } } },
+								"then": { "required": ["reason"], "not": { "required": ["url"] } }
+							}
+						]
+					}
+				},
+				"importmap": {
+					"type": "object",
+					"required": ["imports"],
+					"additionalProperties": false,
+					"properties": {
+						"imports": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^(\\.\\./m/|https?://)" } }
+					}
+				},
+				"updates": {
+					"type": "object",
+					"description": "`runtime` is the development coordinator the document registers this service in, which is what applies updates to the running page. Without one, `reason` says why nothing does: new code then appears only when the document is loaded again, which is not an update.",
+					"additionalProperties": false,
+					"properties": { "runtime": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "minLength": 1 } },
+					"oneOf": [{ "required": ["runtime"] }, { "required": ["reason"] }]
 				},
 				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
 			}
@@ -185,6 +279,7 @@
 						"batch.completed",
 						"build.started",
 						"build.ended",
+						"selection.changed",
 						"resync",
 						"access.ended",
 						"stopping"
@@ -198,6 +293,7 @@
 				"actor": { "$ref": "#/$defs/actor" },
 				"batch": { "type": "string" },
 				"build": { "$ref": "#/$defs/build" },
+				"selection": { "$ref": "#/$defs/selection" },
 				"reason": { "enum": ["EPOCH", "GAP", "OVERFLOW", "WATCHER", "GRANT_EXPIRED", "GRANT_REVOKED", "SHUTDOWN"] }
 			},
 			"allOf": [
@@ -210,6 +306,7 @@
 					"then": { "required": ["from"], "properties": { "origin": { "const": "api" } } }
 				},
 				{ "if": { "properties": { "type": { "enum": ["build.started", "build.ended"] } } }, "then": { "required": ["build"] } },
+				{ "if": { "properties": { "type": { "const": "selection.changed" } } }, "then": { "required": ["selection"] } },
 				{
 					"if": { "properties": { "type": { "enum": ["resync", "access.ended"] } } },
 					"then": { "required": ["reason"] }

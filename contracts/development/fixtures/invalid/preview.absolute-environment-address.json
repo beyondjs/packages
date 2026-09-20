@@ -1,0 +1,45 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"origin": "https://cdn.example.test"
+	},
+	"selection": {
+		"explicit": true
+	},
+	"modules": [
+		{
+			"specifier": "@beyond-js/kernel/bundle",
+			"source": "cdn",
+			"version": "0.1.12",
+			"url": "https://cdn.example.test/m/@beyond-js/kernel@0.1.12/modules/bundle?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		},
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"url": "http://127.0.0.1:4100/m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/shared/text",
+			"source": "cdn",
+			"version": "1.0.0",
+			"url": "https://cdn.example.test/m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@beyond-js/kernel/bundle": "https://cdn.example.test/m/@beyond-js/kernel@0.1.12/modules/bundle?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false",
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/shared/text": "https://cdn.example.test/m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		}
+	},
+	"updates": {
+		"reason": "The runtime of the application (@beyond-js/kernel/bundle) has no development coordinator in this workspace, so nothing applies updates to the running page"
+	},
+	"diagnostics": []
+}

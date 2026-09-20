@@ -3,6 +3,8 @@ export { DevelopmentError } from './error';
 export { Log } from './log';
 export { Files } from './files';
 export { Builds } from './builds';
+export { Selection } from './selection';
+export { Preview } from './preview';
 export { Access } from './access';
 export { Verifier } from './access/verifier';
 export { Development, guard, setup } from './development';

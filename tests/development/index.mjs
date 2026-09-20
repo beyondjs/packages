@@ -3,12 +3,12 @@
  * Every case writes its own temporary root. Run it from the Packages directory, like the other validations:
  *
  * ```sh
- * BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" tests/development/index.mjs [group]
+ * BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" tests/development/index.mjs [files|service|preview]
  * ```
  */
 import { results } from './harness.mjs';
 
-const groups = { files: './files.mjs', service: './service.mjs' };
+const groups = { files: './files.mjs', service: './service.mjs', preview: './preview.mjs' };
 const only = process.argv[2];
 for (const [name, file] of Object.entries(groups)) {
 	if (only && only !== name) continue;

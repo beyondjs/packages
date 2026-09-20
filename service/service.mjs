@@ -81,10 +81,13 @@ export class Service {
 	 * options How a service started by this call ends; an explicit port; the address it listens on, which
 	 * is the loopback one unless something else controls who reaches the service, because the service has
 	 * no authentication; and the module specifiers of the extensions that add routes to its host. All of
-	 * them describe a service this call starts and are ignored when a running service is reused.
+	 * them describe a service this call starts and are ignored when a running service is reused. A caller
+	 * that names no extensions starts the ones of `BEYOND_SERVICE_EXTENSIONS` (specifiers separated by
+	 * commas), which is how a person adds the development extension, and with it the preview of the
+	 * workspace, to the service that a command starts.
 	 * @returns {Promise<{connection: Connection, started: boolean, token?: string}>}
 	 */
-	acquire({ lifetime, port, bind, extensions }) {
+	acquire({ lifetime, port, bind, extensions = Service.extensions(process.env) }) {
 		return this.#discovery.exclusive(async () => {
 			const found = await this.find();
 			if (found) return { connection: found, started: false };
@@ -95,6 +98,17 @@ export class Service {
 			if (!connection) throw new ServiceError('The service started but did not describe itself as expected', record.log);
 			return { connection, started: true, token };
 		});
+	}
+
+	/**
+	 * The extensions the environment names, undefined when it names none
+	 *
+	 * @param {Record<string, string | undefined>} environment
+	 * @returns {string[] | undefined}
+	 */
+	static extensions(environment) {
+		const names = (environment.BEYOND_SERVICE_EXTENSIONS ?? '').split(',').map(name => name.trim()).filter(name => name);
+		return names.length ? names : void 0;
 	}
 
 	/**

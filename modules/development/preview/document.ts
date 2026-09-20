@@ -1,0 +1,70 @@
+import type { IPreviewDescription } from './index';
+
+/**
+ * The entry document of a preview: an import map and the import of the entry module.
+ *
+ * Every address of this environment is relative to the document, and nothing in it is a credential: what
+ * authorizes a visitor is decided in front of this service, which only ever sees the grant of the request.
+ * Importing the entry module runs its top-level code once, which is what executing a public module means;
+ * no exported function is called. When the workspace provides a development runtime, the document
+ * registers this service in it first, so that the runtime applies the updates the service announces. The
+ * document applies no update by itself, and it never reloads.
+ */
+export class Document {
+	#description: IPreviewDescription;
+
+	constructor(description: IPreviewDescription) {
+		this.#description = description;
+	}
+
+	/**
+	 * JSON that can be written inside a script element
+	 */
+	#json(value: unknown, indent?: string): string {
+		return JSON.stringify(value, null, indent).replace(/</g, '\\u003c');
+	}
+
+	#text(value: string): string {
+		return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	get #script(): string {
+		const { entry, updates, options, diagnostics } = this.#description;
+		const lines = diagnostics.map(({ code, message }) => `console.error(${this.#json(`[beyond preview] ${code}: ${message}`)});`);
+
+		if (updates.runtime) {
+			lines.push(
+				'try {',
+				`\tconst { local } = await import(${this.#json(updates.runtime)});`,
+				`\tawait local.register({ origin: new URL('..', document.baseURI).href, options: ${this.#json(options)} });`,
+				'} catch (error) {',
+				`\tconsole.error('[beyond preview] The development runtime could not connect, so updates are not applied:', error);`,
+				'}'
+			);
+		}
+		lines.push(`await import(${this.#json(entry.specifier)});`);
+		return lines.join('\n');
+	}
+
+	get html(): string {
+		const { entry, importmap } = this.#description;
+		return [
+			'<!doctype html>',
+			'<html lang="en">',
+			'<head>',
+			'<meta charset="utf-8">',
+			'<meta name="viewport" content="width=device-width, initial-scale=1">',
+			'<meta name="referrer" content="no-referrer">',
+			// Without it a browser asks the root of the origin for an icon, which is outside the base of the preview
+			'<link rel="icon" href="data:,">',
+			`<title>${this.#text(entry.specifier)}</title>`,
+			`<script type="importmap">\n${this.#json(importmap, '\t')}\n</script>`,
+			'</head>',
+			'<body>',
+			`<script type="module">\n${this.#script}\n</script>`,
+			'</body>',
+			'</html>',
+			''
+		].join('\n');
+	}
+}

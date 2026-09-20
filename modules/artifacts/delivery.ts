@@ -35,6 +35,12 @@ export /*bundle*/ interface IDelivered {
 	 * of workspace modules behind an entry point
 	 */
 	dependencies: IArtifactDependency[];
+
+	/**
+	 * The runtime public module that a composed artifact imports, which is not one of the dependencies of
+	 * its sources. A packaged artifact imports none.
+	 */
+	runtime?: string;
 	code: (sourcemap: 'inline' | 'none') => string;
 
 	/**
@@ -152,6 +158,7 @@ export /*bundle*/ class Delivery {
 				vspecifier: selected.vspecifier,
 				hash: conditional.output.hash,
 				dependencies: compilation.dependencies,
+				runtime: conditional.artifact.runtime,
 				code: sourcemap => conditional.output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
 				patch: () => conditional.patch?.code('sourcemap-inline')
 			}

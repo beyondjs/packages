@@ -7,13 +7,13 @@ import { Project, revision, step, wait } from './harness.mjs';
 const { Access, Development, Verifier } = await import('@beyond-js/packages/development');
 
 const fixture = name => JSON.parse(readFileSync(new URL(`../../contracts/development/fixtures/grants/${name}.json`, import.meta.url), 'utf8'));
-const vectors = fixture('vectors');
+export const vectors = fixture('vectors');
 const keys = fixture('keys');
 
 /**
  * Signs grants and revocation lists with the public test key, as the central administration does with its own
  */
-class Signer {
+export class Signer {
 	#key = createPrivateKey(keys.trusted.private);
 	#sequence = 0;
 
@@ -39,7 +39,7 @@ class Signer {
  * Stands in for Packages' delivery so that build correlation can be driven deterministically. It compiles
  * nothing: a source containing `= ;` fails. Real compilation is validated through the hosting service.
  */
-class Delivery {
+export class Delivery {
 	constructor(project) {
 		this.project = project;
 	}
@@ -50,13 +50,15 @@ class Delivery {
 		const source = readFileSync(this.project.file('app/main/index.ts'), 'utf8');
 		return source.includes('= ;')
 			? { failure: { code: 'BUILD_FAILED', message: 'failed', diagnostics: [{ code: 'TS1109', message: 'Expression expected.' }] } }
-			: { delivered: { hash: revision(source).slice(7, 15) } };
+			: { delivered: { hash: revision(source).slice(7, 15), dependencies: [], runtime: '@beyond-js/kernel/bundle' } };
 	}
 }
 
-const serve = async (seed, access) => {
+export const serve = async (seed, access) => {
 	const project = new Project(seed);
-	const development = new Development({ delivery: new Delivery(project), settings: { root: project.path } }, access);
+	// The runtime of the stub artifacts is the Kernel installed with this repository, as a service describes it
+	const runtime = { base: new URL('../../package.json', import.meta.url).href };
+	const development = new Development({ delivery: new Delivery(project), settings: { root: project.path, runtime } }, access);
 	const app = express();
 	development.guard(app);
 	app.get('/session', (request, response) => response.json({ protocol: 'beyond-dev-session/1' }));
@@ -99,7 +101,7 @@ const serve = async (seed, access) => {
 	return { project, development, call, subscribe, stop };
 };
 
-const until = async (check, what, timeout = 5000) => {
+export const until = async (check, what, timeout = 5000) => {
 	for (const deadline = Date.now() + timeout; Date.now() < deadline; await wait(25)) if (check()) return;
 	throw new Error(`Timed out waiting for ${what}`);
 };

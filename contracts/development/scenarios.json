@@ -1,6 +1,6 @@
 {
 	"protocol": "beyond-dev-files/1",
-	"description": "Behavior every implementation must reproduce. `given` seeds the root. A step is an `api` mutation, an `external` write that bypasses the API, a `control` action on the service, or an `expect` that names events (by type, path, origin) or a result. `$rev(path)` is the revision of the seeded or last written content of a path.",
+	"description": "Behavior every implementation must reproduce. `given` seeds the root. A step is an `api` mutation, an `external` write that bypasses the API, a `control` action on the service, or an `expect` that names events (by type, path, origin) or a result. `$rev(path)` is the revision of the seeded or last written content of a path. A `selection` step reads (`read`), replaces (`replace`) or clears the development selection, and a `preview` step reads the entry description for an optional `entry`.",
 	"scenarios": [
 		{
 			"name": "edit-with-current-revision",
@@ -766,6 +766,258 @@
 					"error": {
 						"status": 401,
 						"code": "GRANT_MALFORMED"
+					}
+				}
+			]
+		},
+		{
+			"name": "files-never-select",
+			"requirement": "Reading, writing, creating or building a file never changes the development selection; only a replacement does",
+			"steps": [
+				{
+					"given": {
+						"app/main/index.ts": "export const v = 1;"
+					}
+				},
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": "app/main/index.ts",
+						"expected": "$rev(app/main/index.ts)",
+						"content": "export const v = 2;"
+					},
+					"result": {
+						"outcome": "completed"
+					}
+				},
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false
+					}
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							]
+						}
+					},
+					"result": {
+						"explicit": true,
+						"packages": [
+							"@case/app"
+						]
+					}
+				},
+				{
+					"expect": {
+						"events": [
+							{
+								"type": "selection.changed"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "selection-is-not-a-source-file",
+			"requirement": "The stored selection is state of the working copy: it is not listed in the tree, not announced as a file and not writable through a path",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							]
+						}
+					},
+					"result": {
+						"explicit": true
+					}
+				},
+				{
+					"tree": {
+						"scan": true
+					},
+					"result": {
+						"entries": [
+							"a.ts"
+						]
+					}
+				},
+				{
+					"api": {
+						"operation": "write",
+						"path": ".beyond/development/selection.json",
+						"expected": "absent",
+						"content": "{}"
+					},
+					"error": {
+						"status": 403,
+						"code": "PATH_FORBIDDEN"
+					}
+				}
+			]
+		},
+		{
+			"name": "unknown-selection-is-refused",
+			"requirement": "A replacement that names a package or a public module the workspace does not declare changes nothing and names what is unknown",
+			"steps": [
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/missing"
+							]
+						}
+					},
+					"error": {
+						"status": 400,
+						"code": "SELECTION_INVALID"
+					}
+				},
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false
+					}
+				}
+			]
+		},
+		{
+			"name": "viewer-cannot-select",
+			"requirement": "The selection is read with inspect.read and replaced with build.control",
+			"steps": [
+				{
+					"grant": [
+						"inspect.read",
+						"artifacts.read"
+					]
+				},
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false
+					}
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							]
+						}
+					},
+					"error": {
+						"status": 403,
+						"code": "GRANT_CAPABILITY"
+					}
+				}
+			]
+		},
+		{
+			"name": "preview-routes-selected-to-environment",
+			"requirement": "The entry description addresses modules in development relative to the document and every other module on the configured CDN at its exact version; without a configured CDN it says so and gives no address",
+			"steps": [
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							]
+						}
+					},
+					"result": {
+						"explicit": true
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"entry": {
+							"specifier": "@case/app/main"
+						},
+						"modules": [
+							{
+								"specifier": "@case/app/main",
+								"source": "environment"
+							}
+						]
+					}
+				},
+				{
+					"control": "cdn-unset"
+				},
+				{
+					"preview": {},
+					"result": {
+						"cdn": {
+							"reason": "$any"
+						},
+						"modules": [
+							{
+								"source": "unresolved"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "visitor-stream-has-no-source-events",
+			"requirement": "A subscriber whose grant lacks files.read receives build and selection events and no file or batch event",
+			"steps": [
+				{
+					"given": {
+						"a.ts": "one"
+					}
+				},
+				{
+					"grant": [
+						"session.read",
+						"events.subscribe",
+						"artifacts.read"
+					]
+				},
+				{
+					"subscribe": "visitor"
+				},
+				{
+					"external": {
+						"write": "a.ts",
+						"content": "two"
+					}
+				},
+				{
+					"expect": {
+						"stream": "visitor",
+						"events": [
+							{
+								"type": "build.started"
+							},
+							{
+								"type": "build.ended"
+							}
+						],
+						"never": [
+							{
+								"type": "file.changed"
+							}
+						]
 					}
 				}
 			]

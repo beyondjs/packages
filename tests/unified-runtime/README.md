@@ -46,4 +46,4 @@ Expected: `6/6 steps passed` and `7/7 steps passed`.
 
 ## What it does not cover
 
-Browsers, styles, Widgets and the other families of the legacy Kernel: see the runtime's own guide of what is implemented. Updates of modules compiled in the esbuild packaging mode, which receive none. Duplicate and superseded notifications were not forced. The `/u/` route is provisional and outside the compiled-module contract. The service is accepted as an installed product by the command line's acceptance suite, not by this run, which starts its host from the checkout.
+Browsers are covered by [the preview validation](../preview/README.md), which applies an update to a running page. Styles, Widgets and the other families of the legacy Kernel are not covered: see the runtime's own guide of what is implemented. Updates of modules compiled in the esbuild packaging mode, which receive none. Duplicate and superseded notifications were not forced. The `/u/` route is provisional and outside the compiled-module contract. The service is accepted as an installed product by the command line's acceptance suite, not by this run, which starts its host from the checkout.

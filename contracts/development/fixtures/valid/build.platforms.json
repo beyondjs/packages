@@ -1,0 +1,25 @@
+{
+	"id": "bld_4_mfs1k2",
+	"state": "completed",
+	"input": "6c53e8077b24:12",
+	"modules": [
+		{
+			"vspecifier": "@example/shared@1.0.0/text",
+			"platform": "node",
+			"status": "valid",
+			"hash": "ac7b6ae90f8f44555ea739c8123b4a8e"
+		},
+		{
+			"vspecifier": "@example/shared@1.0.0/text",
+			"platform": "web",
+			"status": "valid",
+			"hash": "ac7b6ae90f8f44555ea739c8123b4a8e"
+		},
+		{
+			"vspecifier": "@example/app@1.0.0/main",
+			"platform": "web",
+			"status": "valid",
+			"hash": "0b5ad4e8f6fb6348b3920ebb8966eaa3"
+		}
+	]
+}

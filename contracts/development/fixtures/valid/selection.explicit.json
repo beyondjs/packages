@@ -1,0 +1,12 @@
+{
+	"explicit": true,
+	"packages": [
+		"@example/app"
+	],
+	"modules": [
+		"@example/shared/text"
+	],
+	"unknown": [
+		"@example/removed"
+	]
+}

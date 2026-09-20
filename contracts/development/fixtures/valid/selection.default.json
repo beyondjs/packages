@@ -1,0 +1,9 @@
+{
+	"explicit": false,
+	"packages": [
+		"@example/app",
+		"@example/shared"
+	],
+	"modules": [],
+	"unknown": []
+}

@@ -4,7 +4,7 @@ import { DevelopmentError } from '../error';
 
 /**
  * Delegated access for the routes the hosting service mounts itself: the session description, state,
- * selection, attachments and compiled modules. In local mode it lets everything through.
+ * selection, attachments, compiled modules and their updates. In local mode it lets everything through.
  */
 export class Guard {
 	static CAPABILITIES: [RegExp, string][] = [
@@ -12,6 +12,7 @@ export class Guard {
 		[/^\/(state|selection)$/, 'inspect.read'],
 		[/^\/attach$/, 'events.subscribe'],
 		[/^\/m\//, 'artifacts.read'],
+		[/^\/u\//, 'artifacts.read'],
 		[/^\/$/, 'session.read']
 	];
 

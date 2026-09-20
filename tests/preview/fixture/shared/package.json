@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/shared",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Preview validation: a public module for Node and browsers that the application imports by its bare specifier",
+	"exports": {
+		"./text": "./text/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

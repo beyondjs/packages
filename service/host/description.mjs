@@ -64,13 +64,25 @@ export class Description {
 	}
 
 	/**
+	 * Builds a module for Node consumers, or for browsers when it does not declare Node: a module that only
+	 * runs in a browser is valid, and describing it as one that does not build would misreport the workspace
+	 */
+	async #built(module) {
+		const built = await this.#delivery.module(module, this.conditions);
+		const undeclared = built.failure?.diagnostics?.length && built.failure.diagnostics.every(({ code }) => code === 'CONDITIONAL_NOT_FOUND');
+		if (!undeclared) return built;
+
+		return this.#delivery.module(module, { ...this.conditions, platform: 'web' });
+	}
+
+	/**
 	 * Builds every public module and reports which ones are valid. A workspace with diagnostics is still
 	 * served: this is how a client sees what has to be corrected.
 	 */
 	async state() {
 		const modules = [];
 		for (const module of await this.#delivery.published()) {
-			const { delivered, failure } = await this.#delivery.module(module, this.conditions);
+			const { delivered, failure } = await this.#built(module);
 			const { specifier, vspecifier } = module;
 
 			if (delivered && this.#hashes.get(vspecifier) !== delivered.hash) {

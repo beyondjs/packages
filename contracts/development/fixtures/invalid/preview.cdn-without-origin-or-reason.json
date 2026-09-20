@@ -1,0 +1,47 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {},
+	"selection": {
+		"explicit": false
+	},
+	"modules": [
+		{
+			"specifier": "@beyond-js/kernel/bundle",
+			"source": "unresolved",
+			"version": "0.1.12",
+			"reason": "No CDN origin is configured (BEYOND_CDN_ORIGIN is not set)"
+		},
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/shared/text",
+			"source": "environment",
+			"version": "1.0.0",
+			"url": "../m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/shared/text": "../m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	},
+	"updates": {
+		"reason": "The runtime of the application (@beyond-js/kernel/bundle) has no development coordinator in this workspace, so nothing applies updates to the running page"
+	},
+	"diagnostics": [
+		{
+			"code": "PREVIEW_CDN_UNSET",
+			"message": "\"@beyond-js/kernel/bundle\" is not in development and no CDN origin is configured (BEYOND_CDN_ORIGIN is not set)"
+		}
+	]
+}

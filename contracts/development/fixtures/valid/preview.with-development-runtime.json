@@ -1,0 +1,52 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"reason": "BEYOND_CDN_ORIGIN is not set: modules that are not in development have no address"
+	},
+	"selection": {
+		"explicit": false
+	},
+	"modules": [
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/runtime/bundle",
+			"source": "environment",
+			"version": "0.1.0",
+			"url": "../m/@example/runtime@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/runtime/main",
+			"source": "environment",
+			"version": "0.1.0",
+			"url": "../m/@example/runtime@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/shared/text",
+			"source": "environment",
+			"version": "1.0.0",
+			"url": "../m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/runtime/bundle": "../m/@example/runtime@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/runtime/main": "../m/@example/runtime@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/shared/text": "../m/@example/shared@1.0.0/modules/text?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	},
+	"updates": {
+		"runtime": "@example/runtime/main"
+	},
+	"diagnostics": []
+}

@@ -12,14 +12,20 @@ export /*bundle*/ class DevelopmentError extends Error {
 		return this.#status;
 	}
 
+	#details: Record<string, unknown>;
+
 	get body() {
-		return { error: { code: this.#code, message: this.message } };
+		return { error: { code: this.#code, message: this.message, ...this.#details } };
 	}
 
-	constructor(code: string, message: string, status: number) {
+	/**
+	 * @param details What lets a client correct the request, such as the values it may choose from
+	 */
+	constructor(code: string, message: string, status: number, details: Record<string, unknown> = {}) {
 		super(message);
 		this.name = 'DevelopmentError';
 		this.#code = code;
 		this.#status = status;
+		this.#details = details;
 	}
 }

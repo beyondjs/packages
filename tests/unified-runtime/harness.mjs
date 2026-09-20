@@ -145,10 +145,10 @@ export class Host {
 	/**
 	 * @param root The workspace to serve
 	 * @param env What the host process needs besides the loader: where the implementation and the watchers
-	 * utility are served, the port when the origin must survive a restart, and the variables the manifests of
-	 * the workspace name
+	 * utility are served, the port when the origin must survive a restart, the access context of the owner
+	 * when the service is started in delegated mode, and the variables the manifests of the workspace name
 	 */
-	async start(root, { implementation, watchers, port = 0, ...env }) {
+	async start(root, { implementation, watchers, port = 0, headers = {}, ...env }) {
 		const packages = resolve(here, '../..');
 		const token = randomUUID();
 		const settings = {
@@ -178,7 +178,7 @@ export class Host {
 		this.#origin = await Promise.race([reported, timeout(90000, 'service ready')]);
 
 		// The client of the service itself, which holds the attachment open and keeps reading it
-		this.#attachment = await new Connection(this.#origin).attach('owner', { token });
+		this.#attachment = await new Connection(this.#origin, void 0, headers).attach('owner', { token });
 		return this;
 	}
 
