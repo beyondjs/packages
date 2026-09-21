@@ -62,8 +62,17 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 	}
 
 	#errors: IDiagnostic[] = [];
+
+	/**
+	 * The diagnostics of the processor itself: its settings, its specification and the ones a concrete
+	 * processor adds. The issues of individual outputs are reported by the conditional that reads them.
+	 */
 	get errors(): IDiagnostic[] {
-		return this.#errors;
+		return this.#errors.concat(this.#settings?.errors ?? [], this.#spec?.errors ?? []);
+	}
+
+	get warnings(): IDiagnostic[] {
+		return (this.#settings?.warnings ?? []).concat(this.#spec?.warnings ?? []);
 	}
 
 	get valid(): boolean {
@@ -117,9 +126,10 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 	 */
 	_spec(values: any): { values: any; errors?: IDiagnostic[]; warnings?: IDiagnostic[] } {
 		const output: any = {};
-		if (this.#sources.inputs) {
+		if (this.#sources?.inputs) {
 			values.path && (output.path = values.path);
 			values.files && (output.files = values.files);
+			values.excludes && (output.excludes = values.excludes);
 		}
 
 		return { values: output };
@@ -149,6 +159,9 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 	}
 
 	destroy() {
+		super.destroy();
 		this.#sources?.destroy();
+		this.#spec.destroy();
+		this.#settings.destroy();
 	}
 }

@@ -1,7 +1,6 @@
 import type { Conditional } from '../../main';
 import type { ConditionalProcessor } from '../../processor';
 import type { IProcessorsSetup } from '../../../conditional/main';
-import type { ProcessorConstructor } from './types';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -14,7 +13,13 @@ interface IDone {
 }
 
 /**
- * The processors of a bundler
+ * The processors of a conditional, created from what its `_processors()` configures.
+ *
+ * A processor is identified by its name and by the implementation that name selects. A configuration that
+ * keeps the name but selects another specifier replaces the instance: the previous constructor is destroyed
+ * and the new one imported, so an alias never keeps an implementation that the configuration no longer
+ * names. A configuration that fails destroys every processor, because a conditional with configuration
+ * errors has no valid processors to build with.
  */
 export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<string, ConditionalProcessor>) {
 	get dp() {
@@ -25,6 +30,11 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 	get conditional(): Conditional {
 		return this.#conditional;
 	}
+
+	/**
+	 * The specifier each processor was imported from, which is what tells a replaced implementation apart
+	 */
+	#specifiers: Map<string, string> = new Map();
 
 	#errors: IDiagnostic[] = [];
 	get errors() {
@@ -60,18 +70,20 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 
 	async _process() {
 		const done = ({ errors, warnings, updated }: IDone) => {
+			updated = updated ?? new Map();
 			const previous = { errors: this.#errors, warnings: this.#warnings };
 			const changed =
 				!equal({ errors, warnings }, previous) ||
 				updated.size !== this.size ||
-				[...updated.entries()].some(([key]) => !this.has(key));
+				[...updated.entries()].some(([key, processor]) => this.get(key) !== processor);
 			if (!changed) return false;
 
 			this.#errors = errors || [];
 			this.#warnings = warnings || [];
 
-			// Destroy unused processors
-			this.forEach((processor, name) => !updated.has(name) && processor.destroy());
+			// Destroy the processors that are no longer configured, or that were replaced
+			this.forEach((processor, name) => updated.get(name) !== processor && processor.destroy());
+			this.#specifiers.forEach((specifier, name) => !updated.has(name) && this.#specifiers.delete(name));
 
 			super.clear(); // Do not use this.clear() as it would destroy still used processors
 			updated.forEach((value, key) => this.set(key, value));
@@ -95,7 +107,8 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 				specifier = resolved.specifier;
 			}
 
-			if (this.has(name)) {
+			// The same name selecting the same implementation keeps its instance and receives the new spec
+			if (this.has(name) && this.#specifiers.get(name) === specifier) {
 				updated.set(name, this.get(name));
 				this.get(name).spec.values = spec;
 				continue;
@@ -117,8 +130,8 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 				processor.spec.values = spec;
 
 				updated.set(name, processor);
+				this.#specifiers.set(name, specifier);
 			} catch (exc) {
-				console.error(exc);
 				const code = 'PROCESSOR_INITIALIZATION_ERROR';
 				const message = `Error requiring processor "${specifier}": ${exc.message}`;
 				errors.push({ code, message });
@@ -130,6 +143,7 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 
 	clear() {
 		this.forEach(processor => processor.destroy());
+		this.#specifiers.clear();
 		super.clear();
 	}
 

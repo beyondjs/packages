@@ -4,7 +4,7 @@
  */
 import { spawn } from 'node:child_process';
 import { cp, mkdtemp, mkdir, realpath, rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -31,6 +31,15 @@ export class Runtime {
 	constructor() {
 		if (!existsSync(join(this.#root, 'bundle/index.ts'))) throw new Error(`The development runtime was not found in ${this.#root}. Set BEYOND_RUNTIME.`);
 	}
+
+	/**
+	 * What a copy of the runtime package needs: its manifest and the directory of each exported module
+	 */
+	static entries(root) {
+		const { exports } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+		const directories = Object.values(exports).map(target => target.replace(/^\.\//, '').split('/')[0]);
+		return ['package.json', ...new Set(directories)];
+	}
 }
 
 /**
@@ -49,7 +58,8 @@ export class Fixture {
 
 		const target = join(this.#root, 'runtime');
 		await mkdir(target);
-		for (const entry of ['package.json', 'bundle', 'main']) {
+		// The manifest and the directory of every public module the runtime exports
+		for (const entry of Runtime.entries(runtime.root)) {
 			existsSync(join(runtime.root, entry)) && (await cp(join(runtime.root, entry), join(target, entry), { recursive: true }));
 		}
 

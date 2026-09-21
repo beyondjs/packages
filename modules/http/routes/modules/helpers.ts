@@ -1,4 +1,6 @@
 import type { Request, Response } from 'express';
+import type { Options } from '@beyond-js/artifact-api';
+import { ContractError } from '@beyond-js/artifact-api';
 import { createHash } from 'crypto';
 
 /**
@@ -42,5 +44,27 @@ export class Tag {
 
 		response.status(304).end();
 		return true;
+	}
+}
+
+/**
+ * A request for production is answered only by the production conditional of the module: the development
+ * conditional is never delivered as production output
+ */
+export class Production {
+	static check(options: Options, key: string): void {
+		if (options.env !== 'production' || key === 'installed' || key.endsWith('/production')) return;
+		const message = `This module builds no production conditional (it builds "${key}"). Request env=development&min=false, or select a bundler that builds for production`;
+		throw new ContractError('OPTION_UNSUPPORTED', message);
+	}
+}
+
+/**
+ * A stylesheet with its source map inline: CSS carries the reference in a comment of its own syntax
+ */
+export class Stylesheet {
+	static text(styles: { code(): string; map(format: 'base64'): string | undefined }, inline: boolean): string {
+		const map = inline ? styles.map('base64') : void 0;
+		return map ? `${styles.code()}\n/*# ${['sourceMappingURL'].join('')}=data:application/json;base64,${map} */\n` : styles.code();
 	}
 }

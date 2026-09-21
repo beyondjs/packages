@@ -1,0 +1,82 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"reason": "BEYOND_CDN_ORIGIN is not set: modules that are not in development have no address"
+	},
+	"selection": {
+		"explicit": false
+	},
+	"modules": [
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/app@1.0.0/main",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"styles": "../m/@example/app@1.0.0/styles/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/app/hello",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/app@1.0.0/hello",
+			"url": "../m/@example/app@1.0.0/modules/hello?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"styles": "../m/@example/app@1.0.0/styles/hello?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"widget": true
+		},
+		{
+			"specifier": "react",
+			"source": "environment",
+			"version": "19.2.0",
+			"vspecifier": "react@19.2.0",
+			"url": "../m/react@19.2.0/modules/.?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/runtime/bundle",
+			"source": "environment",
+			"version": "0.1.0",
+			"vspecifier": "@example/runtime@0.1.0/bundle",
+			"url": "../m/@example/runtime@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "@example/runtime/main",
+			"source": "environment",
+			"version": "0.1.0",
+			"vspecifier": "@example/runtime@0.1.0/main",
+			"url": "../m/@example/runtime@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/app/hello": "../m/@example/app@1.0.0/modules/hello?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"react": "../m/react@19.2.0/modules/.?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/runtime/bundle": "../m/@example/runtime@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/runtime/main": "../m/@example/runtime@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	},
+	"updates": {
+		"runtime": "@example/runtime/main",
+		"session": {
+			"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"modules": {
+				"@example/app/main": {
+					"package": "@example/app",
+					"vspecifier": "@example/app@1.0.0/main",
+					"path": "/m/@example/app@1.0.0/modules/main"
+				},
+				"@example/app/hello": {
+					"package": "@example/app",
+					"vspecifier": "@example/app@1.0.0/hello",
+					"path": "/m/@example/app@1.0.0/modules/hello"
+				}
+			}
+		}
+	},
+	"diagnostics": []
+}

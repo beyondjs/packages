@@ -1,0 +1,14 @@
+{
+	"id": "bld_5_mft0a1",
+	"state": "completed",
+	"input": "6c53e8077b24:14",
+	"modules": [
+		{
+			"vspecifier": "@example/ui@1.0.0/card",
+			"platform": "web",
+			"status": "valid",
+			"hash": "0b5ad4e8f6fb6348b3920ebb8966eaa3",
+			"styles": 123
+		}
+	]
+}

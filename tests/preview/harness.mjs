@@ -12,6 +12,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export { step, results, Fork, Host, Runtime } from '../unified-runtime/harness.mjs';
+import { Runtime } from '../unified-runtime/harness.mjs';
 export { Browser, Origin } from './browser.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -32,7 +33,7 @@ export class Workspace {
 
 		const target = join(this.#root, 'runtime');
 		await mkdir(target);
-		for (const entry of ['package.json', 'bundle', 'main']) await cp(join(runtime.root, entry), join(target, entry), { recursive: true });
+		for (const entry of Runtime.entries(runtime.root)) await cp(join(runtime.root, entry), join(target, entry), { recursive: true });
 		return this;
 	}
 

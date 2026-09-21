@@ -81,6 +81,16 @@ export /*bundle*/ interface IArtifact {
 	hash: string;
 
 	/**
+	 * The stylesheet of the module, relative to the artifacts directory, when its sources produce one
+	 */
+	styles?: string;
+
+	/**
+	 * The registration of the widget the module declares, when it is one
+	 */
+	widget?: { name: string; vspecifier: string; attrs?: string[]; render: { csr: boolean; ssr: boolean; sr: boolean } };
+
+	/**
 	 * The public API of the module: the names exported by its entry point
 	 */
 	exports: string[];

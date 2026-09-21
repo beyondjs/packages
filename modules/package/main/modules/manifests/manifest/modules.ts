@@ -70,7 +70,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 				const module = (() => {
 					if (this.has(bundler)) return this.get(bundler);
 
-					const path = this.#manifest.file.relative.dirname;
+					const path = this.#manifest.path;
 					const info: IModuleManifestInfo = { type: 'manifest', path };
 					return new ModuleSpec(info, bundler);
 				})();
@@ -111,8 +111,15 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 
 		const updated: Map<string, Record<string, any>> = new Map();
 
+		/**
+		 * The keys of a module specification whose values are objects and that never name a bundler: the
+		 * per-conditional sections, the widget declaration and the inputs of the style tools. A manifest that
+		 * selects no bundler and configures only these is one module, compiled by the default bundler.
+		 */
+		const specification = new Set(['conditionals', 'widget', 'tailwind', 'assets', 'static']);
 		const isPlainObject = (value: unknown) =>
 			typeof value === 'object' && value !== null && !(value instanceof Array);
+		const isBundlerConfig = ([key, value]: [string, unknown]) => isPlainObject(value) && !specification.has(key);
 
 		// At this point, all the common properties are removed from the config object
 		if (config.bundler) {
@@ -129,7 +136,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 			}
 
 			updated.set(config.bundler, spec);
-		} else if (!Object.entries(config).some(([, value]) => isPlainObject(value))) {
+		} else if (!Object.entries(config).some(isBundlerConfig)) {
 			/**
 			 * The manifest selects no bundler and configures none: it specifies a single module, which the
 			 * default bundler of the package compiles. The bundler name is left empty here, because it is a
@@ -147,6 +154,7 @@ export class ManifestModules extends DynamicProcessor(Map<string, ModuleSpec>) {
 			// At this point, all the properties of the config object should be the modules/bundlers configuration
 			for (const entry of entries) {
 				const bundler = entry[0];
+				if (specification.has(bundler)) continue;
 
 				if (!isPlainObject(entry[1])) {
 					const code = 'INVALID_BUNDLER_CONFIG';

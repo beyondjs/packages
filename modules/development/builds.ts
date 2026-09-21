@@ -10,9 +10,14 @@ export /*bundle*/ interface IBuildable {
 	 * Reloads what the service hosts when package or module declarations changed since it was last asked
 	 */
 	refresh?(): Promise<void>;
+
+	/**
+	 * Whether the host delivers an installed package at an exact version to browsers
+	 */
+	supplies?(name: string, version: string): Promise<boolean>;
 	published(): Promise<IPublishedModule[]>;
 	module(request: object, conditions: object): Promise<{
-		delivered?: { hash: string; dependencies?: IModuleDependency[]; runtime?: string };
+		delivered?: { hash: string; styles?: string; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
 		failure?: { code: string; message: string; diagnostics?: { code: string; message: string }[] };
 	}>;
 }
@@ -28,6 +33,11 @@ export /*bundle*/ interface IPublishedModule {
 	subpath: string;
 	specifier?: string;
 	path?: string;
+
+	/**
+	 * Whether the module belongs to a package the toolchain supplies, which is never the entry of a preview
+	 */
+	supplied?: boolean;
 }
 
 /**
@@ -43,7 +53,7 @@ export /*bundle*/ interface IBuild {
 	id: string;
 	state: 'running' | 'completed' | 'failed' | 'superseded' | 'cancelled';
 	input: string;
-	modules: { vspecifier: string; platform?: string; status: 'valid' | 'invalid'; hash?: string }[];
+	modules: { vspecifier: string; platform?: string; status: 'valid' | 'invalid'; hash?: string; styles?: string }[];
 	diagnostics?: { code: string; message: string; severity: 'error' }[];
 }
 
@@ -153,7 +163,11 @@ export /*bundle*/ class Builds {
 				undeclared.push(failure);
 				continue;
 			}
-			build.modules.push(delivered ? { vspecifier, platform, status: 'valid', hash: delivered.hash } : { vspecifier, platform, status: 'invalid' });
+			build.modules.push(
+				delivered
+					? { vspecifier, platform, status: 'valid', hash: delivered.hash, ...(delivered.styles ? { styles: delivered.styles } : {}) }
+					: { vspecifier, platform, status: 'invalid' }
+			);
 			failure && report(failure);
 		}
 

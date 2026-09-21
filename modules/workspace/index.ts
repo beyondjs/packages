@@ -25,6 +25,14 @@ export /*bundle*/ interface IWorkspaceOptions {
 	 * a workspace of one package without writing a configuration file into the project.
 	 */
 	packages?: string[];
+
+	/**
+	 * Packages the toolchain supplies to every workspace, as absolute directories: the development
+	 * runtime and the Widgets packages installed with Packages. They are compiled and served like the
+	 * packages of the workspace, so a browser loads them from this environment, but they are not watched:
+	 * an installation changes only when it is replaced.
+	 */
+	supplied?: string[];
 }
 
 /**
@@ -123,8 +131,10 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 			packages.forEach(path => {
 				if (this.#packages.has(path)) return;
 
-				const fulldir = resolve(this.#path, path);
-				const pkg = new Package(fulldir, { watcher: this.#options.watcher });
+				// A supplied package is named by its absolute directory and is never watched
+				const supplied = this.#supplied.has(path);
+				const fulldir = supplied ? path : resolve(this.#path, path);
+				const pkg = new Package(fulldir, { watcher: !supplied && this.#options.watcher, workspace: this });
 				this.#packages.set(path, pkg);
 			});
 		};
@@ -141,6 +151,10 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 		const packages: string[] = value?.packages || ['.'];
 		const output: Set<string> = new Set();
 		const warnings = [];
+
+		// The packages the toolchain supplies come after the ones of the workspace, which take precedence
+		const supplied = (this.#options.supplied ?? []).filter(path => typeof path === 'string' && isAbsolute(path));
+		this.#supplied = new Set(supplied);
 
 		packages.forEach((path: string) => {
 			if (!path || typeof path !== 'string') {
@@ -171,8 +185,18 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 
 			output.add(normalized);
 		});
+		supplied.forEach(path => output.add(path));
 
 		return done({ packages: output });
+	}
+
+	#supplied: Set<string> = new Set();
+
+	/**
+	 * Whether a package of the workspace is one the toolchain supplies
+	 */
+	supplies(pkg: Package): boolean {
+		return this.#supplied.has([...this.#packages].find(([, one]) => one === pkg)?.[0]);
 	}
 
 	/**

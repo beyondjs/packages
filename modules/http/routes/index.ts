@@ -21,6 +21,7 @@ export /*bundle*/ class Routes {
 			response.json({ service: '@beyond-js/packages/http/routes', contract: Schema.version })
 		);
 
+		ModulesRoutes.cors(app);
 		delivery && ModulesRoutes.setup(app, delivery);
 
 		// Provisional: the updates of composed modules, outside the namespace of the compiled-module contract

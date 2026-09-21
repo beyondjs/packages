@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
-import { Tag } from './helpers';
+import { Production, Tag } from './helpers';
 import { Companions } from './companions';
 
 /**
@@ -29,6 +29,19 @@ export class ModulesRoutes {
 	}
 
 	/**
+	 * Compiled modules and their companions may be loaded by a page of another origin, such as an existing
+	 * site that embeds a widget served here: a module script needs the cross-origin header, and a page that
+	 * revalidates needs to read the validator
+	 */
+	static cors(app: Application) {
+		app.use((request: Request, response: Response, next: NextFunction) => {
+			response.setHeader('Access-Control-Allow-Origin', '*');
+			response.setHeader('Access-Control-Expose-Headers', 'ETag');
+			request.method === 'OPTIONS' ? response.status(204).end() : next();
+		});
+	}
+
+	/**
 	 * Sends a request to the family its path addresses. A module path is answered exactly as before the
 	 * sibling families existed; a path that cannot be read is reported by the module grammar.
 	 */
@@ -43,21 +56,25 @@ export class ModulesRoutes {
 	}
 
 	/**
-	 * The options this adapter can honor
+	 * The options this adapter can honor. Development output is unminified and its map inline or absent.
+	 * Production output is what a module builds as its production conditional, minified; a module that
+	 * builds none is refused for production once it is resolved (see `production`).
 	 */
 	#supported(options: Options): void {
 		const unsupported = (option: string, value: unknown, hint: string) => {
 			throw new ContractError('OPTION_UNSUPPORTED', `This service does not produce "${option}=${value}". ${hint}`);
 		};
 		const explicit = 'Request development output explicitly: env=development&min=false&sourcemap=inline';
+		const production = 'Request production output explicitly: env=production&min=true';
 
 		options.format !== 'esm' && unsupported('format', options.format, 'It delivers ES modules: format=esm');
-		options.env !== 'development' && unsupported('env', options.env, explicit);
-		options.min && unsupported('min', options.min, explicit);
+		options.env === 'development' && options.min && unsupported('min', options.min, explicit);
+		options.env === 'production' && !options.min && unsupported('min', options.min, production);
 		options.sourcemap === 'external' && unsupported('sourcemap', 'external', explicit);
 		options.types && unsupported('types', true, 'Declarations are not served');
 		options.css && unsupported('css', true, 'Styles are not served');
 	}
+
 
 	async module(request: Request, response: Response, next: NextFunction) {
 		try {
@@ -74,6 +91,7 @@ export class ModulesRoutes {
 			const { name, version, subpath } = identity;
 			const { delivered, failure } = await this.#delivery.module({ name, version, subpath }, options.conditions);
 			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: failure.diagnostics });
+			Production.check(options, delivered.key);
 
 			const code = delivered.code(options.sourcemap === 'inline' ? 'inline' : 'none');
 

@@ -1,0 +1,8 @@
+@import "tailwindcss";
+@import "../theme/tokens.css";
+
+@theme {
+	--color-brand: var(--fixture-brand);
+}
+
+.badge { border-radius: 4px; }

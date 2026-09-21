@@ -1,0 +1,4 @@
+/* The shared stylesheet of the package: every widget of the package adopts it in its root */
+.fixture-card {
+	border-top: 1px solid rgb(30, 64, 175);
+}

@@ -1,0 +1,6 @@
+@use 'tokens';
+
+.card {
+	color: tokens.$accent;
+	padding: tokens.$space;
+}

@@ -6,6 +6,7 @@ import { join, posix } from 'path';
 import { Conditions } from './conditions';
 import { Compilation } from './compilation';
 import type { Dependencies } from './dependencies';
+import type { Installed } from './installed';
 
 /**
  * Why a companion resource cannot be delivered. `OUTPUT_NOT_AVAILABLE` means that the module or the package
@@ -31,10 +32,13 @@ export /*bundle*/ class Resources {
 	#selection: Selection;
 	#dependencies: Dependencies;
 
-	constructor(workspace: Workspace, selection: Selection, dependencies: Dependencies) {
+	#installed: Installed;
+
+	constructor(workspace: Workspace, selection: Selection, dependencies: Dependencies, installed?: Installed) {
 		this.#workspace = workspace;
 		this.#selection = selection;
 		this.#dependencies = dependencies;
+		this.#installed = installed;
 	}
 
 	#failure(errors: IDiagnostic[]): IResourceFailure {
@@ -46,10 +50,16 @@ export /*bundle*/ class Resources {
 	/**
 	 * The current stylesheet of a module, compiled on request like its code
 	 */
-	async styles(request: { name: string; version: string; subpath: string }, conditions: IConditions): Promise<{ styles?: ConditionalOutput; failure?: IResourceFailure }> {
+	async styles(request: { name: string; version: string; subpath: string }, conditions: IConditions): Promise<{ styles?: ConditionalOutput; key?: string; failure?: IResourceFailure }> {
 		const { name, version, subpath } = request;
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
 		const { selected, errors } = await this.#selection.resolve(`${name}@${version}${path}`);
+		if (!selected && errors[0]?.code === 'PACKAGE_NOT_FOUND' && this.#installed && conditions.platform !== 'node') {
+			const installed = await this.#installed.module({ name, version, subpath }, conditions);
+			if (installed.module?.styles) return { styles: installed.module.styles, key: 'installed' };
+			if (installed.module) return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${name}${subpath.slice(1)}" produces no stylesheet` } };
+			return { failure: this.#failure([installed.failure]) };
+		}
 		if (!selected) return { failure: this.#failure(errors) };
 
 		const compilation = new Compilation(selected.package, subpath, new Conditions(conditions), this.#dependencies);
@@ -60,7 +70,7 @@ export /*bundle*/ class Resources {
 		}
 
 		const styles = (<{ styles?: ConditionalOutput }>(<unknown>compilation.conditional)).styles;
-		if (styles) return { styles };
+		if (styles) return { styles, key: compilation.key };
 		return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${selected.specifier}" produces no stylesheet` } };
 	}
 

@@ -56,6 +56,15 @@ export /*bundle*/ class Compilation {
 		return this.valid ? this.#conditional : void 0;
 	}
 
+	#key: string;
+
+	/**
+	 * The key of the conditional that satisfied the requested conditions, such as `web` or `web/production`
+	 */
+	get key() {
+		return this.#key;
+	}
+
 	#resolved: IArtifactDependency[] = [];
 
 	/**
@@ -86,7 +95,8 @@ export /*bundle*/ class Compilation {
 		const key = this.#conditions.select(module);
 		if (!key) {
 			const code = 'CONDITIONAL_NOT_FOUND';
-			const declared = [...module.conditionals.keys()].join(', ');
+			// The `types` conditional of a module is its declaration, not something a consumer of code can select
+			const declared = [...module.conditionals.keys()].filter(key => key !== 'types').join(', ');
 			const message =
 				`Module "${specifier}" does not produce the "${this.#conditions.key}" conditional ` +
 				`(declared: ${declared})`;
@@ -94,6 +104,7 @@ export /*bundle*/ class Compilation {
 			return this;
 		}
 
+		this.#key = key;
 		const conditional = <ESMConditional>module.conditionals.get(key);
 		await conditional.ready;
 		if (!conditional.valid || !conditional.output) {
@@ -107,7 +118,9 @@ export /*bundle*/ class Compilation {
 		}
 
 		this.#conditional = conditional;
-		const { dependencies, runtime } = conditional.artifact;
+
+		// A conditional without an artifact, such as the declaration of a module, imports nothing
+		const { dependencies = [], runtime } = conditional.artifact ?? {};
 		this.#resolved = await this.#dependencies.resolve(this.#pkg, dependencies, this.#errors, runtime);
 		return this;
 	}

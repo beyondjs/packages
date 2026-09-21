@@ -88,7 +88,7 @@ export async function preview() {
 		const unset = (await without.call('GET', '/preview/entry.json')).body;
 		assert.deepEqual(unset.entry, { specifier: '@case/app/main', vspecifier: '@case/app@1.0.0/main' });
 		assert.deepEqual(unset.modules.find(({ specifier }) => specifier === '@case/app/main'),
-			{ specifier: '@case/app/main', source: 'environment', version: '1.0.0', url: `../m/@case/app@1.0.0/modules/main?${development}` });
+			{ specifier: '@case/app/main', source: 'environment', version: '1.0.0', vspecifier: '@case/app@1.0.0/main', url: `../m/@case/app@1.0.0/modules/main?${development}` });
 		const runtime = unset.modules.find(({ specifier }) => specifier === '@beyond-js/kernel/bundle');
 		assert.deepEqual([runtime.source, runtime.version, runtime.url], ['unresolved', kernel, undefined]);
 		assert.ok(unset.cdn.reason.includes('BEYOND_CDN_ORIGIN') && !unset.cdn.origin);

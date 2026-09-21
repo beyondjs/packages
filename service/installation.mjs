@@ -25,10 +25,46 @@ export class Installation {
 	}
 
 	/**
-	 * Where a consumer resolves the runtime from, so that it receives it once whatever imports it
+	 * The Beyond-authored packages the toolchain supplies to every workspace, when they are installed: the
+	 * development runtime and the Widgets packages. The service compiles and serves them like the packages
+	 * of the workspace, so a project needs neither a checkout nor a copy of them.
+	 */
+	static SUPPLIED = ['@beyond-js/local-2026', '@beyond-js/widgets', '@beyond-js/react-19-widgets', '@beyond-js/vue-widgets', '@beyond-js/svelte-widgets'];
+
+	#supplied;
+
+	/**
+	 * The supplied packages that are installed, as `{name, path, dependencies}`
+	 */
+	get supplied() {
+		if (this.#supplied) return this.#supplied;
+		this.#supplied = [];
+		for (const name of Installation.SUPPLIED) {
+			let component;
+			try {
+				component = Component.installed(name, import.meta.url);
+			} catch {
+				continue;
+			}
+			const { beyond, dependencies = {} } = component.manifest;
+			if (!beyond || typeof beyond !== 'object') continue;
+			this.#supplied.push({ name, path: component.path, dependencies: Object.keys(dependencies) });
+		}
+		return this.#supplied;
+	}
+
+	/**
+	 * Where a consumer resolves the runtime from, so that it receives it once whatever imports it.
+	 *
+	 * The packages named here resolve from the installation: the Kernel, and the libraries the supplied
+	 * packages depend on and are not themselves supplied (a framework such as React or Vue), so that a
+	 * widget of the workspace and the adapter of the toolchain share one copy of the framework.
 	 */
 	get runtime() {
-		return { packages: ['@beyond-js/kernel'], base: pathToFileURL(join(this.#packages.path, 'package.json')).href };
+		const supplied = new Set(this.supplied.map(({ name }) => name));
+		const packages = new Set(['@beyond-js/kernel']);
+		this.supplied.forEach(({ dependencies }) => dependencies.forEach(name => !supplied.has(name) && packages.add(name)));
+		return { packages: [...packages], base: pathToFileURL(join(this.#packages.path, 'package.json')).href };
 	}
 
 	get versions() {

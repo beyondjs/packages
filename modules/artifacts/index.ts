@@ -108,12 +108,16 @@ export /*bundle*/ class Artifacts {
 	 */
 	async #write(compilation: Compilation, files: Files): Promise<IArtifact> {
 		const { package: pkg, subpath, conditional } = compilation;
-		const { artifact: assembled } = conditional;
+		const named = subpath === '.' ? pkg.vname : `${pkg.vname}/${subpath.replace(/^\.\//, '')}`;
+
+		// The declaration of a module describes no artifact: it is written and reported with its identity alone
+		const assembled = conditional.artifact ?? { vspecifier: named, exports: [], ims: [], dependencies: [] };
 
 		const vname = `${pkg.name}@${pkg.version}`;
 		const file = files.name(vname, subpath, false);
 		const patch = files.name(vname, subpath, true);
-		await files.write(conditional, file, patch);
+		const styles = conditional.styles ? files.styles(vname, subpath) : void 0;
+		await files.write(conditional, file, patch, styles);
 
 		return {
 			specifier: compilation.specifier,
@@ -125,6 +129,8 @@ export /*bundle*/ class Artifacts {
 			file,
 			patch: conditional.patch ? patch : void 0,
 			hash: conditional.output.hash,
+			styles,
+			widget: assembled.widget,
 			exports: assembled.exports,
 			ims: assembled.ims,
 			composition: assembled.composition ?? 'creators',

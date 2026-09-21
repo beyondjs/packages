@@ -10,6 +10,11 @@ import { equal } from '@beyond-js/equal/main';
 
 interface IOptions {
 	watcher?: boolean;
+
+	/**
+	 * The workspace the package belongs to, which resolves the public specifiers of its siblings
+	 */
+	workspace?: { resolve(specifier: string): { package: Package; subpath: string } | undefined };
 }
 
 interface IDone {
@@ -25,6 +30,14 @@ export /*bundle*/ class Package extends Attributes {
 	}
 
 	#options: IOptions;
+
+	/**
+	 * The workspace the package was created by, when it was created by one. It is how a processor of the
+	 * package resolves a public specifier of a sibling package, such as the declaration of its types.
+	 */
+	get workspace() {
+		return this.#options.workspace;
+	}
 
 	#watcher: WatcherClient;
 	get watcher() {
@@ -79,7 +92,7 @@ export /*bundle*/ class Package extends Attributes {
 
 		// Create the files watcher of the package
 		const { config } = this;
-		this.#watcher = this.#options.watcher && new WatcherClient('watchers', { is: 'package', path: config.path });
+		this.#watcher = this.#options.watcher ? new WatcherClient('watchers', { is: 'package', path: config.path }) : void 0;
 		this.#watcher?.start().catch((exc: Error) => console.error(exc.stack));
 
 		const cfg = {

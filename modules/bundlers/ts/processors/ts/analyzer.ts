@@ -18,7 +18,7 @@ const ready = init();
  * the runtime actually produces, including those TypeScript generates. Relative requires address internal
  * modules and are resolved by the runtime, so they are not dependencies of the public module.
  */
-export class Analyzer {
+export /*bundle*/ class Analyzer {
 	static async process(output: ProcessorOutput): Promise<void> {
 		await ready;
 

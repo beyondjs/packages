@@ -63,7 +63,7 @@ try {
 		assert.deepEqual([compiled.composition, compiled.ims, compiled.patch], ['packaged', [], undefined]);
 		assert.deepEqual([compiled.compiler.specifier, compiled.compiler.location, compiled.compiler.assigned],
 			['env:BEYOND_ESBUILD_COMPILER', fork.file, true]);
-		assert.deepEqual(compiled.exports, ['Bundle', 'Events', 'Module', 'Package', 'instances']);
+		assert.deepEqual(compiled.exports, ['Bundle', 'Events', 'Module', 'Package', 'Styles', 'instances', 'styles']);
 
 		for (const specifier of [SHARED, APP]) {
 			const composed = find(report, specifier);

@@ -48,6 +48,18 @@ export class Document {
 		return lines.join('\n');
 	}
 
+	/**
+	 * The stylesheets the document holds: those of the modules that are not widgets and that the entry
+	 * reaches without crossing a widget, linked and marked with the module they belong to, which is how
+	 * the development runtime replaces them when a build changes them. A stylesheet reached through a
+	 * widget only is adopted inside the root of that widget.
+	 */
+	get #links(): string[] {
+		return this.#description.modules
+			.filter(module => module.styles && !module.widget && module.scope !== 'widget')
+			.map(module => `<link rel="stylesheet" data-beyond-styles="${this.#text(module.vspecifier ?? module.specifier)}" href="${this.#text(module.styles)}">`);
+	}
+
 	get html(): string {
 		const { entry, importmap } = this.#description;
 		return [
@@ -61,6 +73,7 @@ export class Document {
 			'<link rel="icon" href="data:,">',
 			`<title>${this.#text(entry.specifier)}</title>`,
 			`<script type="importmap">\n${this.#json(importmap, '\t')}\n</script>`,
+			...this.#links,
 			'</head>',
 			'<body>',
 			`<script type="module">\n${this.#script}\n</script>`,

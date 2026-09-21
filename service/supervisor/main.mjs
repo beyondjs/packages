@@ -92,8 +92,16 @@ try {
 		versions: { ...installation.versions, ...launch.versions },
 		toolchain: installation.id,
 		runtime: installation.runtime,
+		supplied: installation.supplied,
 		watchers: launch.watchers
 	};
+
+	/**
+	 * The supplied runtime selects its compiler as `env:BEYOND_ESBUILD_COMPILER`, so that one manifest
+	 * serves checkouts placed differently. In an installation the compiler is the `esbuild` installed with
+	 * Packages, unless the environment names another.
+	 */
+	const compiler = process.env.BEYOND_ESBUILD_COMPILER ? {} : { BEYOND_ESBUILD_COMPILER: 'esbuild' };
 
 	host = spawn(process.execPath, [...launch.execArgv, fileURLToPath(new URL('../host/main.mjs', import.meta.url))], {
 		cwd: launch.cwd,
@@ -111,6 +119,7 @@ try {
 			BEE_URL: '',
 			BEE_ADAPTER: '',
 			BEE_IMPORT_MAP: '',
+			...compiler,
 			...launch.env,
 			BEYOND_SERVICE_OPTIONS: '',
 			BEYOND_HOST_OPTIONS: JSON.stringify(settings)

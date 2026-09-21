@@ -69,6 +69,8 @@ export /*bundle*/ class Preview {
 		const failures: IPreviewDiagnostic[] = [];
 
 		for (const module of published) {
+			// The packages the toolchain supplies are libraries of the application, never its entry
+			if (module.supplied) continue;
 			const { delivered, failure } = await this.#delivery.module(module, WEB);
 			if (!delivered) {
 				const diagnostics = failure.diagnostics ?? [failure];
@@ -126,12 +128,10 @@ export /*bundle*/ class Preview {
 		await graph.walk([entry], published);
 
 		// The coordinator of a runtime that the workspace contains is loaded by the document, not by the application
-		const coordinators = graph.runtimes
-			.map(runtime => `${Externals.parse(runtime).name}/${Preview.COORDINATOR}`)
-			.map(specifier => published.find(module => Graph.specifier(module) === specifier))
-			.filter(module => !!module);
+		const coordinators = this.#coordinators(graph, published);
 		await graph.walk(coordinators, published);
 		const coordinator = coordinators.length ? Graph.specifier(coordinators[0]) : await this.#delivered(graph, entry);
+		graph.scope([entry, ...coordinators]);
 
 		// The runtime of a page is given the part of the session it needs, so a visitor, whose grant does
 		// not read the session of the service, is never asked for it: what the modules in development are
@@ -157,6 +157,24 @@ export /*bundle*/ class Preview {
 			updates,
 			diagnostics
 		};
+	}
+
+	/**
+	 * The coordinators that the workspace publishes for the runtimes of the graph.
+	 *
+	 * A graph whose modules are assembled against no runtime, such as an application compiled in the
+	 * packaging mode, still receives the updates of its stylesheets, which the document links: the
+	 * coordinator of a runtime the workspace contains (the toolchain supplies the development runtime to
+	 * every workspace) is registered for it, recognized by the convention that a runtime package publishes
+	 * `bundle` and its coordinator.
+	 */
+	#coordinators(graph: Graph, published: IPublishedModule[]): IPublishedModule[] {
+		const coordinator = (name: string) => published.find(module => Graph.specifier(module) === `${name}/${Preview.COORDINATOR}`);
+		const runtimes = graph.runtimes.map(runtime => Externals.parse(runtime).name);
+		if (runtimes.length) return runtimes.map(coordinator).filter(module => !!module);
+
+		const names = new Set(published.filter(module => module.subpath === './bundle').map(({ name }) => name));
+		return [...names].map(coordinator).filter(module => !!module);
 	}
 
 	/**

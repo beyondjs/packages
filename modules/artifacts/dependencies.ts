@@ -39,8 +39,13 @@ export class Dependencies {
 	async resolve(pkg: Package, specifiers: string[], errors: IDiagnostic[], runtime = RUNTIME): Promise<IArtifactDependency[]> {
 		const resolved: IArtifactDependency[] = [];
 
+		// The runtime package supplies every one of its public modules: the bundle the artifact imports and
+		// the families (core, styles) that composed modules written against the Kernel identities map to
+		const segments = runtime.split('/');
+		const name = segments.slice(0, runtime.startsWith('@') ? 2 : 1).join('/');
+
 		for (const specifier of specifiers) {
-			if (specifier === runtime) {
+			if (specifier === runtime || specifier === name || specifier.startsWith(`${name}/`)) {
 				resolved.push({ specifier, source: 'runtime' });
 				continue;
 			}

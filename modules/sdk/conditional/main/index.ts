@@ -32,12 +32,17 @@ export /*bundle*/ abstract class Conditional extends BaseConditional {
 	}
 
 	#errors: IDiagnostic[] = [];
+
+	/**
+	 * The diagnostics of the conditional, its specification and the configuration of its processors: a
+	 * processor that could not be imported or initialised is reported here, where consumers read it
+	 */
 	get errors(): IDiagnostic[] {
-		return this.#errors.concat(super.errors);
+		return this.#errors.concat(super.errors, this.#processors?.errors ?? []);
 	}
 	#warnings: IDiagnostic[] = [];
 	get warnings(): IDiagnostic[] {
-		return this.#warnings.concat(super.warnings);
+		return this.#warnings.concat(super.warnings, this.#processors?.warnings ?? []);
 	}
 	get valid(): boolean {
 		return !this.#errors?.length && this.#processors.valid;
@@ -58,5 +63,10 @@ export /*bundle*/ abstract class Conditional extends BaseConditional {
 		if (!require(this.#processors, 'processors')) return false;
 
 		this.#processors.forEach(processor => require(processor, processor.name));
+	}
+
+	destroy() {
+		super.destroy();
+		this.#processors.destroy();
 	}
 }

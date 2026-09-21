@@ -87,13 +87,16 @@ export class Externals {
 	 * @param importer The directory of the package that imports it
 	 * @param runtime Whether the specifier is the runtime of the artifact
 	 */
-	async resolve(specifier: string, importer: string | undefined, runtime: boolean): Promise<IExternal> {
+	async resolve(specifier: string, importer: string | undefined, runtime?: boolean): Promise<IExternal> {
+		void runtime;
 		const { name, subpath } = Externals.parse(specifier);
 
 		const manifest = importer ? await this.#json(join(importer, 'package.json')) : void 0;
 		const declared = { ...manifest?.devDependencies, ...manifest?.peerDependencies, ...manifest?.dependencies }[name];
 
-		const installed = (importer && (await this.#installed(name, importer))) ?? (runtime && this.#runtime ? await this.#installed(name, this.#runtime) : void 0);
+		// What the package does not install may be installed with the service: the runtime, and the libraries
+		// the toolchain supplies with its Widgets adapters
+		const installed = (importer && (await this.#installed(name, importer))) ?? (this.#runtime ? await this.#installed(name, this.#runtime) : void 0);
 		const version = installed ?? (typeof declared === 'string' && Externals.EXACT.test(declared) ? declared : void 0);
 		if (version && Externals.EXACT.test(version)) return { name, subpath, version };
 

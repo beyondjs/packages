@@ -76,6 +76,7 @@ export /*bundle*/ abstract class BaseConditional extends DynamicProcessor() {
 	}
 
 	destroy() {
+		super.destroy();
 		this.#spec.destroy();
 	}
 }

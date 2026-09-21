@@ -37,8 +37,9 @@ export class Hosted {
 	}
 
 	#load() {
-		const { root, standalone } = this.#settings;
-		this.#workspace = new Workspace(root, { watcher: true, packages: standalone ? ['.'] : undefined });
+		const { root, standalone, supplied = [] } = this.#settings;
+		const options = { watcher: true, packages: standalone ? ['.'] : undefined, supplied: supplied.map(({ path }) => path) };
+		this.#workspace = new Workspace(root, options);
 		this.#delivery = new Delivery(this.#workspace);
 	}
 
@@ -76,6 +77,17 @@ export class Hosted {
 
 	module(request, conditions) {
 		return this.#delivery.module(request, conditions);
+	}
+
+	get resources() {
+		return this.#delivery.resources;
+	}
+
+	/**
+	 * Whether an installed package at an exact version is delivered to browsers by this environment
+	 */
+	supplies(name, version) {
+		return this.#delivery.supplies(name, version);
 	}
 
 	destroy() {

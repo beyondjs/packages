@@ -49,7 +49,9 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 	}
 
 	_process() {
-		const spec = this.#processor.spec.values;
+		// The specification is copied: reading it must not alter the values the processor observes
+		const observed = this.#processor.spec.values;
+		const spec = observed && typeof observed === 'object' && !(observed instanceof Array) ? { ...observed } : observed;
 
 		// Only a change of the selection reconfigures the collection of files, which then reprocesses
 		const done = ({ errors, warnings, values }: IDone) => {

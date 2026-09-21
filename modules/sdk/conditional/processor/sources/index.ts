@@ -95,7 +95,13 @@ export class ProcessorSources extends DynamicProcessor() {
 	}
 
 	destroy() {
-		this.#inputs.destroy();
+		super.destroy();
+		try {
+			this.#inputs?.destroy();
+		} catch {
+			// The installed finder utility (1.0.8) fails to destroy a collection that was never watched: its
+			// listener is undefined when the package has no watcher. Nothing is left running in that case.
+		}
 		this.#files?.destroy();
 		this.#delegated?.destroy();
 	}

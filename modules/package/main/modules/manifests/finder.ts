@@ -17,6 +17,14 @@ export class ModuleManifestsFinder extends FinderCollection<typeof Manifest> {
 
 	#config: Config;
 
+	/**
+	 * The directory of the package, which the paths of the modules are expressed from: the root of the
+	 * module sources is a subdirectory of it when the package declares one
+	 */
+	get root(): string {
+		return this.#config.path;
+	}
+
 	#errors: IDiagnostic[] = [];
 	get errors() {
 		return this.#errors;

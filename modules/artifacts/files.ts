@@ -32,15 +32,31 @@ export class Files {
 	 */
 	name(vname: string, subpath: string, patch: boolean): string {
 		const name = subpath === '.' ? 'index' : subpath.replace(/^\.\//, '');
-		return posix.join(vname, `${name}.${this.#conditions}${patch ? '.hmr' : ''}.mjs`);
+		const extension = this.#conditions === 'types' ? 'd.ts' : 'mjs';
+		return posix.join(vname, `${name}.${this.#conditions}${patch ? '.hmr' : ''}.${extension}`);
+	}
+
+	/**
+	 * The stylesheet of a public module artifact, relative to the artifacts directory
+	 */
+	styles(vname: string, subpath: string): string {
+		const name = subpath === '.' ? 'index' : subpath.replace(/^\.\//, '');
+		return posix.join(vname, `${name}.${this.#conditions}.css`);
 	}
 
 	/**
 	 * Writes the artifact of a conditional, its source map and its update
 	 */
-	async write(conditional: ESMConditional, file: string, patch: string): Promise<void> {
+	async write(conditional: ESMConditional, file: string, patch: string, styles?: string): Promise<void> {
 		const target = join(this.#path, file);
 		await fs.mkdir(dirname(target), { recursive: true });
+
+		// A declaration has no map and no update
+		if (this.#conditions === 'types') {
+			await fs.writeFile(target, `${conditional.output.code()}\n`);
+			this.#written.add(file);
+			return;
+		}
 
 		/**
 		 * The source map is written next to the artifact and referenced by it. The reference comment is
@@ -52,6 +68,19 @@ export class Files {
 		await fs.writeFile(`${target}.map`, conditional.output.map());
 
 		[file, `${file}.map`].forEach(written => this.#written.add(written));
+
+		// The stylesheet of the module is written beside its code, with its own map
+		if (styles && conditional.styles) {
+			const sheet = join(this.#path, styles);
+			const map = conditional.styles.map();
+			const comment = map ? `\n/*# ${['sourceMappingURL'].join('')}=${posix.basename(styles)}.map */\n` : '\n';
+			await fs.writeFile(sheet, `${conditional.styles.code()}${comment}`);
+			this.#written.add(styles);
+			if (map) {
+				await fs.writeFile(`${sheet}.map`, map);
+				this.#written.add(`${styles}.map`);
+			}
+		}
 
 		// A packaged module has no update: whatever a previous build in another mode wrote for it is pruned
 		if (!conditional.patch) return;
@@ -68,7 +97,7 @@ export class Files {
 	 */
 	async prune(): Promise<string[]> {
 		// Only what `name()` can produce is owned: a versioned package directory and the suffix of the conditions
-		const suffix = `\\.${this.#conditions.replace(/\./g, '\\.')}(\\.hmr)?\\.mjs(\\.map)?$`;
+		const suffix = `\\.${this.#conditions.replace(/\./g, '\\.')}((\\.hmr)?\\.mjs|\\.css|\\.d\\.ts)(\\.map)?$`;
 		const owned = new RegExp(`^(@[^/]+/)?[^/@]+@[^/]+/.*${suffix}`);
 		const removed: string[] = [];
 

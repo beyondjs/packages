@@ -3,6 +3,7 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { OutputsCollection } from '../../outputs/collection';
 import type { RequireType } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { equal } from '@beyond-js/equal/main';
 
 /**
  * The extensions hashes of the processors that are extending the current processor.
@@ -64,6 +65,10 @@ export class DelegatingProcessors extends DynamicProcessor(Map<string, OutputsCo
 			const outputs = processor.outputs.delegated.get(this.#processor.name);
 			updated.set(processor.name, outputs);
 		});
+
+		const changed = !equal(errors, this.#errors) || updated.size !== this.size || [...updated].some(([key, value]) => this.get(key) !== value);
+		this.#errors = errors;
+		if (!changed) return false;
 
 		this.clear();
 		updated.forEach((value, key) => this.set(key, value));

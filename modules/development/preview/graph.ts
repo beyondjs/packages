@@ -6,13 +6,37 @@ export /*bundle*/ interface IPreviewModule {
 	specifier: string;
 
 	/**
-	 * `environment`: selected for development and served by this service. `cdn`: every other module, at its
-	 * exact version. `unresolved`: a module that no address could be given to, with the reason.
+	 * `environment`: selected for development and served by this service, or an installed package this
+	 * environment compiles for browsers. `cdn`: every other module, at its exact version. `unresolved`: a
+	 * module that no address could be given to, with the reason.
 	 */
 	source: 'environment' | 'cdn' | 'unresolved';
 	version?: string;
+
+	/**
+	 * The versioned identity of a module served by this environment, which builds and the runtime name it by
+	 */
+	vspecifier?: string;
 	url?: string;
 	reason?: string;
+
+	/**
+	 * The address of the stylesheet of the module, when its sources produce one and it is served by this
+	 * environment. The document links the stylesheets of the modules that are not widgets; a widget adopts
+	 * its own sheets inside its shadow root.
+	 */
+	styles?: string;
+
+	/**
+	 * Whether the module declares a widget
+	 */
+	widget?: boolean;
+
+	/**
+	 * Who holds the stylesheet of a module that has one: the document, when the entry reaches the module
+	 * without crossing a widget, or the widgets that import it, which adopt it in their own roots
+	 */
+	scope?: 'document' | 'widget';
 }
 
 /**
@@ -109,6 +133,22 @@ export class Graph {
 		this.#modules.set(specifier, module);
 
 		const { name, subpath, version, reason } = await this.#externals.resolve(specifier, importer.path, runtime);
+
+		// An installed package this environment compiles for browsers is loaded from the environment
+		if (version && (await this.#delivery.supplies?.(name, version))) {
+			const vspecifier = subpath === '.' ? `${name}@${version}` : `${name}@${version}/${subpath.slice(2)}`;
+			Object.assign(module, { source: 'environment', version, vspecifier, url: this.#addresses.environment(name, version, subpath) });
+			const { delivered } = await this.#delivery.module({ name, version, subpath, vspecifier: `${name}@${version}` }, WEB);
+			delivered?.styles && (module.styles = this.#addresses.styles(name, version, subpath));
+			const edges = delivered?.dependencies?.filter(dependency => dependency.source !== 'builtin').map(dependency => dependency.specifier) ?? [];
+			this.#edges.set(specifier, edges);
+			for (const dependency of delivered?.dependencies ?? []) {
+				if (dependency.source === 'builtin') continue;
+				const local = this.#known.find(one => Graph.specifier(one) === dependency.specifier);
+				local ? this.#queue.push(local) : await this.#external(dependency.specifier, importer, false);
+			}
+			return;
+		}
 		if (version) return void this.#published(module, name, version, subpath);
 
 		module.reason = reason;
@@ -129,8 +169,34 @@ export class Graph {
 	/**
 	 * Walks the graph from the given workspace modules
 	 */
+	#queue: IPublishedModule[] = [];
+	#known: IPublishedModule[] = [];
+
+	/**
+	 * The public dependencies of each module of the graph, and which modules are widgets, which is what
+	 * says whose stylesheet the document holds
+	 */
+	#edges: Map<string, string[]> = new Map();
+	#widgets: Set<string> = new Set();
+
+	/**
+	 * Marks the scope of every stylesheet of the graph: a module the given roots reach without crossing a
+	 * widget is linked by the document, any other is adopted by the widgets that import it
+	 */
+	scope(roots: IPublishedModule[]) {
+		const reached = new Set<string>();
+		const pending = roots.map(root => Graph.specifier(root));
+		for (let specifier = pending.shift(); specifier; specifier = pending.shift()) {
+			if (reached.has(specifier)) continue;
+			reached.add(specifier);
+			!this.#widgets.has(specifier) && pending.push(...(this.#edges.get(specifier) ?? []));
+		}
+		this.#modules.forEach((module, specifier) => module.styles && (module.scope = reached.has(specifier) ? 'document' : 'widget'));
+	}
+
 	async walk(roots: IPublishedModule[], published: IPublishedModule[]): Promise<void> {
-		const pending = [...roots];
+		const pending = (this.#queue = [...roots]);
+		this.#known = published;
 
 		for (let module = pending.shift(); module; module = pending.shift()) {
 			const specifier = Graph.specifier(module);
@@ -140,6 +206,7 @@ export class Graph {
 			const entry: IPreviewModule = { specifier, source: 'environment', version };
 			this.#modules.set(specifier, entry);
 			if (this.#selected(module)) {
+				entry.vspecifier = module.vspecifier;
 				entry.url = this.#addresses.environment(name, version, subpath);
 				this.#updatable[specifier] = { package: name, vspecifier: module.vspecifier, path: this.#addresses.path(name, version, subpath) };
 			} else this.#published(entry, name, version, subpath);
@@ -150,10 +217,18 @@ export class Graph {
 				continue;
 			}
 
+			// The stylesheet of a module in development is held by the document or by the widgets that import the module
+			if (this.#selected(module) && delivered.styles) entry.styles = this.#addresses.styles(name, version, subpath);
+			if (delivered.widget) {
+				entry.widget = true;
+				this.#widgets.add(specifier);
+			}
+
 			// The runtime is imported by the artifact itself, not by its sources, so the host names it apart
 			const runtime = delivered.runtime;
 			runtime && this.#runtimes.add(runtime);
 			const dependencies = [...(runtime ? [{ specifier: runtime, source: 'runtime' }] : []), ...(delivered.dependencies ?? [])];
+			this.#edges.set(specifier, (<IModuleDependency[]>dependencies).filter(one => one.source !== 'builtin').map(one => one.specifier));
 
 			for (const dependency of <IModuleDependency[]>dependencies) {
 				const { source } = dependency;

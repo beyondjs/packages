@@ -7,7 +7,9 @@
 			"type": "string",
 			"description": "Relative to the served root, POSIX separators, no empty, `.` or `..` segment. A path names a file, never a public module.",
 			"pattern": "^(?!.*(^|/)\\.{1,2}(/|$))[^/\\\\\\u0000][^\\\\\\u0000]*$",
-			"not": { "pattern": "//|/$" }
+			"not": {
+				"pattern": "//|/$"
+			}
 		},
 		"revision": {
 			"type": "string",
@@ -16,7 +18,14 @@
 		},
 		"expected": {
 			"description": "What the writer believes is on disk: a revision, or `absent` when the path must not exist",
-			"anyOf": [{ "$ref": "#/$defs/revision" }, { "const": "absent" }]
+			"anyOf": [
+				{
+					"$ref": "#/$defs/revision"
+				},
+				{
+					"const": "absent"
+				}
+			]
 		},
 		"cursor": {
 			"type": "string",
@@ -24,123 +33,353 @@
 			"pattern": "^[A-Za-z0-9]{6,32}:[0-9]+$"
 		},
 		"origin": {
-			"enum": ["api", "external", "scan"],
+			"enum": [
+				"api",
+				"external",
+				"scan"
+			],
 			"description": "`api`: a mutation of this API. `external`: a watcher observed a write that bypassed it (agent shell, Git, another tool). `scan`: found by comparing disk with the index, so its time and author are unknown."
 		},
 		"actor": {
 			"type": "object",
 			"description": "Copied from the verified grant of an `api` mutation; absent for every other origin",
-			"required": ["sub", "kind"],
+			"required": [
+				"sub",
+				"kind"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"sub": { "type": "string" },
-				"kind": { "enum": ["user", "agent", "service"] },
-				"task": { "type": "string" }
+				"sub": {
+					"type": "string"
+				},
+				"kind": {
+					"enum": [
+						"user",
+						"agent",
+						"service"
+					]
+				},
+				"task": {
+					"type": "string"
+				}
 			}
 		},
 		"entry": {
 			"type": "object",
-			"required": ["path", "kind"],
+			"required": [
+				"path",
+				"kind"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"path": { "$ref": "#/$defs/path" },
-				"kind": { "enum": ["file", "directory"] },
-				"size": { "type": "integer", "minimum": 0 },
-				"revision": { "$ref": "#/$defs/revision" }
+				"path": {
+					"$ref": "#/$defs/path"
+				},
+				"kind": {
+					"enum": [
+						"file",
+						"directory"
+					]
+				},
+				"size": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"revision": {
+					"$ref": "#/$defs/revision"
+				}
 			},
-			"if": { "properties": { "kind": { "const": "file" } } },
-			"then": { "required": ["size", "revision"] }
+			"if": {
+				"properties": {
+					"kind": {
+						"const": "file"
+					}
+				}
+			},
+			"then": {
+				"required": [
+					"size",
+					"revision"
+				]
+			}
 		},
 		"tree": {
 			"type": "object",
 			"description": "A snapshot boundary: `entries` describe the root exactly as of `cursor`; events after that cursor apply on top of it",
-			"required": ["protocol", "cursor", "scanned", "entries"],
+			"required": [
+				"protocol",
+				"cursor",
+				"scanned",
+				"entries"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"protocol": { "const": "beyond-dev-files/1" },
-				"cursor": { "$ref": "#/$defs/cursor" },
-				"scanned": { "type": "boolean", "description": "Whether disk was re-read for this answer instead of trusting the watcher-fed index" },
-				"entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+				"protocol": {
+					"const": "beyond-dev-files/1"
+				},
+				"cursor": {
+					"$ref": "#/$defs/cursor"
+				},
+				"scanned": {
+					"type": "boolean",
+					"description": "Whether disk was re-read for this answer instead of trusting the watcher-fed index"
+				},
+				"entries": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/entry"
+					}
+				}
 			}
 		},
 		"mutation": {
 			"type": "object",
-			"required": ["operation", "path", "expected"],
+			"required": [
+				"operation",
+				"path",
+				"expected"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"operation": { "enum": ["write", "delete", "rename"] },
-				"path": { "$ref": "#/$defs/path" },
-				"expected": { "$ref": "#/$defs/expected" },
-				"to": { "$ref": "#/$defs/path" },
-				"content": { "type": "string" },
-				"encoding": { "enum": ["utf8", "base64"] }
+				"operation": {
+					"enum": [
+						"write",
+						"delete",
+						"rename"
+					]
+				},
+				"path": {
+					"$ref": "#/$defs/path"
+				},
+				"expected": {
+					"$ref": "#/$defs/expected"
+				},
+				"to": {
+					"$ref": "#/$defs/path"
+				},
+				"content": {
+					"type": "string"
+				},
+				"encoding": {
+					"enum": [
+						"utf8",
+						"base64"
+					]
+				}
 			},
 			"allOf": [
-				{ "if": { "properties": { "operation": { "const": "write" } } }, "then": { "required": ["content"] } },
-				{ "if": { "properties": { "operation": { "const": "rename" } } }, "then": { "required": ["to"] } },
 				{
-					"if": { "properties": { "operation": { "enum": ["delete", "rename"] } } },
-					"then": { "properties": { "expected": { "$ref": "#/$defs/revision" } } }
+					"if": {
+						"properties": {
+							"operation": {
+								"const": "write"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"content"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"operation": {
+								"const": "rename"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"to"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"operation": {
+								"enum": [
+									"delete",
+									"rename"
+								]
+							}
+						}
+					},
+					"then": {
+						"properties": {
+							"expected": {
+								"$ref": "#/$defs/revision"
+							}
+						}
+					}
 				}
 			]
 		},
 		"result": {
 			"type": "object",
-			"required": ["outcome", "path"],
+			"required": [
+				"outcome",
+				"path"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"outcome": { "enum": ["completed", "conflict", "failed", "skipped"] },
-				"path": { "$ref": "#/$defs/path" },
-				"revision": { "$ref": "#/$defs/revision" },
-				"cursor": { "$ref": "#/$defs/cursor" },
+				"outcome": {
+					"enum": [
+						"completed",
+						"conflict",
+						"failed",
+						"skipped"
+					]
+				},
+				"path": {
+					"$ref": "#/$defs/path"
+				},
+				"revision": {
+					"$ref": "#/$defs/revision"
+				},
+				"cursor": {
+					"$ref": "#/$defs/cursor"
+				},
 				"conflict": {
 					"type": "object",
-					"required": ["expected", "current"],
+					"required": [
+						"expected",
+						"current"
+					],
 					"additionalProperties": false,
 					"properties": {
-						"expected": { "$ref": "#/$defs/expected" },
-						"current": { "$ref": "#/$defs/expected" },
-						"target": { "$ref": "#/$defs/path", "description": "Set when the conflict is the existing destination of a rename" }
+						"expected": {
+							"$ref": "#/$defs/expected"
+						},
+						"current": {
+							"$ref": "#/$defs/expected"
+						},
+						"target": {
+							"$ref": "#/$defs/path",
+							"description": "Set when the conflict is the existing destination of a rename"
+						}
 					}
 				},
 				"error": {
 					"type": "object",
-					"required": ["code", "message"],
-					"properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+					"required": [
+						"code",
+						"message"
+					],
+					"properties": {
+						"code": {
+							"type": "string"
+						},
+						"message": {
+							"type": "string"
+						}
+					}
 				}
 			},
 			"allOf": [
-				{ "if": { "properties": { "outcome": { "const": "conflict" } } }, "then": { "required": ["conflict"] } },
-				{ "if": { "properties": { "outcome": { "const": "failed" } } }, "then": { "required": ["error"] } }
+				{
+					"if": {
+						"properties": {
+							"outcome": {
+								"const": "conflict"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"conflict"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"outcome": {
+								"const": "failed"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"error"
+						]
+					}
+				}
 			]
 		},
 		"batch": {
 			"type": "object",
 			"description": "Ordered and not atomic. `partial` says earlier mutations are on disk and later ones are not.",
-			"required": ["id", "outcome", "results"],
+			"required": [
+				"id",
+				"outcome",
+				"results"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"id": { "type": "string", "minLength": 1 },
-				"outcome": { "enum": ["completed", "partial", "rejected"] },
-				"results": { "type": "array", "items": { "$ref": "#/$defs/result" } }
+				"id": {
+					"type": "string",
+					"minLength": 1
+				},
+				"outcome": {
+					"enum": [
+						"completed",
+						"partial",
+						"rejected"
+					]
+				},
+				"results": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/result"
+					}
+				}
 			}
 		},
 		"diagnostic": {
 			"type": "object",
-			"required": ["code", "message"],
+			"required": [
+				"code",
+				"message"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"code": { "type": "string" },
-				"message": { "type": "string" },
-				"severity": { "enum": ["error", "warning"] },
-				"file": { "$ref": "#/$defs/path" },
-				"revision": { "$ref": "#/$defs/revision", "description": "The revision of `file` that was compiled" },
+				"code": {
+					"type": "string"
+				},
+				"message": {
+					"type": "string"
+				},
+				"severity": {
+					"enum": [
+						"error",
+						"warning"
+					]
+				},
+				"file": {
+					"$ref": "#/$defs/path"
+				},
+				"revision": {
+					"$ref": "#/$defs/revision",
+					"description": "The revision of `file` that was compiled"
+				},
 				"range": {
 					"type": "object",
-					"required": ["line", "column"],
+					"required": [
+						"line",
+						"column"
+					],
 					"properties": {
-						"line": { "type": "integer", "minimum": 1 },
-						"column": { "type": "integer", "minimum": 1 }
+						"line": {
+							"type": "integer",
+							"minimum": 1
+						},
+						"column": {
+							"type": "integer",
+							"minimum": 1
+						}
 					}
 				}
 			}
@@ -148,110 +387,321 @@
 		"build": {
 			"type": "object",
 			"description": "`input` is the cursor the build read its sources at. A build whose input is older than a later change to one of its files ends `superseded` and is never reported as current.",
-			"required": ["id", "state", "input", "modules"],
+			"required": [
+				"id",
+				"state",
+				"input",
+				"modules"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"id": { "type": "string", "minLength": 1 },
-				"state": { "enum": ["running", "completed", "failed", "superseded", "cancelled"] },
-				"input": { "$ref": "#/$defs/cursor" },
+				"id": {
+					"type": "string",
+					"minLength": 1
+				},
+				"state": {
+					"enum": [
+						"running",
+						"completed",
+						"failed",
+						"superseded",
+						"cancelled"
+					]
+				},
+				"input": {
+					"$ref": "#/$defs/cursor"
+				},
 				"modules": {
 					"type": "array",
 					"items": {
 						"type": "object",
-						"required": ["vspecifier", "status"],
+						"required": [
+							"vspecifier",
+							"status"
+						],
 						"additionalProperties": false,
 						"properties": {
-							"vspecifier": { "type": "string" },
+							"vspecifier": {
+								"type": "string"
+							},
 							"platform": {
-								"enum": ["node", "web"],
+								"enum": [
+									"node",
+									"web"
+								],
 								"description": "The platform the artifact was built for. A module is listed once for each platform it declares, and a consumer applies the artifact of its own platform. Absent when the module declares none of the platforms the service builds for, which is reported as invalid."
 							},
-							"status": { "enum": ["valid", "invalid"] },
-							"hash": { "type": "string" }
+							"status": {
+								"enum": [
+									"valid",
+									"invalid"
+								]
+							},
+							"hash": {
+								"type": "string"
+							},
+							"styles": {
+								"type": "string",
+								"description": "The hash of the stylesheet of the module, when its sources produce one. It changes with the stylesheet alone, so a consumer that holds the sheet replaces it when the code of the module did not change, and the update route delivers the sheet by this hash."
+							}
 						}
 					}
 				},
-				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+				"diagnostics": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/diagnostic"
+					}
+				}
 			}
 		},
 		"selection": {
 			"type": "object",
 			"description": "Which packages and public modules of the workspace are in development: a preview loads them from this environment and every other dependency from the CDN. Only a replacement changes it. `explicit: false` means nobody selected yet, and then `packages` lists every package of the workspace.",
-			"required": ["explicit", "packages", "modules", "unknown"],
+			"required": [
+				"explicit",
+				"packages",
+				"modules",
+				"unknown"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"explicit": { "type": "boolean" },
-				"packages": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-				"modules": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+				"explicit": {
+					"type": "boolean"
+				},
+				"packages": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"modules": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
 				"unknown": {
 					"type": "array",
 					"description": "Selected names that the workspace no longer declares. They select nothing and are kept.",
-					"items": { "type": "string", "minLength": 1 }
+					"items": {
+						"type": "string",
+						"minLength": 1
+					}
 				}
 			}
 		},
 		"preview": {
 			"type": "object",
 			"description": "What the entry document of a preview loads and where from. Addresses of this environment are relative to the document, so they hold behind a proxy that publishes the service under a path prefix; addresses of the CDN are absolute. No address carries a credential.",
-			"required": ["protocol", "entry", "options", "cdn", "selection", "modules", "importmap", "updates", "diagnostics"],
+			"required": [
+				"protocol",
+				"entry",
+				"options",
+				"cdn",
+				"selection",
+				"modules",
+				"importmap",
+				"updates",
+				"diagnostics"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"protocol": { "const": "beyond-dev-files/1" },
+				"protocol": {
+					"const": "beyond-dev-files/1"
+				},
 				"entry": {
 					"type": "object",
-					"required": ["specifier", "vspecifier"],
+					"required": [
+						"specifier",
+						"vspecifier"
+					],
 					"additionalProperties": false,
-					"properties": { "specifier": { "type": "string", "minLength": 1 }, "vspecifier": { "type": "string", "minLength": 1 } }
+					"properties": {
+						"specifier": {
+							"type": "string",
+							"minLength": 1
+						},
+						"vspecifier": {
+							"type": "string",
+							"minLength": 1
+						}
+					}
 				},
-				"options": { "type": "string", "description": "The query of the modules in development, which their updates are requested with" },
+				"options": {
+					"type": "string",
+					"description": "The query of the modules in development, which their updates are requested with"
+				},
 				"cdn": {
 					"type": "object",
 					"description": "The configured CDN origin, or the reason there is none. An origin is never invented.",
 					"additionalProperties": false,
-					"properties": { "origin": { "type": "string", "pattern": "^https?://" }, "reason": { "type": "string", "minLength": 1 } },
-					"oneOf": [{ "required": ["origin"] }, { "required": ["reason"] }]
+					"properties": {
+						"origin": {
+							"type": "string",
+							"pattern": "^https?://"
+						},
+						"reason": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"oneOf": [
+						{
+							"required": [
+								"origin"
+							]
+						},
+						{
+							"required": [
+								"reason"
+							]
+						}
+					]
 				},
 				"selection": {
 					"type": "object",
-					"required": ["explicit"],
+					"required": [
+						"explicit"
+					],
 					"additionalProperties": false,
-					"properties": { "explicit": { "type": "boolean" } }
+					"properties": {
+						"explicit": {
+							"type": "boolean"
+						}
+					}
 				},
 				"modules": {
 					"type": "array",
 					"items": {
 						"type": "object",
-						"required": ["specifier", "source"],
+						"required": [
+							"specifier",
+							"source"
+						],
 						"additionalProperties": false,
 						"properties": {
-							"specifier": { "type": "string", "minLength": 1 },
-							"source": { "enum": ["environment", "cdn", "unresolved"] },
-							"version": { "type": "string" },
-							"url": { "type": "string" },
-							"reason": { "type": "string" }
+							"specifier": {
+								"type": "string",
+								"minLength": 1
+							},
+							"source": {
+								"enum": [
+									"environment",
+									"cdn",
+									"unresolved"
+								]
+							},
+							"version": {
+								"type": "string"
+							},
+							"url": {
+								"type": "string"
+							},
+							"reason": {
+								"type": "string"
+							},
+							"vspecifier": {
+								"type": "string",
+								"description": "The versioned identity of a module served by this environment, which builds and the runtime name it by."
+							},
+							"styles": {
+								"type": "string",
+								"description": "The address of the stylesheet of a module served by this environment, relative to the document, when its sources produce one. The document links the stylesheets of the modules that are not widgets; a widget adopts its own inside its shadow root."
+							},
+							"widget": {
+								"type": "boolean",
+								"description": "Whether the module declares a widget."
+							},
+							"scope": {
+								"type": "string",
+								"enum": ["document", "widget"],
+								"description": "Who holds the stylesheet of a module that has one: the document, when the entry reaches the module without crossing a widget, or the widgets that import it, which adopt it in their own roots. The document links only the stylesheets in its scope."
+							}
 						},
 						"allOf": [
 							{
-								"if": { "properties": { "source": { "const": "environment" } } },
-								"then": { "required": ["url", "version"], "properties": { "url": { "type": "string", "pattern": "^\\.\\./m/" } } }
+								"if": {
+									"properties": {
+										"source": {
+											"const": "environment"
+										}
+									}
+								},
+								"then": {
+									"required": [
+										"url",
+										"version"
+									],
+									"properties": {
+										"url": {
+											"type": "string",
+											"pattern": "^\\.\\./m/"
+										}
+									}
+								}
 							},
 							{
-								"if": { "properties": { "source": { "const": "cdn" } } },
-								"then": { "required": ["url", "version"], "properties": { "url": { "type": "string", "pattern": "^https?://" } } }
+								"if": {
+									"properties": {
+										"source": {
+											"const": "cdn"
+										}
+									}
+								},
+								"then": {
+									"required": [
+										"url",
+										"version"
+									],
+									"properties": {
+										"url": {
+											"type": "string",
+											"pattern": "^https?://"
+										}
+									}
+								}
 							},
 							{
-								"if": { "properties": { "source": { "const": "unresolved" } } },
-								"then": { "required": ["reason"], "not": { "required": ["url"] } }
+								"if": {
+									"properties": {
+										"source": {
+											"const": "unresolved"
+										}
+									}
+								},
+								"then": {
+									"required": [
+										"reason"
+									],
+									"not": {
+										"required": [
+											"url"
+										]
+									}
+								}
 							}
 						]
 					}
 				},
 				"importmap": {
 					"type": "object",
-					"required": ["imports"],
+					"required": [
+						"imports"
+					],
 					"additionalProperties": false,
 					"properties": {
-						"imports": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^(\\.\\./m/|https?://)" } }
+						"imports": {
+							"type": "object",
+							"additionalProperties": {
+								"type": "string",
+								"pattern": "^(\\.\\./m/|https?://)"
+							}
+						}
 					}
 				},
 				"updates": {
@@ -259,41 +709,87 @@
 					"description": "`runtime` is the development coordinator the document registers this service in, which is what applies updates to the running page, from the workspace or from the CDN. `session` is what the document gives it of the session of the service: the options of the updates and the modules in development, by specifier, which is all it needs and nothing a visitor's grant does not already see in the import map, so it never reads `/session`. Without a coordinator, `reason` says why nothing applies updates: new code then appears only when the document is loaded again, which is not an update.",
 					"additionalProperties": false,
 					"properties": {
-						"runtime": { "type": "string", "minLength": 1 },
+						"runtime": {
+							"type": "string",
+							"minLength": 1
+						},
 						"session": {
 							"type": "object",
-							"required": ["options", "modules"],
+							"required": [
+								"options",
+								"modules"
+							],
 							"additionalProperties": false,
 							"properties": {
-								"options": { "type": "string" },
+								"options": {
+									"type": "string"
+								},
 								"modules": {
 									"type": "object",
 									"additionalProperties": {
 										"type": "object",
-										"required": ["package", "vspecifier", "path"],
+										"required": [
+											"package",
+											"vspecifier",
+											"path"
+										],
 										"additionalProperties": false,
 										"properties": {
-											"package": { "type": "string", "minLength": 1 },
-											"vspecifier": { "type": "string", "minLength": 1 },
-											"path": { "type": "string", "pattern": "^/m/" }
+											"package": {
+												"type": "string",
+												"minLength": 1
+											},
+											"vspecifier": {
+												"type": "string",
+												"minLength": 1
+											},
+											"path": {
+												"type": "string",
+												"pattern": "^/m/"
+											}
 										}
 									}
 								}
 							}
 						},
-						"reason": { "type": "string", "minLength": 1 }
+						"reason": {
+							"type": "string",
+							"minLength": 1
+						}
 					},
-					"oneOf": [{ "required": ["runtime", "session"] }, { "required": ["reason"] }]
+					"oneOf": [
+						{
+							"required": [
+								"runtime",
+								"session"
+							]
+						},
+						{
+							"required": [
+								"reason"
+							]
+						}
+					]
 				},
-				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+				"diagnostics": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/diagnostic"
+					}
+				}
 			}
 		},
 		"event": {
 			"type": "object",
-			"required": ["cursor", "type"],
+			"required": [
+				"cursor",
+				"type"
+			],
 			"additionalProperties": false,
 			"properties": {
-				"cursor": { "$ref": "#/$defs/cursor" },
+				"cursor": {
+					"$ref": "#/$defs/cursor"
+				},
 				"type": {
 					"enum": [
 						"file.created",
@@ -309,31 +805,132 @@
 						"stopping"
 					]
 				},
-				"path": { "$ref": "#/$defs/path" },
-				"from": { "$ref": "#/$defs/path" },
-				"revision": { "$ref": "#/$defs/revision" },
-				"previous": { "$ref": "#/$defs/revision" },
-				"origin": { "$ref": "#/$defs/origin" },
-				"actor": { "$ref": "#/$defs/actor" },
-				"batch": { "type": "string" },
-				"build": { "$ref": "#/$defs/build" },
-				"selection": { "$ref": "#/$defs/selection" },
-				"reason": { "enum": ["EPOCH", "GAP", "OVERFLOW", "WATCHER", "GRANT_EXPIRED", "GRANT_REVOKED", "SHUTDOWN"] }
+				"path": {
+					"$ref": "#/$defs/path"
+				},
+				"from": {
+					"$ref": "#/$defs/path"
+				},
+				"revision": {
+					"$ref": "#/$defs/revision"
+				},
+				"previous": {
+					"$ref": "#/$defs/revision"
+				},
+				"origin": {
+					"$ref": "#/$defs/origin"
+				},
+				"actor": {
+					"$ref": "#/$defs/actor"
+				},
+				"batch": {
+					"type": "string"
+				},
+				"build": {
+					"$ref": "#/$defs/build"
+				},
+				"selection": {
+					"$ref": "#/$defs/selection"
+				},
+				"reason": {
+					"enum": [
+						"EPOCH",
+						"GAP",
+						"OVERFLOW",
+						"WATCHER",
+						"GRANT_EXPIRED",
+						"GRANT_REVOKED",
+						"SHUTDOWN"
+					]
+				}
 			},
 			"allOf": [
 				{
-					"if": { "properties": { "type": { "enum": ["file.created", "file.changed", "file.deleted", "file.renamed"] } } },
-					"then": { "required": ["path", "origin"] }
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"file.created",
+									"file.changed",
+									"file.deleted",
+									"file.renamed"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"path",
+							"origin"
+						]
+					}
 				},
 				{
-					"if": { "properties": { "type": { "const": "file.renamed" } } },
-					"then": { "required": ["from"], "properties": { "origin": { "const": "api" } } }
+					"if": {
+						"properties": {
+							"type": {
+								"const": "file.renamed"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"from"
+						],
+						"properties": {
+							"origin": {
+								"const": "api"
+							}
+						}
+					}
 				},
-				{ "if": { "properties": { "type": { "enum": ["build.started", "build.ended"] } } }, "then": { "required": ["build"] } },
-				{ "if": { "properties": { "type": { "const": "selection.changed" } } }, "then": { "required": ["selection"] } },
 				{
-					"if": { "properties": { "type": { "enum": ["resync", "access.ended"] } } },
-					"then": { "required": ["reason"] }
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"build.started",
+									"build.ended"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"build"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "selection.changed"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"selection"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"enum": [
+									"resync",
+									"access.ended"
+								]
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"reason"
+						]
+					}
 				}
 			]
 		}

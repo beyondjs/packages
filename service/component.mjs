@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * One installed component: where it is, which version it is and where its installed dependencies are
@@ -48,9 +49,13 @@ export class Component {
 			if (error.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') throw error;
 		}
 
-		for (let current = dirname(require.resolve(name)); dirname(current) !== current; current = dirname(current)) {
-			const manifest = join(current, 'package.json');
+		// A package that exports subpaths only, such as the development runtime, has no entry point to
+		// resolve either: it is found where Node would look for it, in the installed packages of each
+		// directory above the module that depends on it
+		for (let current = dirname(fileURLToPath(from)); ; current = dirname(current)) {
+			const manifest = join(current, 'node_modules', ...name.split('/'), 'package.json');
 			if (existsSync(manifest) && JSON.parse(readFileSync(manifest, 'utf8')).name === name) return new Component(manifest);
+			if (dirname(current) === current) break;
 		}
 		throw new Error(`The installed package "${name}" has no manifest`);
 	}

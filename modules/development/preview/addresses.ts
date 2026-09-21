@@ -1,4 +1,4 @@
-import { Identity, ModulePath, Options } from '@beyond-js/artifact-api';
+import { Identity, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
 
 /**
  * Where a preview loads each public module from.
@@ -53,6 +53,14 @@ export class Addresses {
 	 */
 	environment(name: string, version: string, subpath: string): string {
 		return `..${this.path(name, version, subpath)}?${this.#development.query}`;
+	}
+
+	/**
+	 * The address of the stylesheet of a module served by this environment, relative to the preview document
+	 */
+	styles(name: string, version: string, subpath: string): string {
+		const path = ResourcePath.format({ kind: 'style', identity: new Identity({ name, version, subpath }) });
+		return `..${path}?${this.#development.query}`;
 	}
 
 	/**

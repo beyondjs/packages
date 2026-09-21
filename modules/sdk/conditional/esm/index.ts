@@ -1,9 +1,14 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ProcessorOutput } from '../processor/outputs/output';
+import type { IWidgetSpecs } from './widget';
 import { Conditional } from '../main';
 import { ConditionalOutput } from '@beyond-js/packages/module/output';
 import { equal } from '@beyond-js/equal/main';
 import { Assembler } from './assembler';
+import { Outputs } from './outputs';
+import { Widget } from './widget';
+
+export type { IWidgetDeclaration, IWidgetSpecs } from './widget';
 
 /**
  * One internal module of a public module artifact: the transformed code of a source file, addressed by
@@ -35,7 +40,7 @@ export /*bundle*/ interface IESMArtifact {
 	vspecifier: string;
 
 	/**
-	 * The public bare specifiers its internal modules require
+	 * The public bare specifiers the artifact imports
 	 */
 	dependencies: string[];
 
@@ -59,6 +64,16 @@ export /*bundle*/ interface IESMArtifact {
 	 * The runtime public module a `creators` artifact imports. A packaged artifact has none.
 	 */
 	runtime?: string;
+
+	/**
+	 * Whether the module produces a stylesheet beside its code
+	 */
+	styles?: boolean;
+
+	/**
+	 * The registration of the widget the module declares, when it is one
+	 */
+	widget?: IWidgetSpecs;
 
 	/**
 	 * The public modules a packaged artifact re-exports with `export *`, whose names are not listed in `exports`
@@ -86,11 +101,13 @@ export /*bundle*/ interface IESMArtifact {
  * an update to replace the code of one source file while the public module keeps its identity, its
  * consumers and the rest of its internal state.
  *
- * Two outputs are produced from the same internal modules:
+ * Three outputs are produced from the same processors:
  *
  * - `output`, the artifact that creates the runtime package and initialises it
  * - `patch`, the update that addresses the package already loaded under the same identity and replaces
  *   only the internal modules whose hash changed
+ * - `styles`, the stylesheet of the module, concatenated from every style output in a stable order, which
+ *   the artifact tells the runtime to register for the module
  *
  * Producing a patch is compilation, not application: delivering it and applying it to a running consumer
  * belongs to the development service and the runtime.
@@ -117,6 +134,24 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		return this.#patch;
 	}
 
+	#styles: ConditionalOutput;
+
+	/**
+	 * The stylesheet of the module, or undefined when its sources produce none
+	 */
+	get styles(): ConditionalOutput | undefined {
+		return this.#styles;
+	}
+
+	#types: ConditionalOutput;
+
+	/**
+	 * The public declaration of the module, or undefined when no processor produces one
+	 */
+	get types(): ConditionalOutput | undefined {
+		return this.#types;
+	}
+
 	#artifact: IESMArtifact;
 
 	/**
@@ -136,8 +171,22 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		return this.#errors.concat(super.errors);
 	}
 
+	#warnings: IDiagnostic[] = [];
+	get warnings(): IDiagnostic[] {
+		return this.#warnings.concat(super.warnings);
+	}
+
 	get valid(): boolean {
 		return !this.#errors.length && super.valid;
+	}
+
+	/**
+	 * The entry point of the conditional: the one its own specification names, which a per-conditional
+	 * section of the manifest can select, or else the entry point of the module
+	 */
+	get entry(): string | undefined {
+		const values = <{ entry?: unknown }>this.spec.values;
+		return typeof values?.entry === 'string' && values.entry ? values.entry : this.module.spec.entry;
 	}
 
 	/**
@@ -164,79 +213,60 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		return hash;
 	}
 
-	/**
-	 * Collects the internal modules emitted by the processors of this conditional, together with the issues
-	 * they reported. A source whose transformation failed produces diagnostics and no code, which invalidates
-	 * the whole artifact: a public module is not published while one of its internal modules is missing.
-	 */
-	#collect(errors: IDiagnostic[]): IInternalModule[] {
-		const ims: IInternalModule[] = [];
-
-		this.processors.forEach(processor => {
-			if (!processor.valid) {
-				processor.errors.forEach(error => errors.push(error));
-				return;
-			}
-
-			processor.outputs?.ims.forEach(im => {
-				const file = im.source.relative.file;
-
-				im.issues.errors.forEach(({ code, message, position }) => {
-					const at = position ? ` (${position.line}:${position.column})` : '';
-					errors.push({ code, message: `${file}${at}: ${message}` });
-				});
-
-				const code = im.code.code();
-				if (typeof code !== 'string') return;
-
-				ims.push({ id: ESMConditional.id(file), hash: ESMConditional.hash(code), output: im });
-			});
-		});
-
-		return ims;
-	}
-
 	_process(): boolean {
 		const done = (updated: {
 			errors?: IDiagnostic[];
+			warnings?: IDiagnostic[];
 			output?: ConditionalOutput;
 			patch?: ConditionalOutput;
+			styles?: ConditionalOutput;
+			types?: ConditionalOutput;
 			artifact?: IESMArtifact;
 		}): boolean => {
 			const errors = updated.errors ?? [];
+			const warnings = updated.warnings ?? [];
 
 			/**
-			 * The artifact hash identifies the emitted code, so reprocessing that produces the same code is
-			 * not reported as a change: consumers and update services are only notified of real differences.
+			 * The hashes identify the emitted code and stylesheet, so reprocessing that produces the same
+			 * outputs is not reported as a change: consumers and update services are only notified of real
+			 * differences.
 			 */
-			const previous = { errors: this.#errors, hash: this.#output?.hash };
-			const changed = !equal(previous, { errors, hash: updated.output?.hash });
+			const previous = { errors: this.#errors, warnings: this.#warnings, hash: this.#output?.hash, styles: this.#styles?.hash, types: this.#types?.hash };
+			const current = { errors, warnings, hash: updated.output?.hash, styles: updated.styles?.hash, types: updated.types?.hash };
+			const changed = !equal(previous, current);
 
 			this.#errors = errors;
+			this.#warnings = warnings;
 			this.#output = updated.output;
 			this.#patch = updated.patch;
+			this.#styles = updated.styles;
+			this.#types = updated.types;
 			this.#artifact = updated.artifact;
 			return changed;
 		};
 
-		const errors: IDiagnostic[] = [];
-		const ims = this.#collect(errors);
-		if (errors.length) return done({ errors });
+		const outputs = new Outputs(this.processors, ESMConditional.id, ESMConditional.hash);
+		const { warnings } = outputs;
+		if (outputs.errors.length) return done({ errors: outputs.errors, warnings });
 
-		// The entry point is the source file that the package exports declare for this module
 		const { module } = this;
-		const entry = module.spec.entry;
+		const { entry } = this;
 		if (!entry) {
 			const code = 'MODULE_ENTRY_MISSING';
 			const message = `Module "${module.spec.subpath}" does not define its entry point`;
-			return done({ errors: [{ code, message }] });
+			return done({ errors: [{ code, message }], warnings });
 		}
 
-		const id = ESMConditional.id(entry);
-		if (!ims.some(im => im.id === id)) {
+		/**
+		 * A module whose entry point is a stylesheet publishes no code: its artifact is an empty public module
+		 * whose stylesheet is what consumers link, such as the shared `global` sheet of a package
+		 */
+		const stylesheet = /\.(css|scss|sass)$/.test(entry);
+		const id = stylesheet ? void 0 : ESMConditional.id(entry);
+		if (!stylesheet && !outputs.ims.some(im => im.id === id)) {
 			const code = 'MODULE_ENTRY_NOT_FOUND';
 			const message = `Entry point "${entry}" of module "${module.spec.subpath}" was not processed`;
-			return done({ errors: [{ code, message }] });
+			return done({ errors: [{ code, message }], warnings });
 		}
 
 		const { package: pkg } = module;
@@ -248,11 +278,17 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		if (runtime !== void 0 && (typeof runtime !== 'string' || !runtime)) {
 			const code = 'RUNTIME_INVALID';
 			const message = `The "runtime" setting of bundler "${module.bundler.specifier}" must be the specifier of a public module`;
-			return done({ errors: [{ code, message }] });
+			return done({ errors: [{ code, message }], warnings });
 		}
 
-		const assembler = new Assembler({ vspecifier, entry: id, ims, runtime: <string>runtime });
-		if (assembler.errors.length) return done({ errors: assembler.errors });
+		// A widget adopts the shared `global` stylesheet of its package when the package publishes one
+		const widget = new Widget((<{ widget?: unknown }>this.spec.values)?.widget, vspecifier, pkg.modules.has('./global'));
+		if (widget.errors.length) return done({ errors: widget.errors, warnings });
+
+		const styles = outputs.styles(vspecifier);
+		const types = outputs.types(vspecifier);
+		const assembler = new Assembler({ vspecifier, entry: id, ims: outputs.ims, runtime: <string>runtime, styles: !!styles, widget });
+		if (assembler.errors.length) return done({ errors: assembler.errors, warnings });
 
 		const output = new ConditionalOutput();
 		output.set(assembler.assemble({ hmr: false }));
@@ -265,9 +301,11 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 			runtime: assembler.runtime,
 			dependencies: assembler.dependencies,
 			exports: assembler.exports,
-			ims: assembler.ims.map(({ id, hash }) => ({ id, hash }))
+			ims: assembler.ims.map(({ id, hash }) => ({ id, hash })),
+			...(styles ? { styles: true } : {}),
+			...(widget.specs ? { widget: widget.specs } : {})
 		};
 
-		return done({ output, patch, artifact });
+		return done({ output, patch, styles, types, artifact, warnings });
 	}
 }

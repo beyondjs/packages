@@ -1,0 +1,5 @@
+{
+	"platforms": ["web", "node"],
+	"entry": "index.ts",
+	"widget": { "element": { "name": "fixture-widget", "attrs": ["label"] } }
+}
