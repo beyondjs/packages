@@ -46,32 +46,7 @@
 		}
 	},
 	"updates": {
-		"runtime": "@example/runtime/main",
-		"session": {
-			"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
-			"modules": {
-				"@example/app/main": {
-					"package": "@example/app",
-					"vspecifier": "@example/app@1.0.0/main",
-					"path": "/m/@example/app@1.0.0/modules/main"
-				},
-				"@example/runtime/bundle": {
-					"package": "@example/runtime",
-					"vspecifier": "@example/runtime@0.1.0/bundle",
-					"path": "/m/@example/runtime@0.1.0/modules/bundle"
-				},
-				"@example/runtime/main": {
-					"package": "@example/runtime",
-					"vspecifier": "@example/runtime@0.1.0/main",
-					"path": "/m/@example/runtime@0.1.0/modules/main"
-				},
-				"@example/shared/text": {
-					"package": "@example/shared",
-					"vspecifier": "@example/shared@1.0.0/text",
-					"path": "/m/@example/shared@1.0.0/modules/text"
-				}
-			}
-		}
+		"runtime": "@example/runtime/main"
 	},
 	"diagnostics": []
 }

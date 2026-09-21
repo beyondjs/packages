@@ -19,7 +19,8 @@ const PUBLISHED = 'target=browser&format=esm&env=production&min=true&sourcemap=e
 const fork = new Fork();
 const authority = new Authority();
 const owner = authority.grant(['session.read', 'files.read', 'files.write', 'events.subscribe', 'inspect.read', 'build.control', 'artifacts.read']);
-const visitor = authority.grant(['session.read', 'events.subscribe', 'artifacts.read'], { subject: 'usr_visitor1' });
+// A visitor never reads the session of the service: the document gives the runtime what it needs of it
+const visitor = authority.grant(['events.subscribe', 'artifacts.read'], { subject: 'usr_visitor1' });
 
 const cleanup = [];
 const workspace = await new Workspace().create(new Runtime());
@@ -68,12 +69,16 @@ try {
 		assert.deepEqual(entry.modules.map(({ source }) => source), ['environment', 'environment', 'environment', 'environment']);
 		assert.ok(Object.values(entry.importmap.imports).every(url => url.startsWith('../m/')));
 		assert.equal(entry.updates.runtime, '@beyond-js/local-2026/main');
+		assert.equal((await call('GET', '/session', { grant: visitor })).status, 403, 'the visitor cannot read the session of the service');
+		assert.deepEqual(Object.keys(entry.updates.session.modules).sort(), entry.modules.map(({ specifier }) => specifier).sort(), 'and is given the modules in development instead');
+		assert.ok(Object.values(entry.updates.session.modules).every(({ path }) => path.startsWith('/m/')));
 
 		const redirect = await call('GET', '/preview?entry=@fixture/web/main', { grant: visitor });
 		assert.deepEqual([redirect.status, redirect.headers.get('location')], [308, 'preview/?entry=@fixture/web/main']);
 
 		const document = (await call('GET', '/preview/', { grant: visitor })).body;
-		for (const secret of [visitor, owner, 'Bearer', host.origin]) assert.ok(!document.includes(secret), `The document must not contain "${secret.slice(0, 12)}…"`);
+		for (const secret of [visitor, owner, 'Bearer', host.origin, 'file:', workspace.root]) assert.ok(!document.includes(secret), `The document must not contain "${secret.slice(0, 12)}…"`);
+		assert.ok(document.includes('session: {'), 'it registers the runtime with the session it embeds');
 		return `${entry.modules.length} modules, entry ${entry.entry.specifier}`;
 	});
 

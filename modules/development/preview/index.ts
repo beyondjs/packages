@@ -3,7 +3,7 @@ import type { Selection } from '../selection';
 import { DevelopmentError } from '../error';
 import { Addresses } from './addresses';
 import { Externals } from './externals';
-import { Graph, type IPreviewDiagnostic, type IPreviewModule } from './graph';
+import { Graph, type IPreviewDiagnostic, type IPreviewModule, type IPreviewUpdatable } from './graph';
 import { Document } from './document';
 
 export /*bundle*/ interface IPreviewDescription {
@@ -23,7 +23,7 @@ export /*bundle*/ interface IPreviewDescription {
 	 * Whether the document registers a development runtime, which is what applies updates to the page while
 	 * it runs. Without one the page shows new code only when it is loaded again, which is not an update.
 	 */
-	updates: { runtime?: string; reason?: string };
+	updates: { runtime?: string; session?: { options: string; modules: Record<string, IPreviewUpdatable> }; reason?: string };
 	diagnostics: IPreviewDiagnostic[];
 }
 
@@ -131,10 +131,15 @@ export /*bundle*/ class Preview {
 			.map(specifier => published.find(module => Graph.specifier(module) === specifier))
 			.filter(module => !!module);
 		await graph.walk(coordinators, published);
+		const coordinator = coordinators.length ? Graph.specifier(coordinators[0]) : await this.#delivered(graph, entry);
 
-		const updates = coordinators.length
-			? { runtime: Graph.specifier(coordinators[0]) }
-			: { reason: `The runtime of the application (${graph.runtimes.join(', ') || 'none'}) has no development coordinator in this workspace, so nothing applies updates to the running page` };
+		// The runtime of a page is given the part of the session it needs, so a visitor, whose grant does
+		// not read the session of the service, is never asked for it: what the modules in development are
+		// and how their updates are requested, all of which the import map already tells that visitor
+		const session = { options: this.#addresses.options, modules: graph.updatable };
+		const updates = coordinator
+			? { runtime: coordinator, session }
+			: { reason: `The runtime of the application (${graph.runtimes.join(', ') || 'none'}) has no development coordinator in this workspace or on the CDN, so nothing applies updates to the running page` };
 
 		const { modules, diagnostics } = graph;
 		const imports: Record<string, string> = {};
@@ -152,6 +157,22 @@ export /*bundle*/ class Preview {
 			updates,
 			diagnostics
 		};
+	}
+
+	/**
+	 * The coordinator of a runtime that the workspace does not contain, delivered by the CDN at the version
+	 * the runtime resolves to, like the runtime itself
+	 *
+	 * @returns Its specifier, or undefined when it has no address
+	 */
+	async #delivered(graph: Graph, entry: IPublishedModule): Promise<string | undefined> {
+		for (const runtime of graph.runtimes) {
+			const specifier = `${Externals.parse(runtime).name}/${Preview.COORDINATOR}`;
+			// A runtime without a coordinator, such as the Kernel, is never asked for one
+			if (!(await this.#externals.exports(specifier, entry.path))) continue;
+			const module = await graph.runtime(specifier, entry);
+			if (module?.url) return specifier;
+		}
 	}
 
 	async document(requested?: string): Promise<string> {

@@ -53,7 +53,8 @@
 				"@example/app/main": {
 					"package": "@example/app",
 					"vspecifier": "@example/app@1.0.0/main",
-					"path": "/m/@example/app@1.0.0/modules/main"
+					"path": "/m/@example/app@1.0.0/modules/main",
+					"base": "file:///workspace/app/package.json"
 				},
 				"@example/runtime/bundle": {
 					"package": "@example/runtime",

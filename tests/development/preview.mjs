@@ -103,6 +103,8 @@ export async function preview() {
 		const entry = (await context.call('GET', '/preview/entry.json?entry=@case/app/main')).body;
 		assert.equal(entry.importmap.imports['@beyond-js/kernel/bundle'], `https://cdn.example.test/m/@beyond-js/kernel@${kernel}/modules/bundle?${published}`);
 		assert.deepEqual(entry.diagnostics, []);
+		assert.ok(entry.updates.reason && !entry.updates.runtime && !entry.importmap.imports['@beyond-js/kernel/main'],
+			'The Kernel exports no development coordinator, so none is asked of the CDN either');
 
 		const html = (await context.call('GET', '/preview/')).body;
 		assert.ok(html.includes('<script type="importmap">') && html.includes('await import("@case/app/main");'));
@@ -115,7 +117,7 @@ export async function preview() {
 	await step('visitor-stream-has-no-source-events', async () => {
 		const signer = new Signer();
 		const context = await serve(seed, new Access(vectors.verifier));
-		const visitor = await context.subscribe({ grant: signer.grant('grt_vis0001', ['session.read', 'events.subscribe', 'artifacts.read']) });
+		const visitor = await context.subscribe({ grant: signer.grant('grt_vis0001', ['events.subscribe', 'artifacts.read']) });
 		const member = await context.subscribe({ grant: signer.grant('grt_mem0001', ['files.read', 'events.subscribe']) });
 		await until(() => visitor.messages.length && member.messages.length, 'both subscriptions');
 

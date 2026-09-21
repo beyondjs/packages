@@ -55,12 +55,31 @@ export class Externals {
 		}
 	}
 
-	async #installed(name: string, from: string): Promise<string | undefined> {
+	async #manifest(name: string, from: string): Promise<Record<string, any> | undefined> {
 		for (let directory = from; ; directory = dirname(directory)) {
 			const manifest = await this.#json(join(directory, 'node_modules', ...name.split('/'), 'package.json'));
-			if (typeof manifest?.version === 'string') return manifest.version;
+			if (typeof manifest?.version === 'string') return manifest;
 			if (dirname(directory) === directory) return;
 		}
+	}
+
+	async #installed(name: string, from: string): Promise<string | undefined> {
+		return (await this.#manifest(name, from))?.version;
+	}
+
+	/**
+	 * Whether the installed runtime package exports a public module. Only an installation says so: a
+	 * declared version tells nothing about what the package exports, and a runtime without the module is
+	 * not asked for it.
+	 *
+	 * @param specifier A public specifier of the runtime package, such as its development coordinator
+	 * @param importer The directory of the package whose artifact imports the runtime
+	 */
+	async exports(specifier: string, importer: string | undefined): Promise<boolean> {
+		const { name, subpath } = Externals.parse(specifier);
+		const manifest = (importer && (await this.#manifest(name, importer))) ?? (this.#runtime ? await this.#manifest(name, this.#runtime) : void 0);
+		const exports = manifest?.exports;
+		return !!exports && typeof exports === 'object' && Object.prototype.hasOwnProperty.call(exports, subpath);
 	}
 
 	/**

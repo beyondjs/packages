@@ -5,9 +5,12 @@
  * its instructions say, and the two artifacts stay independent. It runs in a plain Node process: everything
  * that compiles is the installed toolchain.
  *
+ * The CDN is a stand-in: a static origin over `BEYOND_TEST_CDN_DIRECTORY`, which `cdn.mjs` writes with the
+ * development build of the runtime the template selects. No Beyond CDN is hosted.
+ *
  * ```sh
  * BEYOND_TEMPLATE=<template checkout> BEYOND_TOOLCHAIN=<installation directory> BEYOND_PLAYWRIGHT=<directory> \
- *   node tests/preview/template.mjs
+ * BEYOND_TEST_CDN_DIRECTORY=<directory written by cdn.mjs> node tests/preview/template.mjs
  * ```
  */
 import assert from 'node:assert/strict';
@@ -17,8 +20,10 @@ import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Browser, Origin } from './browser.mjs';
 
-const { BEYOND_TEMPLATE, BEYOND_TOOLCHAIN } = process.env;
-if (!BEYOND_TEMPLATE || !BEYOND_TOOLCHAIN) throw new Error('Set BEYOND_TEMPLATE to the template checkout and BEYOND_TOOLCHAIN to an installed toolchain.');
+const { BEYOND_TEMPLATE, BEYOND_TOOLCHAIN, BEYOND_TEST_CDN_DIRECTORY } = process.env;
+if (!BEYOND_TEMPLATE || !BEYOND_TOOLCHAIN || !BEYOND_TEST_CDN_DIRECTORY) {
+	throw new Error('Set BEYOND_TEMPLATE to the template checkout, BEYOND_TOOLCHAIN to an installed toolchain and BEYOND_TEST_CDN_DIRECTORY to the output of cdn.mjs.');
+}
 
 const results = [];
 const step = async (name, fn) => {
@@ -79,7 +84,7 @@ const json = async (file, mutate) => {
 const files = async directory => (await readdir(directory, { recursive: true, withFileTypes: true })).filter(entry => entry.isFile()).map(entry => join(entry.parentPath, entry.name));
 const development = 'target=browser&format=esm&env=development&min=false&sourcemap=none&types=false&css=false';
 
-let server, cdn, browser, kernel;
+let server, cdn, browser, runtime;
 const get = async path => {
 	const response = await fetch(`${server.endpoint}${path}`);
 	const text = await response.text();
@@ -107,9 +112,14 @@ try {
 	});
 
 	await step('README: `beyond run` with the development extension compiles and serves the application', async () => {
-		kernel = JSON.parse(await readFile(join(resolve(BEYOND_TOOLCHAIN), 'node_modules/@beyond-js/kernel/package.json'), 'utf8')).version;
-		const code = await readFile(join(resolve(BEYOND_TOOLCHAIN), 'node_modules/@beyond-js/kernel/bundle/bundle.browser.mjs'), 'utf8');
-		cdn = await new Origin().module(`/m/@beyond-js/kernel@${kernel}/modules/bundle`, code).start();
+		// The runtime the template selects, installed with the toolchain as the Kernel is, and on the stand-in CDN
+		runtime = JSON.parse(await readFile(join(resolve(BEYOND_TOOLCHAIN), 'node_modules/@beyond-js/local-2026/package.json'), 'utf8')).version;
+		const origin = new Origin();
+		for (const subpath of ['bundle', 'main']) {
+			const path = `/m/@beyond-js/local-2026@${runtime}/modules/${subpath}`;
+			origin.module(path, await readFile(join(resolve(BEYOND_TEST_CDN_DIRECTORY), `.${path}`), 'utf8'));
+		}
+		cdn = await origin.start();
 		cleanup.push(() => cdn.stop());
 
 		await mkdir(join(root, 'home'));
@@ -123,12 +133,13 @@ try {
 		const entry = (await get('/preview/entry.json')).json();
 		assert.deepEqual(entry.diagnostics, []);
 		assert.deepEqual(entry.modules.map(({ specifier, source, version }) => [specifier, source, version]),
-			[['@beyond-js/kernel/bundle', 'cdn', kernel], ['@project/app/main', 'environment', '0.1.0']]);
-		assert.ok(entry.updates.reason, 'Nothing applies updates to the running page, and the description says so');
+			[['@beyond-js/local-2026/bundle', 'cdn', runtime], ['@beyond-js/local-2026/main', 'cdn', runtime], ['@project/app/main', 'environment', '0.1.0']]);
+		assert.equal(entry.updates.runtime, '@beyond-js/local-2026/main', 'the coordinator of the runtime, from the CDN, applies updates to the running page');
+		assert.deepEqual(Object.keys(entry.updates.session.modules), ['@project/app/main']);
 
 		const artifact = await get(`/m/@project/app@0.1.0/modules/main?${development}`);
 		assert.equal(artifact.status, 200);
-		return `${server.endpoint}; Kernel ${kernel} from the stand-in CDN`;
+		return `${server.endpoint}; runtime ${runtime} from the stand-in CDN`;
 	});
 
 	await step('browser: the element, its texts and its styles render, and its state works', async () => {
@@ -146,29 +157,38 @@ try {
 		return `${browser.version}`;
 	});
 
-	await step('edit: a saved source is in the next load of the preview; the running page is not updated, as the README says', async () => {
-		const { page } = await open();
-		const file = join(project, 'packages/app/main/texts.ts');
-		await writeFile(file, (await readFile(file, 'utf8')).replace("'Hello, Beyond'", "'Hello, edited'"));
+	await step('edit: a saved source is applied to the running page, which keeps its state, as the README says', async () => {
+		const { page, observed } = await open();
+		await page.locator('app-welcome button').click();
+		await page.locator('app-welcome button').click();
+		await page.evaluate(() => (window.__welcome = document.querySelector('app-welcome')));
 
-		for (const deadline = Date.now() + 30000; !(await get(`/m/@project/app@0.1.0/modules/main?${development}`)).text.includes('Hello, edited'); ) {
-			if (Date.now() > deadline) throw new Error('The edit was not rebuilt');
-			await new Promise(done => setTimeout(done, 200));
-		}
-		await new Promise(done => setTimeout(done, 2000));
-		assert.equal(await page.locator('app-welcome h1').textContent(), 'Hello, Beyond', 'No update is applied to the running page');
+		const file = join(project, 'packages/app/main/texts.ts');
+		await writeFile(file, (await readFile(file, 'utf8')).replace("'Hello, Beyond'", "'Hello, edited'").replace('clicks`', 'presses`'));
+		await page.waitForFunction(() => performance.getEntriesByType('resource').some(({ name }) => name.includes('/u/')), null, { timeout: 30000 });
+
+		// What the element reads when it draws is current: the next click draws with the new text and the old count
+		await page.locator('app-welcome button').click();
+		assert.equal(await page.locator('app-welcome output').textContent(), '3 presses');
+		assert.equal(await page.locator('app-welcome h1').textContent(), 'Hello, Beyond', 'what was drawn once stays until the element draws it again');
+		assert.equal(await page.evaluate(() => window.__welcome === document.querySelector('app-welcome')), true);
+		assert.equal(await page.evaluate(() => performance.getEntriesByType('navigation').length), 1);
+		assert.equal(observed.navigations.length, 1, 'no navigation after the first load');
+
 		await page.reload();
 		await page.waitForSelector('app-welcome');
-		assert.equal(await page.locator('app-welcome h1').textContent(), 'Hello, edited');
+		assert.equal(await page.locator('app-welcome h1').textContent(), 'Hello, edited', 'and a load draws everything with it');
 		await page.close();
-		return 'rebuilt on save, shown on reload: this is not HMR';
+		return 'applied without a navigation; the count survived the update';
 	});
 
 	await step('AGENTS.md: a sibling package with a public module, imported by its bare specifier', async () => {
 		await mkdir(join(project, 'packages/shared/text'), { recursive: true });
+		// As AGENTS.md says: the `bundlers` entry of the application, copied unchanged, runtime included
+		const { bundlers } = JSON.parse(await readFile(join(project, 'packages/app/package.json'), 'utf8'));
 		await writeFile(join(project, 'packages/shared/package.json'), `${JSON.stringify({
 			name: '@project/shared', version: '0.1.0', private: true, exports: { './text': './text/index.ts' },
-			dependencies: {}, beyond: { modules: '.', bundler: 'ts' }, bundlers: { ts: '@beyond-js/packages/bundlers/ts' }
+			dependencies: {}, beyond: { modules: '.', bundler: 'ts' }, bundlers
 		}, null, '\t')}\n`);
 		await writeFile(join(project, 'packages/shared/text/module.json'), '{\n\t"platforms": ["web"]\n}\n');
 		await writeFile(join(project, 'packages/shared/text/index.ts'), "export const greeting = (name: string): string => `Hello from shared, ${name}`;\n");
@@ -182,7 +202,7 @@ try {
 		const entry = (await get('/preview/entry.json')).json();
 		assert.deepEqual(entry.diagnostics, []);
 		assert.deepEqual(entry.modules.map(({ specifier, source: from }) => [specifier, from]),
-			[['@beyond-js/kernel/bundle', 'cdn'], ['@project/app/main', 'environment'], ['@project/shared/text', 'environment']]);
+			[['@beyond-js/local-2026/bundle', 'cdn'], ['@beyond-js/local-2026/main', 'cdn'], ['@project/app/main', 'environment'], ['@project/shared/text', 'environment']]);
 
 		const app = await get(`/m/@project/app@0.1.0/modules/main?${development}`);
 		assert.match(app.text, /from '@project\/shared\/text'/, 'The bare public import is preserved');

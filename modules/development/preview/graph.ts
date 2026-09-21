@@ -15,6 +15,15 @@ export /*bundle*/ interface IPreviewModule {
 	reason?: string;
 }
 
+/**
+ * A module in development as the development runtime needs to know it to apply its updates
+ */
+export /*bundle*/ interface IPreviewUpdatable {
+	package: string;
+	vspecifier: string;
+	path: string;
+}
+
 export /*bundle*/ interface IPreviewDiagnostic {
 	code: string;
 	message: string;
@@ -49,6 +58,16 @@ export class Graph {
 	}
 
 	#runtimes = new Set<string>();
+
+	#updatable: Record<string, IPreviewUpdatable> = {};
+
+	/**
+	 * The modules of the graph that this environment serves in development, by specifier: the only ones a
+	 * build can update, and all that the runtime of a page needs to know of the session to apply updates
+	 */
+	get updatable(): Record<string, IPreviewUpdatable> {
+		return { ...this.#updatable };
+	}
 
 	/**
 	 * The runtime modules that the artifacts of the graph are assembled against
@@ -97,6 +116,17 @@ export class Graph {
 	}
 
 	/**
+	 * Adds a module of a package that the workspace does not contain, at the version its runtime resolves
+	 * to, such as the coordinator of a runtime delivered by the CDN
+	 *
+	 * @returns The module, with its address when it has one
+	 */
+	async runtime(specifier: string, importer: IPublishedModule): Promise<IPreviewModule> {
+		await this.#external(specifier, importer, true);
+		return this.#modules.get(specifier);
+	}
+
+	/**
 	 * Walks the graph from the given workspace modules
 	 */
 	async walk(roots: IPublishedModule[], published: IPublishedModule[]): Promise<void> {
@@ -109,7 +139,10 @@ export class Graph {
 			const { name, version, subpath } = module;
 			const entry: IPreviewModule = { specifier, source: 'environment', version };
 			this.#modules.set(specifier, entry);
-			this.#selected(module) ? (entry.url = this.#addresses.environment(name, version, subpath)) : this.#published(entry, name, version, subpath);
+			if (this.#selected(module)) {
+				entry.url = this.#addresses.environment(name, version, subpath);
+				this.#updatable[specifier] = { package: name, vspecifier: module.vspecifier, path: this.#addresses.path(name, version, subpath) };
+			} else this.#published(entry, name, version, subpath);
 
 			const { delivered, failure } = await this.#delivery.module(module, WEB);
 			if (!delivered) {

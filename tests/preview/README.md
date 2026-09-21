@@ -18,7 +18,7 @@ Expected: `9/9 steps passed`.
 
 The workspace is a temporary copy of [`fixture/`](fixture) plus the sources of the development runtime: a browser-only application module (`platforms: ["web"]`) that renders a custom element with a stateful internal module and an adopted stylesheet, and a shared module it imports by bare specifier. The host of the development service runs with the development extension in **delegated** mode, with the public test authority of the contract fixtures. Two stand-ins are part of the driver and are named as such:
 
-- The **gateway** publishes the service under a path prefix and adds the grant of a visitor (`session.read`, `events.subscribe`, `artifacts.read`) to every request, as the authenticating proxy of a Workspace administration would. The browser never holds a grant.
+- The **gateway** publishes the service under a path prefix and adds the grant of a visitor (`events.subscribe`, `artifacts.read`, and not `session.read`) to every request, as the authenticating proxy of a Workspace administration would. The browser never holds a grant.
 - The **origin** answers one path of the compiled-module contract with a module that says `[cdn]`, with the cross-origin header a browser requires. It is not CDN delivery.
 
 | Step | Established |
@@ -35,23 +35,38 @@ The workspace is a temporary copy of [`fixture/`](fixture) plus the sources of t
 
 What tells an update from a reload here is what a reload destroys: the state of an internal module, the identity of the mounted element, a value stored on `window`, the navigation entries of the page and the requests for the document.
 
+## `cdn.mjs`: the runtime for a stand-in CDN
+
+A project that does not contain the development runtime asks the CDN for it. `cdn.mjs` compiles the runtime's public modules with the real service, for browsers, and writes them into a directory at the paths of the compiled-module contract (`m/<name>@<version>/modules/<subpath>`), with a `stand-in.json` that says what it is. A static origin over that directory stands in for the CDN in `template.mjs` and in the Workspace administration's browser suite. The service builds development output only, so the stand-in serves the development build where a CDN would serve the production one.
+
+```sh
+BEYOND_ESBUILD=/absolute/path/to/the/fork BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
+  node --import "$BEE_NODE_DIR/register.mjs" tests/preview/cdn.mjs /absolute/path/to/a/directory
+```
+
 ## `template.mjs`: a project created from the Workspace template
 
-It needs no Engine and no loader: everything that compiles is an installed toolchain, built as the command line's acceptance builds it.
+It needs no Engine and no loader: everything that compiles is an installed toolchain, built as the command line's acceptance builds it, which installs the development runtime beside Packages.
 
 ```sh
 BEYOND_TEMPLATE=/absolute/path/to/the/template BEYOND_TOOLCHAIN=/absolute/path/to/an/installation \
+BEYOND_TEST_CDN_DIRECTORY=/absolute/path/to/the/directory/of/cdn.mjs \
 BEYOND_PLAYWRIGHT=/absolute/path/to/a/directory/with/playwright-core node tests/preview/template.mjs
 ```
 
 Expected: `10/10 steps passed`.
 
-The driver copies the template into a temporary directory outside every checkout, checks that no file names a checkout, a home directory or another repository, and then does what the template's README and AGENTS.md say: it starts `beyond run` with `BEYOND_SERVICE_EXTENSIONS` and `BEYOND_CDN_ORIGIN`, reads the preview description and the state, opens the preview, edits a text, adds the sibling package of the instructions with its bare import, checks that an edit of the sibling changes its artifact and not the application's, provokes an undeclared dependency and a source error, replaces and clears the selection with the documented requests, runs `beyond run <module>` on the browser module, and interrupts the command. The CDN origin is the stand-in above, serving the browser build of the Kernel installed with the toolchain at the path of the contract.
+The driver copies the template into a temporary directory outside every checkout, checks that no file names a checkout, a home directory or another repository, and then does what the template's README and AGENTS.md say: it starts `beyond run` with `BEYOND_SERVICE_EXTENSIONS` and `BEYOND_CDN_ORIGIN`, reads the preview description and the state, opens the preview, edits a text and observes the update applied to the open page with its state kept and no navigation, adds the sibling package of the instructions with its bare import, checks that an edit of the sibling changes its artifact and not the application's, provokes an undeclared dependency and a source error, replaces and clears the selection with the documented requests, runs `beyond run <module>` on the browser module, and interrupts the command. The CDN origin is a stand-in serving the two runtime modules written by `cdn.mjs`.
 
 ## What it does not cover
 
 - CDN delivery, the proxy of a Workspace administration, visitor links and their revocation: both are stand-ins here.
-- Updates for a project that uses the published Kernel, which is what the template does: the development runtime is not distributed, so the template driver asserts the opposite, that the running page is **not** updated and that a reload shows the edit.
+- A runtime delivered by a real CDN, or published anywhere: the runtime is installed from its checkout by the acceptance installer, and its browser modules come from the stand-in.
 - Styles as artifacts, Widgets, declarations and editor type resolution.
 - Browsers other than the installed Chrome, and cross-device or shared sessions.
 - A change of the selection while a page is open: the page keeps the import map it was loaded with.
+
+## Executed evidence
+
+- [Template and preview validation, 2026-09-20](../../docs/reviews/2026-09-20/template-preview-validation.md): the selection, the preview entry and the first update applied in a browser.
+- [Preview bootstrap and runtime distribution, 2026-09-21](../../docs/reviews/2026-09-21/preview-bootstrap-validation.md): a visitor without `session.read`, the runtime installed with the toolchain, and updates in a project created from the template.

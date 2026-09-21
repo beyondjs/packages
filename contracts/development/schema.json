@@ -256,10 +256,34 @@
 				},
 				"updates": {
 					"type": "object",
-					"description": "`runtime` is the development coordinator the document registers this service in, which is what applies updates to the running page. Without one, `reason` says why nothing does: new code then appears only when the document is loaded again, which is not an update.",
+					"description": "`runtime` is the development coordinator the document registers this service in, which is what applies updates to the running page, from the workspace or from the CDN. `session` is what the document gives it of the session of the service: the options of the updates and the modules in development, by specifier, which is all it needs and nothing a visitor's grant does not already see in the import map, so it never reads `/session`. Without a coordinator, `reason` says why nothing applies updates: new code then appears only when the document is loaded again, which is not an update.",
 					"additionalProperties": false,
-					"properties": { "runtime": { "type": "string", "minLength": 1 }, "reason": { "type": "string", "minLength": 1 } },
-					"oneOf": [{ "required": ["runtime"] }, { "required": ["reason"] }]
+					"properties": {
+						"runtime": { "type": "string", "minLength": 1 },
+						"session": {
+							"type": "object",
+							"required": ["options", "modules"],
+							"additionalProperties": false,
+							"properties": {
+								"options": { "type": "string" },
+								"modules": {
+									"type": "object",
+									"additionalProperties": {
+										"type": "object",
+										"required": ["package", "vspecifier", "path"],
+										"additionalProperties": false,
+										"properties": {
+											"package": { "type": "string", "minLength": 1 },
+											"vspecifier": { "type": "string", "minLength": 1 },
+											"path": { "type": "string", "pattern": "^/m/" }
+										}
+									}
+								}
+							}
+						},
+						"reason": { "type": "string", "minLength": 1 }
+					},
+					"oneOf": [{ "required": ["runtime", "session"] }, { "required": ["reason"] }]
 				},
 				"diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
 			}

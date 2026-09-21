@@ -6,9 +6,11 @@ import type { IPreviewDescription } from './index';
  * Every address of this environment is relative to the document, and nothing in it is a credential: what
  * authorizes a visitor is decided in front of this service, which only ever sees the grant of the request.
  * Importing the entry module runs its top-level code once, which is what executing a public module means;
- * no exported function is called. When the workspace provides a development runtime, the document
- * registers this service in it first, so that the runtime applies the updates the service announces. The
- * document applies no update by itself, and it never reloads.
+ * no exported function is called. When the workspace or the CDN provides a development runtime, the
+ * document registers this service in it first, so that the runtime applies the updates the service
+ * announces. It gives the runtime the part of the session it needs — the modules in development and the
+ * options of their updates — so the runtime never reads `/session`, which a visitor's grant does not
+ * allow. The document applies no update by itself, and it never reloads.
  */
 export class Document {
 	#description: IPreviewDescription;
@@ -29,14 +31,14 @@ export class Document {
 	}
 
 	get #script(): string {
-		const { entry, updates, options, diagnostics } = this.#description;
+		const { entry, updates, diagnostics } = this.#description;
 		const lines = diagnostics.map(({ code, message }) => `console.error(${this.#json(`[beyond preview] ${code}: ${message}`)});`);
 
 		if (updates.runtime) {
 			lines.push(
 				'try {',
 				`\tconst { local } = await import(${this.#json(updates.runtime)});`,
-				`\tawait local.register({ origin: new URL('..', document.baseURI).href, options: ${this.#json(options)} });`,
+				`\tawait local.register({ origin: new URL('..', document.baseURI).href, options: ${this.#json(updates.session.options)}, session: ${this.#json(updates.session)} });`,
 				'} catch (error) {',
 				`\tconsole.error('[beyond preview] The development runtime could not connect, so updates are not applied:', error);`,
 				'}'

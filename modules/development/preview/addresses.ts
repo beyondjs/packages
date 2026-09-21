@@ -41,7 +41,10 @@ export class Addresses {
 		this.#cdn = configured;
 	}
 
-	#path(name: string, version: string, subpath: string): string {
+	/**
+	 * The path of a module in the compiled-module contract, without the origin and the query
+	 */
+	path(name: string, version: string, subpath: string): string {
 		return ModulePath.format(new Identity({ name, version, subpath }));
 	}
 
@@ -49,7 +52,7 @@ export class Addresses {
 	 * The address of a module served by this environment, relative to the preview document
 	 */
 	environment(name: string, version: string, subpath: string): string {
-		return `..${this.#path(name, version, subpath)}?${this.#development.query}`;
+		return `..${this.path(name, version, subpath)}?${this.#development.query}`;
 	}
 
 	/**
@@ -58,6 +61,6 @@ export class Addresses {
 	 * @returns undefined when no CDN origin is configured
 	 */
 	published(name: string, version: string, subpath: string): string | undefined {
-		return this.#cdn && `${this.#cdn}${this.#path(name, version, subpath)}?${this.#published.query}`;
+		return this.#cdn && `${this.#cdn}${this.path(name, version, subpath)}?${this.#published.query}`;
 	}
 }
