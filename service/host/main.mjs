@@ -79,10 +79,15 @@ process.stdin.on('end', () => end('the supervisor ended')).on('error', () => {})
 process.stdin.resume();
 
 try {
-	// The watchers service is a child of this process, started as the preparation of the implementation says
+	// The watchers service is a child of this process, started as the preparation of the implementation says.
+	// How long its readiness is waited for is deployment configuration: on a loaded host the child loads its
+	// implementation later than the default deadline, and a slow start is not a failed one
+	const deadline = process.env.BEYOND_WATCHERS_TIMEOUT;
+	if (deadline !== undefined && deadline !== '' && !/^[1-9]\d*$/.test(deadline)) throw new Error('BEYOND_WATCHERS_TIMEOUT must be a whole number of milliseconds');
 	watchers = new WatchersService('watchers', {
 		env: { ...settings.watchers.env, BEYOND_HOST_OPTIONS: '' },
-		cwd: settings.watchers.cwd
+		cwd: settings.watchers.cwd,
+		...(deadline ? { timeout: Number(deadline) } : {})
 	});
 	await watchers.start();
 

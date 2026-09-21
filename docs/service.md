@@ -91,6 +91,7 @@ await service.acquire({ lifetime: 'owner', bind: '0.0.0.0', extensions: ['@beyon
 - `extensions` are module specifiers imported in the host. An extension exports `guard(app, context)`, mounted before every route of the service, and/or `setup(app, context)`, mounted after them and before the error handler. `context` is `{ workspace, delivery, settings }`: the first two are the same hosted workspace, which stays valid across manifest reloads; `settings` never carry the start token. An extension that cannot be loaded or fails fails the start.
 - `headers` are the access context this client presents to a guarded service.
 - A caller that names no `extensions` starts the ones of the `BEYOND_SERVICE_EXTENSIONS` variable, specifiers separated by commas. It is how a person adds the development extension, and with it the [preview](development-contract.md#preview-entry) of the workspace, to the service that a command starts: `BEYOND_SERVICE_EXTENSIONS=@beyond-js/packages/development beyond run`. A caller that names its extensions, such as a Workspace project environment, is not affected.
+- The host waits `BEYOND_WATCHERS_TIMEOUT` milliseconds (a whole number; the module's default of 15 s without it) for its watchers child to load its implementation. A deployment on a loaded host, such as the Workspace environment image, sets it: a child that loads slowly is not one that failed, and the default made a Dev Server die at start when the host was busy.
 
 These options describe a service that the call starts and are ignored when a running one is reused.
 
