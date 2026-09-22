@@ -40,6 +40,15 @@ export /*bundle*/ class Toolchain {
 	static COMPOSITION = '1';
 
 	/**
+	 * The revision of how the public subpaths of an ordinary npm package are delivered: on their own, or as a
+	 * carrier and its facades when they share internal files ([Sharing](./pinned/sharing.ts)). It is part of
+	 * the key of every output of an npm package, because the plan changes what an output contains without
+	 * changing any other input: raise it whenever the plan or the union it compiles changes, so that an output
+	 * stored before is never answered for a key it no longer satisfies.
+	 */
+	static SHARING = '1';
+
+	/**
 	 * What transforms an ES module into `System.register`
 	 */
 	static get system() {
@@ -69,7 +78,8 @@ export /*bundle*/ class Toolchain {
 
 		const options = this.options(opened);
 		const { version, assigned, provenance } = this.#compiler.identity;
-		const configuration = { options, assigned, revision: provenance?.revision, system: this.#format === 'system' ? Toolchain.system : void 0 };
+		const sharing = opened.form === 'npm' ? Toolchain.SHARING : void 0;
+		const configuration = { options, assigned, revision: provenance?.revision, sharing, system: this.#format === 'system' ? Toolchain.system : void 0 };
 		const conditions = [...new Set([options.platform, ...options.conditions])].sort();
 		return { compiler: { name: 'esbuild', version, configuration: Compatibility.digest(configuration) }, conditions, format: this.#format };
 	}

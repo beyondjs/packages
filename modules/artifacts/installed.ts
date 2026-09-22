@@ -1,9 +1,8 @@
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import { Bundle, Compiler, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Exports } from '@beyond-js/packages/publication';
-import { Interop } from '@beyond-js/packages/analysis';
+import { Interop, Sharing } from '@beyond-js/packages/analysis';
 import { ConditionalOutput } from '@beyond-js/packages/module/output';
-import { Sharing } from './sharing';
 import { createRequire } from 'module';
 import { existsSync, readFileSync, realpathSync, statSync } from 'fs';
 import { dirname, extname, join } from 'path';
@@ -150,7 +149,9 @@ export /*bundle*/ class Installed {
 
 		// Except the subpaths whose graphs share files: a carrier bundles them and each is a facade over it
 		const settings = { platform: platform === 'browser' ? 'web' : platform, environment, conditions: Exports.conditions(platform, mode), mode };
-		const plan = await this.#sharing.plan({ ...settings, root, name, manifest, exports, compiler, file: target => this.#file(root, target) });
+		const subpaths = exports.subpaths;
+		const resolve = (one: string) => exports.resolve(one, platform, mode);
+		const plan = await this.#sharing.plan({ ...settings, root, name, manifest, subpaths, resolve, compiler, file: target => this.#file(root, target) });
 		const role = plan.role(subpath);
 		const facade =
 			role.kind === 'facade' ? plan.facade(subpath) : role.kind === 'carrier' ? plan.union(subpath) : extname(entry) === '.css' ? void 0 : await new Interop(entry, manifest.type, resolved.via).facade(root);

@@ -1,10 +1,12 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { Compiler } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Exports } from '@beyond-js/packages/publication';
 import { existsSync, realpathSync, statSync } from 'fs';
 import { extname, join } from 'path';
 import type { IAnalysisConditions } from '../types';
 import { Opened, type IPublicModule } from './opened';
 import { Interop } from './interop';
+import { Sharing, type Plan } from './sharing';
 import { Specifier } from '../specifier';
 
 /**
@@ -14,12 +16,39 @@ import { Specifier } from '../specifier';
  * on its own with `process.env.NODE_ENV` replaced (the requested environment, `production` when none is
  * requested). Its bare imports and requires stay public references, so a renderer and the library it peers
  * on share one module instead of each carrying a copy.
+ *
+ * Two of its subpaths may share internal files that hold state, which no copy of may be made: those are
+ * delivered as one carrier and its facades, which [the plan](./sharing.ts) decides.
  */
 export /*bundle*/ class NpmPackage extends Opened {
 	#exports: Exports;
 
 	get #published(): Exports {
 		return (this.#exports = this.#exports ?? new Exports(this.manifest));
+	}
+
+	#sharing = new Sharing();
+
+	/**
+	 * How the public subpaths of this package are delivered for a compiler and a set of conditions: on
+	 * their own, or as a carrier and the facades over it when their graphs share internal files
+	 */
+	plan(compiler: Compiler, conditions: IAnalysisConditions): Promise<Plan> {
+		const { platform, environment } = conditions;
+		const settings = NpmPackage.settings(conditions);
+		return this.#sharing.plan({
+			root: realpathSync(this.root),
+			name: this.name,
+			manifest: this.manifest,
+			compiler,
+			subpaths: this.#published.subpaths,
+			resolve: subpath => this.#published.resolve(subpath, platform, environment),
+			file: target => this.#file(target),
+			platform,
+			environment,
+			conditions: settings.conditions,
+			mode: settings.mode
+		});
 	}
 
 	/**

@@ -37,17 +37,15 @@ BEE_URL=http://localhost:1112,… WATCHERS_URL=http://localhost:1120 \
 
 `BEYOND_SUITE` names another suite location for the Beyond checkouts. An output directory keeps the delivered files for inspection; without it a temporary one is used.
 
-Expected: `12/13 steps passed`, with the Svelte family the one that fails, for the reason below.
+Expected: `13/13 steps passed`.
 
 ## The Svelte family, and what it localizes
 
-The Svelte widget does not render from the delivered outputs. The page reports `Error rendering widget "card-svelte": TypeError: Cannot read properties of null (reading 'f')`, which is Svelte's internal state read from a second copy of it.
+This is the family that fails first when the boundary of an ordinary npm package is wrong, so what it establishes is worth naming. The root entry of `svelte` imports `./internal/client/runtime.js` and `./internal/client/context.js` — files **inside** the directory of the public subpath `./internal/client` but not its entry point — so without a plan they are bundled into the root unit while the compiled component imports the public `svelte/internal/client`. Two copies of the runtime state result, and a component mounted from one is not the component the other knows: the page reports `Error rendering widget "card-svelte": TypeError: Cannot read properties of null (reading 'f')`, which is Svelte's internal state read from a second copy of it.
 
-The cause is in the boundary of an ordinary npm package, not in the composition. The root entry of `svelte` imports `./internal/client/runtime.js` and `./internal/client/context.js` — files **inside** the directory of the public subpath `./internal/client` but not its entry point — so they are bundled into the root unit while the compiled component imports the public `svelte/internal/client`. Two copies of the runtime state result, and a component mounted from one is not the component the other knows.
+The delivery answers that with a carrier and its facades, which [`Sharing`](../../modules/analysis/pinned/sharing.ts) decides for a package of the pinned inputs, exactly as it does for the installed packages a development environment serves. [The sharing validation](../sharing/README.md) checks that mechanism on small fixtures of its own; this one checks that the packages a real application uses come out working.
 
-Packages already answers this on the development side: [`Sharing`](../../modules/artifacts/sharing.ts) delivers the public subpaths of an installed package that share internal files as one **carrier** with **facades** over it, so a browser holds one copy. The preparation path does not use it. Wiring it in is the identified repair; it means moving `sharing.ts` from `@beyond-js/packages/artifacts` to `@beyond-js/packages/analysis`, because `artifacts` imports `analysis` today and the dependency between the two public modules must not become a cycle, and then giving the inventory and the generation the carrier and facade roles. That work is not done here.
-
-React, Vue and the plain HTML widget render with their stylesheets from the delivered files.
+React, Vue, Svelte and the plain HTML widget all render with their stylesheets from the delivered files.
 
 ## Not covered
 

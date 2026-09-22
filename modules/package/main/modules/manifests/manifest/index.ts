@@ -39,7 +39,10 @@ export class Manifest {
 		this.#file = file;
 
 		const config = new Config(file.dirname, { '/static': 'object' });
-		config.data = file.basename;
+
+		// The name of the document, with its extension: `basename` is the name without it, which the
+		// published File utility only answered as the whole name while its extension had not been read
+		config.data = file.filename;
 
 		this.#modules = new ManifestModules(this, config);
 		this.#static = <Config>config.get('/static');
