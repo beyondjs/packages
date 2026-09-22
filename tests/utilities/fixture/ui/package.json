@@ -1,0 +1,16 @@
+{
+	"name": "@fixture/ui",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The package whose sources, stylesheets and manifests this validation edits repeatedly",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

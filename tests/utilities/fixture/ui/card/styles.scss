@@ -1,0 +1,5 @@
+@use '../../shared/palette';
+
+.card {
+	border-color: palette.$brand;
+}

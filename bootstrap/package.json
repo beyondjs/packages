@@ -13,7 +13,9 @@
 	},
 	"files": [
 		"index.mjs",
-		"implementation.mjs",
+		"selection.mjs",
+		"workspace.mjs",
+		"project.mjs",
 		"group.mjs",
 		"ports.mjs",
 		"engine.cjs",

@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/shared",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The package whose SCSS palette the card includes, which is the compile-time dependency across packages that this validation edits",
+	"exports": {
+		"./palette": "./palette.scss"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}
