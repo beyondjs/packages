@@ -13,6 +13,9 @@ import { Compatibility } from './compatibility';
  * the options it runs with and, for `system`, the transformation that follows. Where the compiler is
  * installed and how it was named are not part of it. A distribution is described by what its declaration
  * says compiled it, and a static file by the fact that it is copied.
+ *
+ * A module composed by a bundler of its own package is described by that bundler and by the revision of the
+ * composition this implementation produces, because the selected compiler never ran for it.
  */
 export /*bundle*/ class Toolchain {
 	#compiler?: Compiler;
@@ -27,6 +30,14 @@ export /*bundle*/ class Toolchain {
 		this.#conditions = conditions;
 		this.#format = format;
 	}
+
+	/**
+	 * The revision of the composition that a declared bundler produces here. It is part of the key of every
+	 * composed output, so raise it whenever the assembly of a composed module changes in a way that makes an
+	 * output generated before it incompatible: the internal-module envelope, the runtime contract, the
+	 * widget registration or the stylesheet relationship.
+	 */
+	static COMPOSITION = '1';
 
 	/**
 	 * What transforms an ES module into `System.register`
@@ -47,8 +58,9 @@ export /*bundle*/ class Toolchain {
 	/**
 	 * The `compiler`, `conditions` and `format` inputs of the outputs of a package
 	 */
-	describe(opened: Opened): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
+	describe(opened: Opened, composed?: { name: string; specifier: string }): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
 		const { platform, environment } = this.#conditions;
+		if (composed) return this.#composed(composed);
 		if (opened.form === 'distribution') {
 			const { name, version } = opened.publication.compiler;
 			const conditions = [platform, environment].filter(Boolean).sort();
@@ -60,6 +72,18 @@ export /*bundle*/ class Toolchain {
 		const configuration = { options, assigned, revision: provenance?.revision, system: this.#format === 'system' ? Toolchain.system : void 0 };
 		const conditions = [...new Set([options.platform, ...options.conditions])].sort();
 		return { compiler: { name: 'esbuild', version, configuration: Compatibility.digest(configuration) }, conditions, format: this.#format };
+	}
+
+	/**
+	 * A module composed by the bundler its package declares: what produced it is that bundler, with the
+	 * revision of the composition, and never the compiler the consumer selected
+	 */
+	#composed(composed: { name: string; specifier: string }): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
+		const { platform, environment } = this.#conditions;
+		const system = this.#format === 'system' ? Toolchain.system : void 0;
+		const configuration = Compatibility.digest({ composed: true, bundler: composed.specifier, system });
+		const conditions = [platform === 'browser' ? 'web' : platform, environment].filter(Boolean).sort();
+		return { compiler: { name: composed.specifier, version: Toolchain.COMPOSITION, configuration }, conditions, format: this.#format };
 	}
 
 	/**

@@ -86,10 +86,13 @@ export /*bundle*/ class Tracer {
 		const specifier = Specifier.of(opened.name, module.subpath);
 
 		let bundled: IBundled;
+		let composed: { name: string; specifier: string } | undefined;
 		if (module.distributed) this.cost.read++;
 		else {
 			this.cost.compiled++;
-			const result = await new Target(this.#pinned, opened, module).bundle(this.#compiler);
+			const target = new Target(this.#pinned, opened, module);
+			composed = await target.composed();
+			const result = await target.bundle(this.#compiler);
 			if (!result.bundled) return this.#report('error', specifier, result.diagnostics);
 			bundled = result.bundled;
 		}
@@ -122,7 +125,7 @@ export /*bundle*/ class Tracer {
 			asset && edges.push({ target: asset, lazy: false, declared: false });
 		}
 
-		const described = this.#toolchain.describe(opened);
+		const described = this.#toolchain.describe(opened, composed);
 		const inputs = Keyed.inputs(opened, module.subpath, resolution, described, module.kind === 'style' ? 'css' : 'js');
 		if (!inputs) {
 			const message = `Package "${opened.key}" has no integrity: its node has none and its sources were given without the one its fetch verified`;

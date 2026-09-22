@@ -19,6 +19,7 @@ export /*bundle*/ class Unit {
 	#compiler: Compiler;
 	#format: FormatType;
 	#frozen: Record<string, string>;
+	#composed: { name: string; specifier: string } | undefined;
 
 	/**
 	 * @param frozen The resolution slice the inventory recorded for the module, which is followed as it is
@@ -50,8 +51,13 @@ export /*bundle*/ class Unit {
 	 * which are facts of the machine that ran it and not of the output
 	 */
 	#described(toolchain: Toolchain): Record<string, unknown> {
-		const { version, assigned, provenance } = this.#compiler.identity;
 		const system = this.#format === 'system' ? Toolchain.system : void 0;
+		if (this.#composed) {
+			// The selected compiler never ran for a composed module: its package declared what compiles it
+			return { name: this.#composed.specifier, bundler: this.#composed.name, composition: Toolchain.COMPOSITION, system };
+		}
+
+		const { version, assigned, provenance } = this.#compiler.identity;
 		return { name: 'esbuild', version, assigned, revision: provenance?.revision, options: toolchain.options(this.#opened), system };
 	}
 
@@ -67,7 +73,9 @@ export /*bundle*/ class Unit {
 		const { key } = this.#opened;
 
 		const minify = conditions.environment === 'production';
-		const built = await new Target(this.#pinned, this.#opened, this.#module).bundle(this.#compiler, minify);
+		const target = new Target(this.#pinned, this.#opened, this.#module);
+		this.#composed = await target.composed();
+		const built = await target.bundle(this.#compiler, minify);
 		if (!built.bundled) return { outputs: [], diagnostics: built.diagnostics, warnings };
 		const { bundled } = built;
 
@@ -85,7 +93,7 @@ export /*bundle*/ class Unit {
 		if (diagnostics.length) return { outputs: [], diagnostics, warnings };
 
 		const toolchain = new Toolchain(this.#compiler, conditions, this.#format);
-		const shared = Keyed.inputs(this.#opened, this.#module.subpath, resolution, toolchain.describe(this.#opened), 'js');
+		const shared = Keyed.inputs(this.#opened, this.#module.subpath, resolution, toolchain.describe(this.#opened, this.#composed), 'js');
 		if (!shared) return { outputs: [], diagnostics: [{ code: 'INTEGRITY_MISSING', message: `Package "${key}" has no integrity` }], warnings };
 		const outputs = new Outputs(shared);
 

@@ -3,7 +3,7 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { IArtifact, IArtifactsOptions, IArtifactsReport } from './types';
 import { Dependencies } from './dependencies';
 import { ImportMap } from './importmap';
-import { Conditions } from './conditions';
+import { Conditions } from '@beyond-js/packages/module';
 import { Compilation } from './compilation';
 import { Files } from './files';
 

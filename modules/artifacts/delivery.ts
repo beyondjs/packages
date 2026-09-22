@@ -2,7 +2,7 @@
 // statement that names it, so a separate type-only import would hide the value import from the bundle
 import { Selection, type Workspace } from '@beyond-js/packages/workspace';
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
-import { Conditions } from './conditions';
+import { Conditions } from '@beyond-js/packages/module';
 import { Compilation } from './compilation';
 import { Dependencies } from './dependencies';
 import { Resources } from './resources';

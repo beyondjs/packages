@@ -119,7 +119,27 @@ export /*bundle*/ class Publication {
 		}
 
 		const declared = beyond && typeof beyond === 'object' ? beyond.publication : void 0;
-		if (declared === void 0) return { form: diagnostics.length ? void 0 : 'npm', version, diagnostics };
+		if (declared === void 0) {
+			// A manifest that does not identify its package has no form, as it has none with a declaration
+			const form = diagnostics.length ? void 0 : <const>'npm';
+
+			/**
+			 * A package that declares Beyond modules or a Beyond bundler and no publication form is read as
+			 * an ordinary npm package, which is what its manifest says. That is almost always a mistake, and
+			 * a silent one: its modules would be prepared by the consumer's compiler instead of by the
+			 * bundler it declares, so the warning names what is missing rather than guessing the form.
+			 */
+			const authored = beyond && typeof beyond === 'object' && (beyond.modules !== void 0 || beyond.bundler !== void 0);
+			authored &&
+				diagnostics.push({
+					code: 'PUBLICATION_UNDECLARED',
+					message:
+						`${label} declares Beyond ${beyond.bundler !== void 0 ? 'a bundler' : 'modules'} and no ` +
+						`"beyond.publication": it is read as an ordinary npm package. Declare ` +
+						`{"protocol": "${Publication.protocol}", "form": "source"} to have it prepared as Beyond sources`
+				});
+			return { form, version, diagnostics };
+		}
 
 		if (!declared || typeof declared !== 'object' || declared instanceof Array) {
 			return fail('PUBLICATION_INVALID', `${label}: "beyond.publication" must be an object with "protocol" and "form"`, { version });

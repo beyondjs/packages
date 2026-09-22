@@ -3,7 +3,7 @@ import type { BaseModule } from '@beyond-js/packages/module';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ESMConditional } from '@beyond-js/packages/sdk';
 import type { IArtifactDependency } from './types';
-import type { Conditions } from './conditions';
+import type { Conditions } from '@beyond-js/packages/module';
 import type { Dependencies } from './dependencies';
 
 /**

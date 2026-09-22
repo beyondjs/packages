@@ -3,7 +3,7 @@ import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import type { ConditionalOutput } from '@beyond-js/packages/module/output';
 import { promises as fs } from 'fs';
 import { join, posix } from 'path';
-import { Conditions } from './conditions';
+import { Conditions } from '@beyond-js/packages/module';
 import { Compilation } from './compilation';
 import type { Dependencies } from './dependencies';
 import type { Installed } from './installed';

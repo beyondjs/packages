@@ -1,6 +1,8 @@
-# Publication forms, analysis and generated outputs for CDN
+# Publication forms, analysis and generated outputs
 
-This guide describes three public modules that a CDN job runs inside an isolated process, after a package graph was pinned and its packages were fetched: `@beyond-js/packages/publication`, `@beyond-js/packages/analysis` and `@beyond-js/packages/generation`. They implement stages 2 and 3 of the [CDN contract](cdn-contract.md). Resolution and fetching are separate modules; these three consume their results as input data and import neither.
+This guide describes three public modules that prepare packages for delivery, after a package graph was pinned and its packages were fetched: `@beyond-js/packages/publication`, `@beyond-js/packages/analysis` and `@beyond-js/packages/generation`. Resolution and fetching are separate modules; these three consume their results as input data and import neither.
+
+**These are contracts of Packages, not of a consumer.** They take a pinned graph, extracted sources and conditions, and answer an inventory and outputs. CDN runs them inside an isolated job and implements stages 2 and 3 of the [CDN contract](cdn-contract.md) with them; the same capability serves any consumer that prepares packages, and nothing here knows which one is calling.
 
 Evidence is labelled. **Executed** means the validations in [tests/cdn-analysis](../tests/cdn-analysis/README.md) and [tests/cdn-outputs](../tests/cdn-outputs/README.md) assert it under BEE Node against the bootstrap Engine. Everything else is source only. Nothing here is a CDN acceptance gate, nothing persists an output, and nothing publishes a package to a registry.
 
@@ -29,7 +31,7 @@ The discriminator is the manifest field `beyond.publication`, protocol `beyond-p
 | --- | --- |
 | `{"protocol": "beyond-publication/1", "form": "source", "modules"?: "<root>"}` | `source`. `modules` is also read by the module manifest finder when `beyond.modules` is absent. |
 | `{"protocol": …, "form": "distribution", "compiler": {"name", "version"}, "formats": ["esm" \| "system"], "conditions"?, "sourcemaps"?}` | `distribution`, with `manifest: './beyond-distribution.json'` |
-| Field absent | `npm` |
+| Field absent | `npm`. A manifest that declares `beyond.modules` or `beyond.bundler` is still `npm`, and carries the diagnostic `PUBLICATION_UNDECLARED`: it is almost always a package that meant to be published as sources, and preparing it as an ordinary npm package would compile its modules with the consumer's compiler instead of the bundler it declares. The form is what the manifest says; the diagnostic is what says it is probably wrong |
 | Anything else | `PUBLICATION_INVALID`, `PUBLICATION_PROTOCOL_MISSING`, `PUBLICATION_PROTOCOL_UNKNOWN`, `PUBLICATION_FORM_INVALID`, `PUBLICATION_AMBIGUOUS` (members of both forms), `PUBLICATION_MEMBER_UNKNOWN`, `PUBLICATION_MODULES_INVALID`, `PUBLICATION_COMPILER_INVALID`, `PUBLICATION_FORMATS_INVALID`, `PUBLICATION_CONDITIONS_INVALID`, `PUBLICATION_SOURCEMAPS_INVALID`, and for the manifest itself `MANIFEST_INVALID`, `PACKAGE_NAME_MISSING`, `PACKAGE_VERSION_MISSING` |
 
 Executed: the fixtures of the CDN `beyond-publication/1` contract (4 valid, 6 invalid) are read with the expected outcome.
@@ -115,6 +117,27 @@ Compatibility.key(inputs);      // 'sha256-<hex>' over Compatibility.canonical(i
 
 Executed: the key of every traced item equals the key of the output generated for it; compiler version (0.25.9 against 0.28.2), configuration, target, format, resolution and integrity change it; the location of the sources, the spelling that selects the compiler, unrelated graph nodes and member order do not; a storage scope among the inputs is refused; the keys of the contract's inventory fixtures are reproduced.
 
+## Compilation by the bundler the package declares
+
+A Beyond package declares how its public modules are compiled: `beyond.bundler` and the `bundlers` registry name the bundler, the module manifests name its processors and its conditionals, and the bundler settings name the runtime its composed artifacts are written against. That declaration is the contract of the package, not a preference of whoever prepares it.
+
+A `source` package whose module selects a bundler of its own is therefore compiled by that bundler, through the same `Compilation` the development service uses, and not by the selected compiler:
+
+| | A module that selects the packaging bundler, or none | A module that selects a bundler of its package |
+| --- | --- | --- |
+| Compiled by | The compiler of the request (`compiler`) | The bundler the package declares |
+| Entry point | The one file the manifest names | The bundler decides, from the conditionals of the manifest |
+| Sources a compiler has no loader for (`.scss`, `.vue`, `.svelte`) | `BUNDLE_ERROR`, no output | Compiled by the processors of the bundler |
+| Stylesheet | The one its sources import | The one its processors produce, as a `style` item of the module |
+| Widget registration, internal modules, runtime | None | As the SDK assembles them |
+| `compiler` input of the key | `esbuild`, its version and its options | The specifier of the bundler, and `Toolchain.COMPOSITION` |
+
+`Toolchain.COMPOSITION` is the revision of the composition this implementation produces. It is part of the key of every composed output, so it is raised whenever the assembly of a composed module changes in a way that makes an output generated before it incompatible: the internal-module envelope, the runtime contract, the widget registration or the stylesheet relationship.
+
+The request still carries a `compiler`: a graph usually mixes both kinds of package, and the composed modules simply do not use it.
+
+Executed by [tests/preparation](../tests/preparation/README.md): an application of four widgets, `@beyond-js/widgets`, the React 19, Vue and Svelte controllers, the development runtime and the frameworks are traced and generated together; the composed items name the declared bundler and carry their registration, their runtime reference and their stylesheet, the runtime keeps `esbuild`, and a page of another origin renders three of the four families from the delivered files alone. The fourth is a limitation of the npm boundary, recorded there.
+
 ## Generation
 
 ```ts
@@ -140,6 +163,8 @@ With `@beyond-js/artifact-api` 0.2.0, `modules/http` serves `/m/…/styles/<subp
 ## Limits
 
 - TypeScript semantic diagnostics are a separate module; generation reports transpile and bundle errors only.
+- A compiler whose process ends is reported as `COMPILER_UNAVAILABLE` rather than as a module that does not compile, and is released so that the next unit has a compiler again. [The compiler validation](../tests/compiler/README.md) executes it; a real cgroup kill was not exercised.
+- The public subpaths of an ordinary npm package that share internal files are **not** delivered as a carrier and its facades here, as the development delivery does with [`Sharing`](../modules/artifacts/sharing.ts). A package whose root reaches files inside the directory of another of its public subpaths, such as `svelte`, therefore yields two copies of that state, and a component compiled against one does not run on the other. The repair is to move `sharing.ts` into `@beyond-js/packages/analysis`, which `artifacts` already imports, and give the inventory and the generation the carrier and facade roles.
 - Composed (`creators`) artifacts, types, framework source adapters and HMR are not produced here.
 - Peer contexts are followed during a trace; one package version reached from two contexts that bind a peer differently is one item, resolved in the context that reached it first.
 - The `exports` bundler of workspace packages is unchanged and remains the limited adapter the architecture guide describes.
@@ -153,6 +178,9 @@ BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
   node --import "$BEE_NODE_DIR/register.mjs" tests/cdn-analysis/index.mjs
 BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
   node --import "$BEE_NODE_DIR/register.mjs" tests/cdn-outputs/index.mjs
+BEYOND_MODULES=/absolute/path/to/an/installation/node_modules BEYOND_PLAYWRIGHT=/absolute/path/with/playwright-core \
+BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
+  node --import "$BEE_NODE_DIR/register.mjs" tests/preparation/index.mjs
 ```
 
 Set `BEYOND_ESBUILD` to select the fork (otherwise the installed `esbuild` is selected by name), `CDN_CONTRACTS_DIR` or `CDN_DIR` for the contract checks, and `CDN_REACT_MODULES` for the real React packages. A step whose prerequisite is missing prints `SKIP` and is not counted.

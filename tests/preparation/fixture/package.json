@@ -1,0 +1,26 @@
+{
+	"name": "@fixture/cards",
+	"version": "1.0.0",
+	"private": true,
+	"description": "An application authored with Beyond whose widgets cover the four families the framework controllers support",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	},
+	"exports": {
+		"./global": "./global.css"
+	},
+	"dependencies": {
+		"@beyond-js/widgets": "*",
+		"@beyond-js/react-19-widgets": "*",
+		"@beyond-js/vue-widgets": "*",
+		"@beyond-js/svelte-widgets": "*"
+	}
+}

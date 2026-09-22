@@ -1,5 +1,5 @@
 import type { IConditions } from '@beyond-js/packages/types';
-import type { BaseModule } from '@beyond-js/packages/module';
+import type { BaseModule } from './index';
 
 /**
  * The name of the conditional of a module that declares no platforms. Its output does not depend on the

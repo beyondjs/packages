@@ -1,0 +1,54 @@
+# Preparation validation: a package prepared by the contract it declares
+
+A Beyond package declares how its public modules are compiled: which bundler assembles them, which processors read their sources, and which runtime the composed artifacts are written against. Whoever prepares that package for delivery has to honour that declaration. Preparing it with another compiler produces something the package never described — a widget that registers no element, a source no loader accepts, no stylesheet — and the application that loads it does not work.
+
+This validation prepares an application whose four widgets cover the families the framework controllers support, together with the packages it uses: Widgets (`@beyond-js/widgets`), React Widgets (`@beyond-js/react-19-widgets`), Vue Widgets (`@beyond-js/vue-widgets`), Svelte Widgets (`@beyond-js/svelte-widgets`), the development runtime and the frameworks themselves. Nothing is downloaded, nothing is published, and no development service serves the result: the outputs are written as files and a page of another origin loads them.
+
+## What each step establishes
+
+| Step | Established |
+| --- | --- |
+| publication | A package that declares Beyond modules or a Beyond bundler and no `beyond.publication` is read as an ordinary npm package **and says so** (`PUBLICATION_UNDECLARED`), instead of being silently prepared with the consumer's compiler. A package that declares the form is read as sources; one that declares nothing of Beyond is not warned about |
+| inventory | Every module of the application, of Widgets and of the three framework controllers is reached, with no error diagnostic |
+| composition | A module of a package that declares a bundler is compiled by that bundler: the key of the item and the provenance of the output name `@beyond-js/packages/bundlers/ts`, the artifact carries the registration of the element its manifest declares, the runtime is one of its references, and every reference lands in the pinned graph |
+| processors | The stylesheet of every family is an output of its module: SCSS, a Vue `<style>` block and a Svelte `<style>` block each compiled, each with a `style` item of its own, beside the stylesheet the package publishes through `exports` |
+| packaging | A package that declares the packaging bundler (the development runtime) is compiled by the compiler the consumer selected, as before |
+| outputs | Every item generates, with no diagnostic |
+| production | The same application prepared for production generates without diagnostics, and a production artifact carries no source map |
+| consumption | A page of another origin loads the delivered files alone — no development service is running and no other origin is asked |
+| consumption, *family* | The widget renders from the delivered outputs and has the colour its stylesheet gives it. One step per family, so a family that does not work is named instead of hiding behind the ones that do |
+| consumption: no error | The page reports no error of its own |
+
+## The delivery layout
+
+The outputs are written at the paths of the compiled-module contract, `m/<name>@<version>/modules/<subpath>` and `m/<name>@<version>/styles/<subpath>`, with an `importmap.json` of the bare specifiers and a `styles.json` of the stylesheets. That layout is part of what makes a delivered application work: an artifact addresses its companions from its own address — the stylesheet of a module is the `styles` family of the same identity, and the shared sheet of a package is `styles/global` of that package — so a flat directory of files leaves a widget without its stylesheets.
+
+## Run
+
+Prerequisites are those of [the stage-1 validation](../stage-1/README.md), a directory with `playwright-core` installed and Chrome, and the framework packages: `BEYOND_MODULES` names a `node_modules` directory holding `react`, `react-dom`, `scheduler`, `vue`, `@vue/*`, `svelte`, `clsx`, `esm-env` and `@beyond-js/kernel` — an installation built by the command line's acceptance has all of them.
+
+```sh
+cd "$PACKAGES_DIR"
+BEYOND_MODULES=/absolute/path/to/an/installation/node_modules \
+BEYOND_PLAYWRIGHT=/absolute/path/to/a/directory/with/playwright-core \
+BEE_URL=http://localhost:1112,… WATCHERS_URL=http://localhost:1120 \
+  node --import "$BEE_NODE_DIR/register.mjs" tests/preparation/index.mjs [<output directory>]
+```
+
+`BEYOND_SUITE` names another suite location for the Beyond checkouts. An output directory keeps the delivered files for inspection; without it a temporary one is used.
+
+Expected: `12/13 steps passed`, with the Svelte family the one that fails, for the reason below.
+
+## The Svelte family, and what it localizes
+
+The Svelte widget does not render from the delivered outputs. The page reports `Error rendering widget "card-svelte": TypeError: Cannot read properties of null (reading 'f')`, which is Svelte's internal state read from a second copy of it.
+
+The cause is in the boundary of an ordinary npm package, not in the composition. The root entry of `svelte` imports `./internal/client/runtime.js` and `./internal/client/context.js` — files **inside** the directory of the public subpath `./internal/client` but not its entry point — so they are bundled into the root unit while the compiled component imports the public `svelte/internal/client`. Two copies of the runtime state result, and a component mounted from one is not the component the other knows.
+
+Packages already answers this on the development side: [`Sharing`](../../modules/artifacts/sharing.ts) delivers the public subpaths of an installed package that share internal files as one **carrier** with **facades** over it, so a browser holds one copy. The preparation path does not use it. Wiring it in is the identified repair; it means moving `sharing.ts` from `@beyond-js/packages/artifacts` to `@beyond-js/packages/analysis`, because `artifacts` imports `analysis` today and the dependency between the two public modules must not become a cycle, and then giving the inventory and the generation the carrier and facade roles. That work is not done here.
+
+React, Vue and the plain HTML widget render with their stylesheets from the delivered files.
+
+## Not covered
+
+Registry publication; a hosted origin; the `system` format in a browser; server rendering; assets declared by a module; the resolution and fetching stages, which are separate modules and separate validations.
