@@ -4,6 +4,7 @@ import type { WatcherClient } from '@beyond-js/watchers/client';
 import { FinderCollection } from '@beyond-js/finder/collection';
 import { ProcessorInputsSpec } from './spec';
 import { ProcessorInput } from './file';
+import { Tests } from './tests';
 import { join } from 'path';
 
 /**
@@ -60,9 +61,11 @@ export class ProcessorInputs extends FinderCollection {
 
 		const { module } = this.#processor.conditional;
 		const path = join(module.package.path, module.spec.path, this.#spec.values.path);
-		const { includes, excludes } = this.#spec.values;
+		const { includes, excludes, tests } = this.#spec.values;
 		const extname = this.#extname;
 
-		super.configure(path, { extname, includes, excludes });
+		// Test files beside the sources are not inputs unless the specification includes them
+		const filter = tests === 'included' ? void 0 : Tests.source;
+		super.configure(path, { extname, includes, excludes, filter });
 	}
 }

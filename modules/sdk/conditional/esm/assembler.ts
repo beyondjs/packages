@@ -5,6 +5,7 @@ import Concat from 'concat-with-sourcemaps';
 import { header } from './header';
 import { Compatibility, KERNEL } from './compatibility';
 import { WIDGETS } from './widget';
+import { Mapping } from './mapping';
 import { posix } from 'path';
 
 /**
@@ -248,14 +249,19 @@ export class Assembler {
 
 		// 3. The internal modules, each identified and hashed
 		add('const __ims = new Map();');
-		this.#ims.forEach(({ id, hash, output }) => {
-			const file = output.source.relative.file.replace(/\\/g, '/');
+		this.#ims.forEach(im => {
+			const { id, hash, output } = im;
+			const mapping = new Mapping(im);
 			add('');
 			add(header(`INTERNAL MODULE: ${id}`));
-			add(`__ims.set('${id}', { hash: ${hash}, creator: function (require, exports) {`);
-			// The source map of the file is preserved, so diagnostics point at the original sources
-			concat.add(file, output.code.code(), output.code.map());
-			add('}});');
+			/**
+			 * The map of the file is preserved, naming the source by its absolute path, so that diagnostics,
+			 * stack traces and coverage point at the original source; the creator boundaries are mapped to
+			 * the ends of that source. A transformer that produced no map is mapped line by line to the file.
+			 */
+			concat.add(null, `__ims.set('${id}', { hash: ${hash}, creator: function (require, exports) {`, mapping.opening);
+			concat.add(mapping.map ? null : mapping.file, output.code.code(), mapping.map);
+			concat.add(null, '}});', mapping.closing);
 		});
 		add('');
 

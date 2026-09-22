@@ -1,6 +1,6 @@
 import type { ESMConditional } from '@beyond-js/packages/sdk';
 import { promises as fs } from 'fs';
-import { join, dirname, posix, relative, sep } from 'path';
+import { join, dirname, posix, relative, sep, isAbsolute } from 'path';
 
 /**
  * The files of one build in the artifacts directory.
@@ -63,7 +63,7 @@ export class Files {
 		 * assembled from its parts because a literal one in this source would be consumed by the compiler
 		 * that packages this implementation.
 		 */
-		const map = conditional.output.map();
+		const map = Files.portable(conditional.output.map(), target);
 		const reference = map ? `${['//#', 'sourceMappingURL'].join(' ')}=${posix.basename(file)}.map\n` : '';
 		await fs.writeFile(target, `${conditional.output.code()}\n${reference}`);
 		this.#written.add(file);
@@ -92,6 +92,35 @@ export class Files {
 		// The update carries its map inline: it is imported by URL, with no sibling file to resolve
 		await fs.writeFile(join(this.#path, patch), conditional.patch.code('sourcemap-inline'));
 		this.#written.add(patch);
+	}
+
+	/**
+	 * The map of a written artifact: the assembled map names every source by its absolute path, and a file
+	 * that travels with its sources names them relative to itself instead, so that an artifacts directory
+	 * moved together with the workspace keeps resolving. `file` names the artifact that was written.
+	 *
+	 * @param map The assembled map, as a JSON string, or undefined for a conditional without one
+	 * @param target The absolute path of the artifact file
+	 */
+	static portable(map: string | undefined, target: string): string | undefined {
+		if (!map) return map;
+
+		let parsed: { file?: string; sources?: string[] };
+		try {
+			parsed = JSON.parse(map);
+		} catch {
+			return map;
+		}
+		if (!(parsed.sources instanceof Array)) return map;
+
+		const directory = dirname(target);
+		parsed.file = posix.basename(target.split(sep).join(posix.sep));
+		parsed.sources = parsed.sources.map(source => {
+			if (!isAbsolute(source)) return source;
+			const path = relative(directory, source).split(sep).join(posix.sep);
+			return path.startsWith('.') ? path : `./${path}`;
+		});
+		return JSON.stringify(parsed);
 	}
 
 	/**

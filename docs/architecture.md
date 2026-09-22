@@ -245,6 +245,19 @@ Two boundaries follow from the runtime contract and are respected by the current
 
 Keep three relationships distinct: internal source imports and evaluation, public module imports, and package/version selection. Processor delegation is a fourth, build-local flow between processors. None automatically supplies another graph's identities or invalidation behavior.
 
+## Source maps and test files
+
+The map of a `ts` artifact is what stack traces, debuggers and coverage tools remap the executed code with, and it is assembled from the per-file maps of the processors ([Mapping](../modules/sdk/conditional/esm/mapping.ts), used by the [assembler](../modules/sdk/conditional/esm/assembler.ts)):
+
+- Every source is named by its **absolute path**, whatever name the transformer wrote: TypeScript names only the base name of a file, so `sub/index.ts` and `index.ts` would otherwise collapse into one, and a bare name resolves nowhere from an artifact. The same map is inlined in the development response, inlined in the update patch and written beside a file artifact; the writer of file artifacts makes the paths relative to the artifact it writes and names it as `file` ([Files.portable](../modules/artifacts/files.ts)), so an artifacts directory moved together with its workspace keeps resolving.
+- `sourcesContent` travels entirely or not at all; an array holding `null` makes a coverage tool report every source as covered. The transpiler emits none.
+- The lines that open and close the creator of each internal module are mapped to the first and the last position of its source, so that a coverage report attributes the imports and the top-level statements of a source instead of skipping the function range whose start had no mapping. The creator counts as one function of its source in a function-level report.
+- The hash of an artifact covers its code only ([ConditionalOutput](../modules/module/output/index.ts)), so a change of the map changes no hash.
+
+The conformance runner of `@beyond-js/artifact-api` holds the development service to the first two rules, and the command line's `delivery` acceptance group runs it against an installation.
+
+A test written beside the sources of a module is not a source of the module. The inputs of a processor leave out `<name>.test.<ext>`, `<name>.spec.<ext>` and everything under a `__tests__` or `__fixtures__` directory ([Tests](../modules/sdk/conditional/processor/sources/inputs/tests.ts)), so adding such a file changes neither the artifact nor its hash. A module manifest that sets `"tests": "included"` takes them as inputs, which requires the package to declare where its manifests are (`"beyond": { "modules": "." }`); any other value is `INVALID_TESTS_CONFIGURATION`, reported by the specification of the processor so that the module shows it instead of a missing entry point. How such files are run is the business of the Beyond command line (`beyond test`), not of the compiler.
+
 ## Artifacts, dependency resolution and watching
 
 [Artifacts](../modules/artifacts/index.ts) turns the conditional outputs of a workspace into files: one artifact and one update per public module and conditions, their source maps, and an [import map](../modules/artifacts/importmap.ts) that resolves the bare public specifiers the artifacts preserve. Its report describes what each artifact is, which build produced it and how its dependencies were resolved, which is the provenance a delivery service or a consumer needs.

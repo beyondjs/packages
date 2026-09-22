@@ -7,6 +7,7 @@ import { ProcessorSources } from './sources';
 import { ProcessorSettings } from './settings';
 import { ProcessorSpec } from './spec';
 import { ProcessorOutputs } from './outputs';
+import { Tests } from './sources/inputs/tests';
 import { join } from 'path';
 
 export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor() {
@@ -130,9 +131,12 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 			values.path && (output.path = values.path);
 			values.files && (output.files = values.files);
 			values.excludes && (output.excludes = values.excludes);
+			values.tests && (output.tests = values.tests);
 		}
 
-		return { values: output };
+		// Reported here so that the module shows why it has no inputs, instead of a missing entry point
+		const refused = this.#sources?.inputs ? Tests.check(values.tests) : void 0;
+		return refused ? { values: output, errors: [refused] } : { values: output };
 	}
 
 	/**

@@ -2,6 +2,7 @@ import type { ConditionalProcessor } from '../..';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
+import { Tests } from './tests';
 
 export interface IValues {
 	path: string;
@@ -114,6 +115,9 @@ export class ProcessorInputsSpec extends DynamicProcessor() {
 
 		!excludes.includes('module.json') && excludes.push('module.json');
 		path = path ? path : '';
+
+		const refused = Tests.check((<{ tests?: unknown }>other).tests);
+		if (refused) return done({ errors: [refused] });
 
 		const values: IValues = Object.assign({ path, includes, excludes }, other);
 		return done({ warnings: warnings, values });
