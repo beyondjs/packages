@@ -12,10 +12,10 @@ const SUPERVISOR = fileURLToPath(new URL('./supervisor/main.mjs', import.meta.ur
  * A service that could not be started, with where its output was logged
  */
 export class ServiceError extends Error {
-	constructor(message, log) {
+	constructor(message, log, code = 'SERVICE_START_FAILED') {
 		super(message);
 		this.name = 'ServiceError';
-		this.code = 'SERVICE_START_FAILED';
+		this.code = code;
 		this.log = log;
 	}
 }
@@ -64,6 +64,9 @@ export class Service {
 
 	/**
 	 * The running compatible service, if there is one. A record that no longer leads to it is discarded.
+	 *
+	 * A service that is there and answers too late is not discarded: the `TimeoutError` of the validation
+	 * reaches the caller, so that a loaded host is told its service is slow instead of losing it.
 	 */
 	async find() {
 		const record = this.#discovery.read();
@@ -94,10 +97,27 @@ export class Service {
 
 			const token = randomUUID();
 			const record = await this.#start({ lifetime, port, bind, extensions, token });
-			const connection = await Connection.validate(record, this.#expected, this.#headers);
-			if (!connection) throw new ServiceError('The service started but did not describe itself as expected', record.log);
+			const connection = await this.#described(record);
 			return { connection, started: true, token };
 		});
+	}
+
+	/**
+	 * The description of a service this call started, with its log when it cannot be had. A service that
+	 * answers too late is reported as such, because a slow answer and a wrong one are different failures:
+	 * the first is deployment configuration, the second means the port belongs to something else.
+	 */
+	async #described(record) {
+		let connection;
+		try {
+			connection = await Connection.validate(record, this.#expected, this.#headers);
+		} catch (error) {
+			if (error?.code !== 'SERVICE_NOT_ANSWERING') throw error;
+			throw new ServiceError(error.message, record.log, error.code);
+		}
+
+		if (!connection) throw new ServiceError('The service started but did not describe itself as expected', record.log);
+		return connection;
 	}
 
 	/**

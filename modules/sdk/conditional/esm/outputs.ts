@@ -73,9 +73,10 @@ export class Outputs {
 
 	#issues(output: ProcessorOutput) {
 		const file = output.source?.relative.file ?? '';
-		const format = ({ code, message, position }: { code: string; message: string; position?: { line?: number; column?: number } }) => {
+		const format = ({ code, message, position }: { code: string; message: string; position?: { line?: number; column?: number } }): IDiagnostic => {
 			const at = position?.line ? ` (${position.line}:${position.column ?? 0})` : '';
-			return { code, message: `${file}${at}: ${message}` };
+			const located = position?.line ? { position: { line: position.line, column: position.column ?? 1 } } : {};
+			return { code, message: `${file}${at}: ${message}`, ...(output.source ? { file: output.source.file } : {}), ...located };
 		};
 		output.issues.errors.forEach(issue => this.#errors.push(format(issue)));
 		output.issues.warnings.forEach(issue => this.#warnings.push(format(issue)));

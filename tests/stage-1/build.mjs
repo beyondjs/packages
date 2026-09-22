@@ -63,10 +63,11 @@ export async function build(context) {
 		await message.conditionals.ready;
 		await main.conditionals.ready;
 
-		// Every declared platform is an executable conditional; `types` is the declaration of the module
-		assert.deepEqual([...message.conditionals.keys()], ['node', 'web', 'types']);
+		// Every declared platform is an executable conditional, a browser platform adds its production
+		// conditional, and `types` is the declaration of the module
+		assert.deepEqual([...message.conditionals.keys()], ['node', 'web', 'web/production', 'types']);
 		assert.deepEqual([...main.conditionals.keys()], ['node', 'types']);
-		return 'shared: node, web, types; app: node, types';
+		return 'shared: node, web, web/production, types; app: node, types';
 	});
 
 	await step('readiness: an unregistered bundler alias is a deterministic diagnostic', async () => {

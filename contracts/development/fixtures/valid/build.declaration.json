@@ -1,0 +1,33 @@
+{
+	"id": "bld_0051",
+	"state": "failed",
+	"input": "k3v9q2:61",
+	"modules": [
+		{
+			"vspecifier": "@suite/app@0.1.0/main",
+			"platform": "web",
+			"status": "valid",
+			"hash": "3f9c1a2b",
+			"declaration": "8a1f0c9d"
+		},
+		{
+			"vspecifier": "@suite/app@0.1.0/badge",
+			"platform": "web",
+			"status": "valid",
+			"hash": "b71c21a0"
+		}
+	],
+	"diagnostics": [
+		{
+			"code": "TS2322",
+			"message": "@suite/app@0.1.0/badge: badge/index.ts (2:14): Type 'string' is not assignable to type 'number'.",
+			"severity": "error",
+			"file": "app/badge/index.ts",
+			"revision": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			"range": {
+				"line": 2,
+				"column": 14
+			}
+		}
+	]
+}

@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { Identity, ModulePath, Options, Schema, Session } from '@beyond-js/artifact-api';
 
 /**
@@ -92,10 +92,26 @@ export class Description {
 			modules.push(
 				delivered
 					? { specifier, vspecifier, status: 'valid', hash: delivered.hash }
-					: { specifier, vspecifier, status: 'invalid', code: failure.code, diagnostics: failure.diagnostics ?? [] }
+					: { specifier, vspecifier, status: 'invalid', code: failure.code, diagnostics: this.#located(failure.diagnostics ?? []) }
 			);
 		}
 
-		return { revision: this.#revision, diagnostics: await this.#delivery.diagnostics(), modules };
+		return { revision: this.#revision, diagnostics: this.#located(await this.#delivery.diagnostics()), modules };
+	}
+
+	/**
+	 * The diagnostics as the state names them: a file inside the served root is named relative to it, with
+	 * its one-based position as `range`; a file outside the root, or none, leaves the message alone
+	 */
+	#located(diagnostics) {
+		const root = this.#settings.root;
+		return diagnostics.map(({ code, message, file, position }) => {
+			const located = { code, message };
+			const path = typeof file === 'string' && root ? relative(root, file) : '';
+			if (!path || path.startsWith('..') || isAbsolute(path)) return located;
+			located.file = path.split(sep).join('/');
+			position && (located.range = { line: position.line, column: position.column });
+			return located;
+		});
 	}
 }

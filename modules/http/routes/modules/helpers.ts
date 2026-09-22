@@ -68,3 +68,14 @@ export class Stylesheet {
 		return map ? `${styles.code()}\n/*# ${['sourceMappingURL'].join('')}=data:application/json;base64,${map} */\n` : styles.code();
 	}
 }
+
+/**
+ * The diagnostics of a failure as the compiled-module contract carries them: a code and a message. The
+ * file and the position a processor reports are internal identities of this service; the message keeps
+ * them as text, and the development contract carries them located inside the served root.
+ */
+export class Diagnostics {
+	static shared(diagnostics?: { code: string; message: string }[]): { code: string; message: string }[] | undefined {
+		return diagnostics?.map(({ code, message }) => ({ code, message }));
+	}
+}

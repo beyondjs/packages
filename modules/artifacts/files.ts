@@ -63,11 +63,15 @@ export class Files {
 		 * assembled from its parts because a literal one in this source would be consumed by the compiler
 		 * that packages this implementation.
 		 */
-		const reference = `${['//#', 'sourceMappingURL'].join(' ')}=${posix.basename(file)}.map`;
-		await fs.writeFile(target, `${conditional.output.code()}\n${reference}\n`);
-		await fs.writeFile(`${target}.map`, conditional.output.map());
-
-		[file, `${file}.map`].forEach(written => this.#written.add(written));
+		const map = conditional.output.map();
+		const reference = map ? `${['//#', 'sourceMappingURL'].join(' ')}=${posix.basename(file)}.map\n` : '';
+		await fs.writeFile(target, `${conditional.output.code()}\n${reference}`);
+		this.#written.add(file);
+		// A production conditional carries no map
+		if (map) {
+			await fs.writeFile(`${target}.map`, map);
+			this.#written.add(`${file}.map`);
+		}
 
 		// The stylesheet of the module is written beside its code, with its own map
 		if (styles && conditional.styles) {

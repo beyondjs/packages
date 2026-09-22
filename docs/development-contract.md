@@ -55,9 +55,11 @@ Editor buffers are client state. The contract gives a client what it needs to ke
 
 ## Builds
 
-A build records `input`, the cursor it read its sources at. `build.started` and `build.ended` carry the whole build document. A build that ends after a newer change to one of its input files ends `superseded` and is never reported as current. Diagnostics carry the file, range and the revision that was compiled, so a client can tell a diagnostic about old text from one about the text on screen.
+A build records `input`, the cursor it read its sources at. `build.started` and `build.ended` carry the whole build document. A build that ends after a newer change to one of its input files ends `superseded` and is never reported as current. A diagnostic that a processor reports on a source file carries `file` (relative to the root), `range` (one-based line and column) and `revision` (the revision the index holds for that file when the build reports it, which is the compiled text unless the build is `superseded`), so a client opens the file at the position and tells a diagnostic about old text from one about the text on screen. A diagnostic about a file outside the root, such as one of a package the toolchain supplies, or about no file at all, carries the message only; every message keeps the file and the position as text.
 
 A module is built for every platform it declares, `node` and `web`, and `modules` lists it once for each with its `platform` and the hash of that artifact. A Node consumer and a browser preview each apply the artifact of their own platform, so one hash per module would announce to one of them an update that the update route then refuses. A platform that a module does not declare is not a failure: it is left out. A module that declares neither is listed once, `invalid`, without a platform. A source error that every platform meets is reported once.
+
+A module is also checked: its `types` conditional builds a TypeScript program over its sources and the declarations of the workspace modules they import, and emits the public declaration of the module. A module that checks carries `declaration`, the hash of that declaration, on each of its platform entries. A type error does not invalidate the artifacts, because the compiler that produces them does not check types: the entries stay `valid` without `declaration`, the type errors are reported with their file and position, and the build is `failed`. A consumer applies artifacts by the status of their entries and shows the diagnostics; it does not treat a failed build as one without artifacts.
 
 A module whose sources produce a stylesheet also carries `styles`, the hash of that stylesheet. It changes with the stylesheet alone: a consumer that holds the sheet, adopted in a widget root or linked by the document, replaces it when that hash changes even when the code of the module did not, and requests it from the update route by that hash (`/u/<styles hash>/…/styles/<subpath>`). A module compiled in the esbuild packaging mode, whose code receives no update in place, receives its stylesheet this way.
 
@@ -106,7 +108,7 @@ In a Workspace project environment every route, including artifact and event rou
 | `files.read` | Tree and content |
 | `files.write` | Mutations and batches |
 | `events.subscribe` | The event stream |
-| `inspect.read` | Package, module and dependency inspection, and reading the development selection |
+| `inspect.read` | Package, module and dependency inspection, reading the development selection, and the declaration of a module |
 | `build.control` | Requesting and cancelling builds, and replacing the development selection: it decides what this environment builds and serves for development, it is not a source write, and a viewer does not hold it |
 | `process.control` | Starting and stopping development processes |
 | `artifacts.read` | Compiled modules and their updates (`/m/`, `/u/`), and the preview entry, for a preview or a runtime |
@@ -128,10 +130,13 @@ The mapping uses standard preconditions so that the existing entity-tag helper a
 | Events | `GET /events?cursor=` or `Last-Event-ID`, `text/event-stream`, `id:` is the cursor | stream | `400 CURSOR_INVALID` |
 | Builds | `POST /builds`, `GET /builds/<id>`, `POST /builds/<id>/cancel` | build | `404` |
 | Selection | `GET /development/selection`; `PUT` with `{packages?, modules?}`; `DELETE` forgets it | `200` selection | `400 SELECTION_INVALID` |
+| Declaration | `GET /declarations/<specifier>` (`@scope/name@1.0.0/subpath`, or the bare specifier of a workspace module) | `200` `text/plain` declaration, `ETag: "<hash>"`, `Beyond-Cursor`; `304` with `If-None-Match` | `404 DECLARATION_NOT_FOUND`, `422 DECLARATION_INVALID` with the located diagnostics |
 | Preview | `GET /preview/?entry=`, `GET /preview/entry.json?entry=`; `GET /preview` redirects with `308` | `200` HTML, `200` preview | `404 PREVIEW_ENTRY_NOT_FOUND`, `409 PREVIEW_ENTRY_REQUIRED` |
 | Revocations | `PUT /access/revocations` with the signed list as body | `204` | `401`, `409 REVOCATIONS_STALE` |
 
 `PATH_FORBIDDEN` covers a path that resolves outside the root through a symbolic link, the repository's internal `.git` directory and the `.beyond` state directory of the service. The revocation route needs no bearer: the list is self-authenticating and ordered.
+
+The declaration route serves the public declaration of a workspace module as the `ts` bundler emits it: one ambient module declaration whose public type imports keep their bare specifiers and whose internal files stay hidden. It needs `inspect.read`. The tag is the hash of the declaration, the one the build names; the cursor is the one of the source log the answer is consistent with. A bare specifier is resolved to the one version the workspace holds. The declarations of installed packages are not served: an editor that checks a source against `react` resolves that package's own declarations, and this service does not read them for it. `types=true` on a compiled-module request stays `OPTION_UNSUPPORTED`, because the compiled-module contract defines no declaration family; this route is the development contract's, for the editor of a workspace, not a delivery of published declarations.
 
 ## Implementation and limits
 
@@ -153,7 +158,7 @@ The `files` group runs the source and event scenarios against real disk writes a
 
 Limits of the current implementation:
 
-- Build diagnostics carry the code and message Packages' delivery reports. `file`, `range` and `revision` are not filled, because delivery flattens positional diagnostics; the message contains the position as text.
+- Build diagnostics are located only when the processor that produced them named the source file: the `ts`, `styles`, `vue`, `svelte` and `tsc` processors do; a diagnostic of a manifest, a dependency or the delivery itself carries the message only.
 - A build is `superseded` when any source file changed after its input cursor, not only one of its own inputs. That is conservative: it can discard a result that was still valid, never publish one that was not.
 - `inspect.read` routes for packages, modules and dependencies, `process.control`, the repository capabilities and the legacy inspector adapter are not implemented.
 - Grants travel only in the `Authorization` header, and a browser cannot add one to a module request. The preview is therefore designed for an authenticating proxy that adds it, which the preview validation exercises with a stand-in gateway; the proxy of a Workspace administration, its visitor links and their revocation are not part of Packages and were not validated here. Without such a proxy a browser reaches a preview only in local mode or over a trusted loopback.

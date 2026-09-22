@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
-import { Production, Tag } from './helpers';
+import { Diagnostics, Production, Tag } from './helpers';
 import { Companions } from './companions';
 
 /**
@@ -90,7 +90,7 @@ export class ModulesRoutes {
 
 			const { name, version, subpath } = identity;
 			const { delivered, failure } = await this.#delivery.module({ name, version, subpath }, options.conditions);
-			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: failure.diagnostics });
+			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: Diagnostics.shared(failure.diagnostics) });
 			Production.check(options, delivered.key);
 
 			const code = delivered.code(options.sourcemap === 'inline' ? 'inline' : 'none');

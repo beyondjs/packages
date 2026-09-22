@@ -15,6 +15,9 @@ const NEUTRAL = 'default';
  * request, reported as such. A module that declares none, which is how a package that only uses `exports`
  * is authored, produces one platform-neutral conditional that satisfies every request. This mapping lives
  * here so that writing artifacts, serving them and launching a consumer agree on it.
+ *
+ * An environment is part of the request: `web/production` is satisfied by the production conditional of
+ * the platform, or by the production conditional of the neutral one, before any development conditional.
  */
 export /*bundle*/ class Conditions {
 	#values: IConditions;
@@ -44,8 +47,14 @@ export /*bundle*/ class Conditions {
 	 */
 	select(module: BaseModule): string | undefined {
 		const { conditionals } = module;
+		const { platform, environment } = this.#values;
+
+		// The requested environment is kept while a conditional satisfies it, so that a platform-neutral
+		// module answers a production request with its production conditional and not with its development one
+		const neutral = environment ? `${NEUTRAL}/${environment}` : NEUTRAL;
 		if (conditionals.has(this.key)) return this.key;
-		if (conditionals.has(this.#values.platform)) return this.#values.platform;
+		if (conditionals.has(neutral)) return neutral;
+		if (conditionals.has(platform)) return platform;
 		if (conditionals.has(NEUTRAL)) return NEUTRAL;
 	}
 }

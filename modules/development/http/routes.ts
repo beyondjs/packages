@@ -2,6 +2,7 @@ import type { Application, NextFunction, Request, RequestHandler, Response } fro
 import type { Files } from '../files';
 import type { Builds } from '../builds';
 import type { Access } from '../access';
+import type { Declarations } from '../declarations';
 import { Revision } from '../revision';
 import { DevelopmentError } from '../error';
 import { Mutations } from '../mutations';
@@ -15,16 +16,18 @@ export class Routes {
 	#files: Files;
 	#builds: Builds;
 	#access: Access;
+	#declarations: Declarations;
 
 	#stream: Stream;
 	get stream() {
 		return this.#stream;
 	}
 
-	constructor(files: Files, builds: Builds, access: Access) {
+	constructor(files: Files, builds: Builds, access: Access, declarations: Declarations) {
 		this.#files = files;
 		this.#builds = builds;
 		this.#access = access;
+		this.#declarations = declarations;
 		this.#stream = new Stream(files.log, access);
 	}
 
@@ -99,6 +102,16 @@ export class Routes {
 		app.post('/builds/:id/cancel', route((request, response) => {
 			this.#access.require(request, 'build.control');
 			response.json(this.#builds.cancel(request.params.id));
+		}));
+
+		app.get('/declarations/*', route(async (request, response) => {
+			this.#access.require(request, 'inspect.read');
+			const { code, hash, cursor } = await this.#declarations.read(this.#path(request));
+			response.set({ etag: `"${hash}"`, 'beyond-cursor': cursor, 'cache-control': 'no-store' });
+			// The tag is the hash of the output, not a source revision, so it is compared as sent
+			const expected = request.headers['if-none-match']?.trim().replace(/^W\//, '').replace(/^"|"$/g, '');
+			if (expected === hash) return response.status(304).end();
+			response.type('text/plain; charset=utf-8').send(code);
 		}));
 
 		// The list is signed and ordered, so the route needs no bearer

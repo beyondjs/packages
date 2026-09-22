@@ -22,9 +22,18 @@ export /*bundle*/ interface IDeliveryRequest {
  * Why a module cannot be delivered. The codes are those of the compiled-module contract.
  */
 export /*bundle*/ interface IDeliveryFailure {
-	code: 'PACKAGE_NOT_FOUND' | 'VERSION_MISMATCH' | 'MODULE_NOT_FOUND' | 'BUILD_FAILED';
+	code: 'PACKAGE_NOT_FOUND' | 'VERSION_MISMATCH' | 'MODULE_NOT_FOUND' | 'BUILD_FAILED' | 'OUTPUT_NOT_AVAILABLE';
 	message: string;
 	diagnostics?: IDiagnostic[];
+}
+
+/**
+ * The public declaration of a module, as one ambient module declaration
+ */
+export /*bundle*/ interface IDeclaration {
+	vspecifier: string;
+	hash: string;
+	code: string;
 }
 
 export /*bundle*/ interface IDelivered {
@@ -98,6 +107,11 @@ export /*bundle*/ interface IPublished {
  * written to disk, and this object starts no server and keeps no HTTP state.
  */
 export /*bundle*/ class Delivery {
+	/**
+	 * The key of the conditional that holds the declaration of a module, which no consumer of code selects
+	 */
+	static TYPES = 'types';
+
 	#workspace: Workspace;
 	#selection: Selection;
 	#dependencies: Dependencies;
@@ -190,6 +204,38 @@ export /*bundle*/ class Delivery {
 			code,
 			patch: () => void 0
 		};
+	}
+
+	/**
+	 * The public declaration of a workspace module: the output of its `types` conditional, which the `ts`
+	 * bundler builds from the sources of the module and the declarations of the workspace modules they
+	 * import. A package the workspace does not contain has no declaration here: an installed package
+	 * carries its own, and this service does not read them for a consumer.
+	 */
+	async declaration(request: IDeliveryRequest): Promise<{ declaration?: IDeclaration; failure?: IDeliveryFailure }> {
+		const { name, version, subpath } = request;
+		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
+		const { selected, errors } = await this.#selection.resolve(`${name}@${version}${path}`);
+		if (!selected) {
+			const [{ code, message }] = errors;
+			const known = ['PACKAGE_NOT_FOUND', 'VERSION_MISMATCH', 'MODULE_NOT_FOUND'].includes(code);
+			return { failure: { code: known ? <IDeliveryFailure['code']>code : 'BUILD_FAILED', message, diagnostics: errors } };
+		}
+
+		const compilation = new Compilation(selected.package, subpath, new Conditions({ platform: Delivery.TYPES }), this.#dependencies);
+		await compilation.run();
+		if (!compilation.valid) {
+			const [first] = compilation.errors;
+			if (first.code === 'CONDITIONAL_NOT_FOUND') {
+				const message = `Module "${selected.specifier}" produces no declaration: its bundler has no "types" conditional`;
+				return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message } };
+			}
+			const message = `Module "${selected.specifier}" does not check: ${first.message}`;
+			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
+		}
+
+		const { conditional } = compilation;
+		return { declaration: { vspecifier: selected.vspecifier, hash: conditional.output.hash, code: conditional.output.code() } };
 	}
 
 	/**

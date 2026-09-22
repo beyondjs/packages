@@ -13,6 +13,18 @@ export class AccessError extends Error {
 }
 
 /**
+ * A service that is there but did not answer within the deadline. A slow answer is not a wrong one: the
+ * record of a service that is alive must not be discarded, and a second service must not be started.
+ */
+export class TimeoutError extends Error {
+	constructor(origin, deadline) {
+		super(`The development service at ${origin} did not describe itself within ${deadline}ms. Raise BEYOND_SESSION_TIMEOUT if the host is slow`);
+		this.name = 'TimeoutError';
+		this.code = 'SERVICE_NOT_ANSWERING';
+	}
+}
+
+/**
  * A validated connection to a running development service.
  *
  * Reaching an address is not enough to use a service: the record that named it may be stale, and the port
@@ -20,6 +32,9 @@ export class AccessError extends Error {
  * that description matched the workspace and the toolchain of the caller.
  */
 export class Connection {
+	// The default deadline of the first description, in milliseconds
+	static TIMEOUT = 5000;
+
 	#origin;
 	#session;
 	#headers;
@@ -48,11 +63,14 @@ export class Connection {
 	 * @returns {Promise<Connection | undefined>} undefined when no compatible service answers there
 	 * @throws {AccessError} When something answers there and refuses this client. That is not a stale
 	 * record: a guarded service that is alive must not be discarded, or replaced, by a client without access.
+	 * @throws {TimeoutError} When a service is there and does not answer within the deadline, which is not
+	 * a stale record either.
 	 */
 	static async validate(record, expected, headers = {}) {
+		const deadline = Connection.deadline(process.env);
 		let refused;
 		try {
-			const response = await fetch(`${record.origin}${Session.PATH}`, { headers, signal: AbortSignal.timeout(5000) });
+			const response = await fetch(`${record.origin}${Session.PATH}`, { headers, signal: AbortSignal.timeout(deadline) });
 			if ([401, 403].includes(response.status)) refused = response.status;
 			if (!response.ok) return Connection.#refusal(refused, record);
 
@@ -62,8 +80,30 @@ export class Connection {
 			return new Connection(record.origin, session, headers);
 		} catch (error) {
 			if (error instanceof AccessError) throw error;
+
+			// Nothing answering is a stale record; answering too late is a live service, and saying so is
+			// what keeps a loaded host from losing the service it already has
+			if (Connection.#expired(error)) throw new TimeoutError(record.origin, deadline);
 			return;
 		}
+	}
+
+	/**
+	 * How long the first description of a service is waited for. It is deployment configuration, like the
+	 * deadline of the watchers child: inside a saturated container the answer crosses the default although
+	 * the service is healthy.
+	 *
+	 * @param {Record<string, string | undefined>} environment
+	 */
+	static deadline(environment) {
+		const given = environment.BEYOND_SESSION_TIMEOUT;
+		if (given === void 0 || given === '') return Connection.TIMEOUT;
+		if (!/^[1-9]\d*$/.test(given)) throw new Error('BEYOND_SESSION_TIMEOUT must be a whole number of milliseconds');
+		return Number(given);
+	}
+
+	static #expired(error) {
+		return error?.name === 'TimeoutError' || error?.name === 'AbortError' || error?.code === 'ABORT_ERR';
 	}
 
 	static #refusal(status, record) {

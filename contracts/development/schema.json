@@ -443,6 +443,10 @@
 							"styles": {
 								"type": "string",
 								"description": "The hash of the stylesheet of the module, when its sources produce one. It changes with the stylesheet alone, so a consumer that holds the sheet replaces it when the code of the module did not change, and the update route delivers the sheet by this hash."
+							},
+							"declaration": {
+								"type": "string",
+								"description": "The hash of the public declaration of the module, the same for every platform, when its sources check. It changes with the declaration alone."
 							}
 						}
 					}
@@ -619,7 +623,10 @@
 							},
 							"scope": {
 								"type": "string",
-								"enum": ["document", "widget"],
+								"enum": [
+									"document",
+									"widget"
+								],
 								"description": "Who holds the stylesheet of a module that has one: the document, when the entry reaches the module without crossing a widget, or the widgets that import it, which adopt it in their own roots. The document links only the stylesheets in its scope."
 							}
 						},

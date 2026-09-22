@@ -48,9 +48,23 @@ export class Delivery {
 	}
 	async module() {
 		const source = readFileSync(this.project.file('app/main/index.ts'), 'utf8');
+		// A positioned diagnostic names the file as the delivery does: absolute, with a one-based position
+		const file = this.project.file('app/main/index.ts');
 		return source.includes('= ;')
-			? { failure: { code: 'BUILD_FAILED', message: 'failed', diagnostics: [{ code: 'TS1109', message: 'Expression expected.' }] } }
+			? { failure: { code: 'BUILD_FAILED', message: 'failed', diagnostics: [{ code: 'TS1109', message: 'index.ts (1:18): Expression expected.', file, position: { line: 1, column: 18 } }] } }
 			: { delivered: { hash: revision(source).slice(7, 15), dependencies: [], runtime: '@beyond-js/kernel/bundle' } };
+	}
+
+	/**
+	 * The declaration of the one module: a source that does not parse has none, and a source that names
+	 * a type error (`as never`) checks with a positioned diagnostic
+	 */
+	async declaration() {
+		const source = readFileSync(this.project.file('app/main/index.ts'), 'utf8');
+		const file = this.project.file('app/main/index.ts');
+		if (source.includes('= ;')) return { failure: { code: 'BUILD_FAILED', message: 'failed', diagnostics: [{ code: 'TS1109', message: 'Expression expected.', file, position: { line: 1, column: 18 } }] } };
+		if (source.includes('as never')) return { failure: { code: 'BUILD_FAILED', message: 'does not check', diagnostics: [{ code: 'TS2322', message: "Type 'number' is not assignable to type 'never'.", file, position: { line: 1, column: 14 } }] } };
+		return { declaration: { vspecifier: '@case/app@1.0.0/main', hash: `dts${revision(source).slice(7, 12)}`, code: 'declare module "@case/app/main" {\n\texport const v: number;\n}\n' } };
 	}
 }
 
@@ -203,6 +217,9 @@ export async function service() {
 		assert.equal(ended().find(({ id }) => id === slow.id).state, 'superseded');
 		const failed = ended().find(({ id }) => id !== slow.id);
 		assert.deepEqual([failed.state, failed.diagnostics[0].code], ['failed', 'TS1109']);
+		// The diagnostic is located: the file relative to the root, its revision as indexed, and the position
+		const { file, range, revision: compiled } = failed.diagnostics[0];
+		assert.deepEqual({ file, range, compiled }, { file: 'app/main/index.ts', range: { line: 1, column: 18 }, compiled: source() });
 
 		await context.call('PUT', '/files/content/app/main/index.ts', { body: 'export const v = 3;', headers: { 'if-match': `"${source()}"` } });
 		await until(() => ended().length >= 3, 'the recovery build');
@@ -217,5 +234,44 @@ export async function service() {
 		assert.equal(events.filter(({ type }) => type === 'build.started').length - before, 1);
 		context.stop();
 		return 'local mode (no authority): requests need no grant';
+	});
+
+	await step('declarations: served by specifier with a tag and a cursor, named in the build, and a type error is located (stub delivery)', async () => {
+		const context = await serve({ 'app/main/index.ts': 'export const v = 1;' }, delegated());
+		const reader = signer.grant('grt_dts00001', ['inspect.read', 'files.write', 'events.subscribe']);
+		const events = [];
+		context.development.files.log.subscribe(event => events.push(event));
+		const ended = () => events.filter(({ type }) => type === 'build.ended').map(({ build }) => build);
+		const source = () => revision(readFileSync(context.project.file('app/main/index.ts')));
+
+		const versioned = await context.call('GET', '/declarations/@case/app@1.0.0/main', { grant: reader });
+		assert.equal(versioned.status, 200);
+		assert.ok(versioned.body.includes('declare module "@case/app/main"'), 'the declaration text');
+		assert.equal(versioned.headers.get('content-type'), 'text/plain; charset=utf-8');
+		assert.match(versioned.headers.get('etag'), /^"dts[0-9a-f]{5}"$/);
+		assert.equal(versioned.headers.get('beyond-cursor'), context.development.files.log.cursor);
+
+		const bare = await context.call('GET', '/declarations/@case/app/main', { grant: reader, headers: { 'if-none-match': versioned.headers.get('etag') } });
+		assert.equal(bare.status, 304, 'a bare specifier resolves to the one version of the workspace');
+		const unknown = await context.call('GET', '/declarations/@case/other/main', { grant: reader });
+		assert.deepEqual([unknown.status, unknown.body.error.code], [404, 'DECLARATION_NOT_FOUND']);
+		const viewer = await context.call('GET', '/declarations/@case/app/main', { grant: signer.grant('grt_dts00002', ['artifacts.read']) });
+		assert.equal(viewer.status, 403, 'a declaration needs inspect.read');
+
+		const built = (await context.call('POST', '/builds', { grant: signer.grant('grt_dts00003', ['build.control']) })).body;
+		await until(() => ended().some(({ id }) => id === built.id), 'the build to end');
+		const complete = ended().find(({ id }) => id === built.id);
+		assert.equal(complete.state, 'completed');
+		assert.ok(complete.modules.every(entry => entry.declaration === versioned.headers.get('etag').slice(1, -1)), 'each platform entry names the declaration');
+
+		await context.call('PUT', '/files/content/app/main/index.ts', { grant: reader, body: 'export const v = 1 as never;', headers: { 'if-match': `"${source()}"` } });
+		await until(() => ended().length >= 2, 'the build after the edit');
+		const typed = ended().at(-1);
+		assert.equal(typed.state, 'failed', 'a type error fails the build');
+		assert.ok(typed.modules.every(entry => entry.status === 'valid' && !entry.declaration), 'the artifacts stay valid without a declaration');
+		assert.deepEqual([typed.diagnostics[0].code, typed.diagnostics[0].file, typed.diagnostics[0].range], ['TS2322', 'app/main/index.ts', { line: 1, column: 14 }]);
+		const invalid = await context.call('GET', '/declarations/@case/app/main', { grant: reader });
+		assert.deepEqual([invalid.status, invalid.body.error.code, invalid.body.error.diagnostics[0].file], [422, 'DECLARATION_INVALID', 'app/main/index.ts']);
+		context.stop();
 	});
 }

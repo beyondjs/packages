@@ -95,8 +95,10 @@ export /*bundle*/ class Compilation {
 		const key = this.#conditions.select(module);
 		if (!key) {
 			const code = 'CONDITIONAL_NOT_FOUND';
-			// The `types` conditional of a module is its declaration, not something a consumer of code can select
-			const declared = [...module.conditionals.keys()].filter(key => key !== 'types').join(', ');
+			// What a consumer of code can select is a platform. The `types` conditional is the declaration of
+			// the module, and a conditional of an environment (`web/production`) is reached by asking for that
+			// environment and not by naming it here, so neither belongs in the list offered to the user
+			const declared = [...module.conditionals.keys()].filter(key => key !== 'types' && !key.includes('/')).join(', ');
 			const message =
 				`Module "${specifier}" does not produce the "${this.#conditions.key}" conditional ` +
 				`(declared: ${declared})`;
@@ -109,7 +111,7 @@ export /*bundle*/ class Compilation {
 		await conditional.ready;
 		if (!conditional.valid || !conditional.output) {
 			const prefix = `Module "${specifier}": `;
-			conditional.errors.forEach(({ code, message }) => this.#errors.push({ code, message: prefix + message }));
+			conditional.errors.forEach(error => this.#errors.push({ ...error, message: prefix + error.message }));
 
 			// A conditional is invalid without diagnostics only if one of its producers failed to report one
 			!conditional.errors.length &&

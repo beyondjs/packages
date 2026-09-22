@@ -35,6 +35,15 @@ export /*bundle*/ class Types extends Conditional {
 		return !this.#errors.length && super.valid;
 	}
 
+	/**
+	 * The entry point the declaration is assembled from: the one of the platform the conditional follows
+	 * (`conditionals.<platform>.entry` of the manifest), or the entry of the module
+	 */
+	get entry(): string | undefined {
+		const values = <{ entry?: unknown }>this.spec.values;
+		return typeof values?.entry === 'string' && values.entry ? values.entry : this.module.spec.entry;
+	}
+
 	_spec(values: Record<string, any>): IProcessedSpec {
 		// The declaration of the module is the one of its first declared platform, with its entry point
 		const platform = typeof values?.platforms === 'string' ? values.platforms : values?.platforms?.[0];
@@ -57,14 +66,14 @@ export /*bundle*/ class Types extends Conditional {
 			processor.warnings.forEach(warning => warnings.push(warning));
 			processor.outputs?.types.forEach(declaration => {
 				const file = declaration.source?.relative.file ?? '';
-				declaration.issues.errors.forEach(({ code, message, position }) => {
+				// The issue keeps the file and the position beside the message, for the consumers that locate them
+				const located = ({ code, message, position }: { code: string; message: string; position?: { line?: number; column?: number } }): IDiagnostic => {
 					const at = position?.line ? ` (${position.line}:${position.column ?? 0})` : '';
-					errors.push({ code, message: `${file}${at}: ${message}` });
-				});
-				declaration.issues.warnings.forEach(({ code, message, position }) => {
-					const at = position?.line ? ` (${position.line}:${position.column ?? 0})` : '';
-					warnings.push({ code, message: `${file}${at}: ${message}` });
-				});
+					const where = position?.line ? { position: { line: position.line, column: position.column ?? 1 } } : {};
+					return { code, message: `${file}${at}: ${message}`, ...(declaration.source ? { file: declaration.source.file } : {}), ...where };
+				};
+				declaration.issues.errors.forEach(issue => errors.push(located(issue)));
+				declaration.issues.warnings.forEach(issue => warnings.push(located(issue)));
 
 				const code = declaration.code.code();
 				if (typeof code !== 'string') return;

@@ -10,7 +10,7 @@ export const KERNEL = '@beyond-js/kernel/bundle';
  * `<runtime package>/core` when its bundler selects that runtime, which is how the existing Widgets sources
  * run on the development runtime without a second copy of their imports.
  */
-const FAMILIES = ['bundle', 'core', 'styles'];
+const FAMILIES = ['bundle', 'core', 'styles', 'routing'];
 
 /**
  * How the bare specifiers of the internal modules map to the public modules the artifact imports.

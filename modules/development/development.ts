@@ -4,6 +4,7 @@ import { Builds, type IBuildable } from './builds';
 import { Access } from './access';
 import { Selection } from './selection';
 import { Preview } from './preview';
+import { Declarations } from './declarations';
 import { Routes } from './http/routes';
 import { PreviewRoutes } from './http/preview';
 import { Guard } from './http/guard';
@@ -54,16 +55,22 @@ export /*bundle*/ class Development {
 		return this.#preview;
 	}
 
+	#declarations: Declarations;
+	get declarations() {
+		return this.#declarations;
+	}
+
 	#routes: Routes;
 	#previews: PreviewRoutes;
 
 	constructor({ delivery, settings }: IHostContext, access = Access.from(process.env)) {
 		this.#access = access;
 		this.#files = new Files(settings.root);
-		this.#builds = new Builds(delivery, this.#files.log, settings.conditions);
+		this.#builds = new Builds(delivery, this.#files, settings.conditions);
 		this.#selection = new Selection(settings.root, delivery, this.#files.log);
 		this.#preview = new Preview(delivery, this.#selection, settings.runtime?.base);
-		this.#routes = new Routes(this.#files, this.#builds, access);
+		this.#declarations = new Declarations(delivery, this.#files);
+		this.#routes = new Routes(this.#files, this.#builds, access, this.#declarations);
 		this.#previews = new PreviewRoutes(this.#selection, this.#preview, access);
 	}
 

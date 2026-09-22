@@ -3,6 +3,7 @@ import type { ProcessorOutput } from '../processor/outputs/output';
 import type { IWidgetSpecs } from './widget';
 import { Conditional } from '../main';
 import { ConditionalOutput } from '@beyond-js/packages/module/output';
+import { Minifier } from './minifier';
 import { equal } from '@beyond-js/equal/main';
 import { Assembler } from './assembler';
 import { Outputs } from './outputs';
@@ -213,7 +214,7 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		return hash;
 	}
 
-	_process(): boolean {
+	_process(): boolean | Promise<boolean> {
 		const done = (updated: {
 			errors?: IDiagnostic[];
 			warnings?: IDiagnostic[];
@@ -290,13 +291,44 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		const assembler = new Assembler({ vspecifier, entry: id, ims: outputs.ims, runtime: <string>runtime, styles: !!styles, widget });
 		if (assembler.errors.length) return done({ errors: assembler.errors, warnings });
 
+		const artifact = this.#describe(vspecifier, assembler, styles, widget);
+
+		// The production conditional is the same composition, minified, without a map or an update patch
+		if (this.environment === 'production') {
+			const minified = (minifier: Minifier) => {
+				const output = new ConditionalOutput();
+				output.set({ code: minifier.code(assembler.assemble({ hmr: false }).code), map: void 0 });
+				let sheet: ConditionalOutput | undefined;
+				if (styles) {
+					sheet = new ConditionalOutput();
+					sheet.set({ code: minifier.css(styles.code()), map: void 0 });
+				}
+				return done({ output, patch: void 0, styles: sheet, types, artifact, warnings });
+			};
+			const failed = (error: Error) => done({ errors: [{ code: 'MINIFY_ERROR', message: `Module "${module.spec.subpath}": ${error.message}` }], warnings });
+			return Minifier.load().then(minifier => {
+				try {
+					return minified(minifier);
+				} catch (error) {
+					return failed(error as Error);
+				}
+			}, failed);
+		}
+
 		const output = new ConditionalOutput();
 		output.set(assembler.assemble({ hmr: false }));
 
 		const patch = new ConditionalOutput();
 		patch.set(assembler.assemble({ hmr: true }));
 
-		const artifact: IESMArtifact = {
+		return done({ output, patch, styles, types, artifact, warnings });
+	}
+
+	/**
+	 * What the artifact of this conditional declares to consumers: the same for development and production
+	 */
+	#describe(vspecifier: string, assembler: Assembler, styles: ConditionalOutput | undefined, widget: Widget): IESMArtifact {
+		return {
 			vspecifier,
 			runtime: assembler.runtime,
 			dependencies: assembler.dependencies,
@@ -305,7 +337,5 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 			...(styles ? { styles: true } : {}),
 			...(widget.specs ? { widget: widget.specs } : {})
 		};
-
-		return done({ output, patch, styles, types, artifact, warnings });
 	}
 }

@@ -100,13 +100,14 @@ export class Declarations extends Map<string, IDeclaration> {
 				this.set(subpath, { subpath, bundler: void 0, path: entry.path, values, sources: ['exports'] });
 			} else if (this.#stylesheet(spec.values)) {
 				/**
-				 * A stylesheet target declares a style public module, compiled by the default bundler like
-				 * any module and delivered as a stylesheet instead of code. Its sources are the entry alone,
-				 * with what the entry imports: the stylesheet of a package often sits at its root, where the
-				 * directories of the other modules are.
+				 * A stylesheet target declares a style public module (`kind: 'style'`, which the analysis
+				 * traces as one style item whose output is the stylesheet, never as code), compiled by the
+				 * default bundler like any module and delivered as a stylesheet. Its sources are the entry
+				 * alone, with what the entry imports: the stylesheet of a package often sits at its root,
+				 * where the directories of the other modules are.
 				 */
 				const { path, entry } = this.#stylesheet(spec.values);
-				this.set(subpath, { subpath, bundler: void 0, path, values: { entry, files: [entry] }, sources: ['exports'] });
+				this.set(subpath, { subpath, bundler: void 0, path, values: { entry, kind: 'style', files: [entry] }, sources: ['exports'] });
 			} else {
 				// Any other target is an export of the package, packaged as such and not compiled from sources
 				const values = <Record<string, any>>spec.values;
@@ -119,7 +120,7 @@ export class Declarations extends Map<string, IDeclaration> {
 	 * The directory and the file of an exports target that is a stylesheet inside the package
 	 */
 	#stylesheet(target: unknown): { path: string; entry: string } | undefined {
-		if (typeof target !== 'string' || !target.startsWith('./') || posix.extname(target) !== '.css') return;
+		if (typeof target !== 'string' || !target.startsWith('./') || !['.css', '.scss', '.sass'].includes(posix.extname(target))) return;
 		const normalized = posix.normalize(target);
 		if (normalized.startsWith('..')) return;
 		return { path: posix.dirname(normalized).replace(/^\.\/?/, ''), entry: posix.basename(normalized) };

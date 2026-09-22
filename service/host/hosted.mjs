@@ -79,6 +79,10 @@ export class Hosted {
 		return this.#delivery.module(request, conditions);
 	}
 
+	declaration(request) {
+		return this.#delivery.declaration(request);
+	}
+
 	get resources() {
 		return this.#delivery.resources;
 	}

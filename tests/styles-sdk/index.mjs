@@ -72,7 +72,7 @@ try {
 		const errors = report.errors.map(({ code, message }) => `${code}: ${message}`);
 		assert.deepEqual(errors, [], errors.join('\n'));
 		const named = Object.fromEntries(report.artifacts.map(artifact => [artifact.specifier, artifact]));
-		assert.deepEqual(Object.keys(named).sort(), ['@fixture/ui/badge', '@fixture/ui/broken', '@fixture/ui/card', '@fixture/ui/global', '@fixture/ui/render', '@fixture/ui/svelte-view', '@fixture/ui/vue-view', '@fixture/ui/widget']);
+		assert.deepEqual(Object.keys(named).sort(), ['@fixture/shared/palette', '@fixture/ui/badge', '@fixture/ui/broken', '@fixture/ui/card', '@fixture/ui/global', '@fixture/ui/render', '@fixture/ui/svelte-view', '@fixture/ui/vue-view', '@fixture/ui/widget']);
 		for (const specifier of ['@fixture/ui/card', '@fixture/ui/badge', '@fixture/ui/vue-view', '@fixture/ui/svelte-view', '@fixture/ui/widget', '@fixture/ui/global']) {
 			assert.ok(named[specifier].styles, `${specifier} has a stylesheet`);
 			assert.ok(existsSync(join(out, named[specifier].styles)), `${specifier} stylesheet written`);
@@ -187,6 +187,27 @@ try {
 		return 'imported from the runtime, registered under the Kernel identity';
 	});
 
+	await step('production: the web/production conditional is the same composition, minified, without a map or an update patch', async () => {
+		const production = new Artifacts(workspace, { path: out, conditions: { platform: 'web', environment: 'production' } });
+		const built = await production.build();
+		const errors = built.errors.map(({ code, message }) => `${code}: ${message}`);
+		assert.deepEqual(errors, [], errors.join('\n'));
+		const widget = built.artifacts.find(one => one.specifier === '@fixture/ui/widget');
+		const development = report.artifacts.find(one => one.specifier === '@fixture/ui/widget');
+		assert.deepEqual(widget.ims, development.ims, 'the same internal modules with the same hashes');
+		assert.deepEqual(widget.dependencies, development.dependencies);
+		assert.equal(widget.patch, void 0, 'production has no update patch');
+		const code = await read(widget.file);
+		assert.ok(code.split('\n').filter(line => line.trim()).length <= 3, 'minified into a few lines');
+		assert.ok(code.length < (await read(development.file)).length * 0.8, 'smaller than the development output');
+		assert.match(code, /widgets\.register\(/, 'the widget is registered');
+		assert.doesNotMatch(code, /sourceMappingURL=data/, 'no inline map');
+		const styles = await read(widget.styles);
+		assert.ok(!styles.includes('\n') || styles.trim().split('\n').length === 1, 'the stylesheet is minified');
+		assert.equal(conditional('./widget', 'web/production').output.hash === conditional('./widget').output.hash, false);
+		return `${code.length} bytes of code, ${styles.length} bytes of stylesheet`;
+	});
+
 	await step('watch, tailwind: adding a class to a declared source adds its utility; removing it removes the utility', async () => {
 		const badge = conditional('./badge');
 		const before = badge.styles.hash;
@@ -215,7 +236,14 @@ try {
 		assert.notEqual(badge.styles.hash, theme);
 		assert.match(badge.styles.code(), /rgb\(4, 5, 6\)/);
 		assert.equal(vue.styles.hash, stable.vue, 'an unrelated module is untouched');
-		return 'partial → card; theme → badge; vue unchanged';
+
+		// The palette of another package of the workspace is a compile-time dependency, watched through that package
+		assert.match(card.styles.code(), /border-color:\s*rgb\(20, 30, 40\)/, 'the palette of the shared package is included');
+		const before = badge.styles.hash;
+		await rebuild(card, () => writeFile(join(root, 'shared', 'palette.scss'), '$brand: rgb(7, 8, 9);\n\n.palette {\n\tcolor: $brand;\n}\n'), () => card.valid && /rgb\(7, 8, 9\)/.test(card.styles?.code() ?? ''));
+		assert.match(card.styles.code(), /border-color:\s*rgb\(7, 8, 9\)/);
+		assert.equal(badge.styles.hash, before, 'a module that does not read the palette is untouched');
+		return 'partial → card; theme → badge; vue unchanged; palette of another package → card';
 	});
 
 	await step('watch, failure and recovery: an invalid stylesheet reports its position and publishes nothing; its correction restores the output', async () => {

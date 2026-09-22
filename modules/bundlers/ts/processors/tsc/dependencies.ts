@@ -42,7 +42,9 @@ export class Dependencies {
 	}
 
 	/**
-	 * Reads the declaration of every imported public module of the workspace
+	 * Reads the declaration of every imported public module of the workspace, and of every workspace module
+	 * those declarations import in turn: a class a module extends may be declared two modules away, and the
+	 * program resolves it only when that declaration is in it too.
 	 *
 	 * @returns The declarations by specifier, and the specifiers that could not be read
 	 */
@@ -50,50 +52,60 @@ export class Dependencies {
 		const declarations = new Map<string, string>();
 		const unresolved = new Map<string, string>();
 		const wanted = new Set<BaseConditional>();
-		const { module } = this.#processor.conditional;
-		const workspace = module.package.workspace;
+		const visited = new Set<string>();
+		const queue = [...specifiers].sort();
 
-		for (const specifier of [...specifiers].sort()) {
-			const resolution = workspace?.resolve?.(specifier);
-			if (!resolution) continue;
+		while (queue.length) {
+			const specifier = queue.shift();
+			if (visited.has(specifier)) continue;
+			visited.add(specifier);
 
-			const { package: pkg, subpath } = resolution;
-			await pkg.ready;
-			await pkg.modules.ready;
-			const dependency = pkg.modules.get(subpath);
-			if (!dependency) {
-				unresolved.set(specifier, `"${pkg.name}" declares no public module "${subpath}"`);
+			const outcome = await this.#read(specifier, wanted);
+			if (!outcome) continue;
+			if ('reason' in outcome) {
+				unresolved.set(specifier, outcome.reason);
 				continue;
 			}
-			if (dependency === module) continue;
-
-			await dependency.conditionals.ready;
-			const types = dependency.conditionals.get('types');
-			if (!types) {
-				unresolved.set(specifier, `"${specifier}" produces no declaration: its bundler has no types conditional`);
-				continue;
-			}
-
-			wanted.add(types);
-			this.#subscribe(types);
-
-			const timeout = new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), Dependencies.WAIT));
-			const outcome = await Promise.race([types.ready.then(() => 'ready'), timeout]);
-			if (outcome === 'timeout') {
-				unresolved.set(specifier, `the declaration of "${specifier}" did not become ready: its types may depend on this module`);
-				continue;
-			}
-
-			const code = types.output?.code();
-			if (typeof code !== 'string') {
-				unresolved.set(specifier, `"${specifier}" has no declaration: ${types.errors.map(({ message }) => message).join('; ') || 'its types conditional produced nothing'}`);
-				continue;
-			}
-			declarations.set(specifier, code);
+			declarations.set(specifier, outcome.code);
+			Dependencies.specifiers([outcome.code]).forEach(imported => !visited.has(imported) && queue.push(imported));
 		}
 
 		[...this.#subscriptions.keys()].forEach(types => !wanted.has(types) && this.#unsubscribe(types));
 		return { declarations, unresolved };
+	}
+
+	/**
+	 * The declaration of one workspace module, or why it cannot be read; undefined for a specifier that
+	 * is not a workspace module, or the module being checked itself
+	 */
+	async #read(specifier: string, wanted: Set<BaseConditional>): Promise<{ code: string } | { reason: string } | undefined> {
+		const { module } = this.#processor.conditional;
+		const resolution = module.package.workspace?.resolve?.(specifier);
+		if (!resolution) return;
+
+		const { package: pkg, subpath } = resolution;
+		await pkg.ready;
+		await pkg.modules.ready;
+		const dependency = pkg.modules.get(subpath);
+		if (!dependency) return { reason: `"${pkg.name}" declares no public module "${subpath}"` };
+		if (dependency === module) return;
+
+		await dependency.conditionals.ready;
+		const types = dependency.conditionals.get('types');
+		if (!types) return { reason: `"${specifier}" produces no declaration: its bundler has no types conditional` };
+
+		wanted.add(types);
+		this.#subscribe(types);
+
+		const timeout = new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), Dependencies.WAIT));
+		const outcome = await Promise.race([types.ready.then(() => 'ready'), timeout]);
+		if (outcome === 'timeout') return { reason: `the declaration of "${specifier}" did not become ready: its types may depend on this module` };
+
+		const code = types.output?.code();
+		if (typeof code !== 'string') {
+			return { reason: `"${specifier}" has no declaration: ${types.errors.map(({ message }) => message).join('; ') || 'its types conditional produced nothing'}` };
+		}
+		return { code };
 	}
 
 	#subscribe(types: BaseConditional) {

@@ -183,10 +183,31 @@ try {
 		await page.locator('fixture-counter button').click();
 		assert.equal(await shown(), '[environment] Hi preview | Clicks: 5');
 
+		// The diagnostic of the real compiler is located: the file relative to the root, at its position
+		const { build: failed } = events.messages.find(({ event, build }, index) => index >= seen && event === 'build.ended' && build.state === 'failed');
+		const located = failed.diagnostics.find(({ file: named }) => named === 'web/main/view.ts');
+		assert.ok(located, JSON.stringify(failed.diagnostics));
+		assert.deepEqual([located.range, located.revision?.slice(0, 7)], [{ line: 1, column: 22 }, 'sha256-'], JSON.stringify(located));
+
 		await writeFile(file, valid.replace('Clicks: ${count}', 'Total: ${count}'));
 		await until('Total: 5');
 		assert.deepEqual(await page.evaluate(() => window.evaluated), { store: 1 });
 		assert.deepEqual(observed.errors.filter(text => !text.includes('invalid')), []);
+	});
+
+	await step('declarations: the public declaration of a module is served by its specifier, and named by the build', async () => {
+		const declaration = await call('GET', `/declarations/${WEB}`);
+		assert.equal(declaration.status, 200, JSON.stringify(declaration.body));
+		assert.ok(declaration.body.includes('declare module "@fixture/web/main"'), declaration.body.slice(0, 200));
+		const tag = declaration.headers.get('etag');
+		assert.equal((await call('GET', '/declarations/@fixture/web/main', { headers: { 'if-none-match': tag } })).status, 304);
+		assert.equal((await call('GET', '/declarations/@fixture/web/main', { grant: visitor })).status, 403, 'a visitor grant has no inspect.read');
+		const shared = await call('GET', '/declarations/@fixture/shared/text');
+		assert.ok(shared.body.includes('greet'), 'the declaration of the dependency names its export');
+		const builds = events.messages.filter(({ event, build }) => event === 'build.ended' && build.state === 'completed');
+		const entry = builds.at(-1).build.modules.find(({ vspecifier }) => vspecifier === WEB);
+		assert.equal(entry.declaration, tag.slice(1, -1), 'the build names the declaration by the hash the route tags');
+		return `${declaration.body.length} characters, tag ${tag}`;
 	});
 
 	await step('events: builds name the platform of each artifact, and a visitor receives no source event', async () => {

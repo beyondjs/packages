@@ -44,7 +44,7 @@ try {
 
 		const session = await (await fetch(`${host.origin}/session`)).json();
 		assert.deepEqual(Object.keys(session.modules).sort(),
-			['@beyond-js/local-2026/bundle', '@beyond-js/local-2026/core', '@beyond-js/local-2026/main', '@beyond-js/local-2026/styles', '@fixture/app/main', '@fixture/shared/text']);
+			['@beyond-js/local-2026/bundle', '@beyond-js/local-2026/core', '@beyond-js/local-2026/main', '@beyond-js/local-2026/routing', '@beyond-js/local-2026/styles', '@fixture/app/main', '@fixture/shared/text']);
 		const state = await (await fetch(`${host.origin}/state`)).json();
 		assert.deepEqual(state.modules.filter(module => module.status !== 'valid'), [], JSON.stringify(state.modules));
 		return `${host.origin}, ${state.modules.length} modules valid`;

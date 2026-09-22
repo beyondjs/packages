@@ -18,6 +18,15 @@ export class Processors {
 		{
 			matches: error => error instanceof TypeError && /logs\.append is not a function/.test(error.message),
 			message: 'a processor is taking longer than expected (its warning could not be printed)'
+		},
+		{
+			/**
+			 * A watcher, a listener or a client that the watchers service no longer holds: the workspace was
+			 * reloaded after a manifest change, its packages and their watchers were destroyed, and an
+			 * operation of the previous workspace arrived late. Nothing of the reloaded workspace is affected.
+			 */
+			matches: error => /^(Watcher|Listener|Client) .* is not registered$/.test(error?.message ?? ''),
+			message: error => `a watcher of a reloaded workspace answered late: ${error.message}`
 		}
 	];
 
@@ -29,14 +38,16 @@ export class Processors {
 	 * started instead of abandoning it
 	 */
 	static contain(log, ending, fail) {
-		process.on('uncaughtException', error => {
+		const failure = (origin, error) => {
 			const known = Processors.#known.find(({ matches }) => matches(error));
-			if (known) return log(known.message);
-			if (ending()) return log(`while stopping: ${error.message}`);
+			if (known) return log(typeof known.message === 'function' ? known.message(error) : known.message);
+			if (ending()) return log(`while stopping: ${error?.message ?? error}`);
 
-			log(`uncaught: ${error.stack}`);
-			fail(`uncaught exception: ${error.message}`);
-		});
+			log(`${origin}: ${error?.stack ?? error}`);
+			fail(`${origin}: ${error?.message ?? error}`);
+		};
+		process.on('uncaughtException', error => failure('uncaught exception', error));
+		process.on('unhandledRejection', reason => failure('unhandled rejection', reason instanceof Error ? reason : new Error(String(reason))));
 
 		if (!process.env.BEYOND_TRACE_PROCESSORS) return;
 		const accessor = Object.getOwnPropertyDescriptor(String.prototype, 'red');

@@ -1,6 +1,8 @@
 @use 'tokens';
+@use '../../shared/palette';
 
 .card {
 	color: tokens.$accent;
 	padding: tokens.$space;
+	border-color: palette.$brand;
 }

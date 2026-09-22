@@ -1,5 +1,16 @@
 import type { Log } from './log';
+import type { Files } from './files';
 import { DevelopmentError } from './error';
+import { Located, type ILocatedDiagnostic, type IProducedDiagnostic } from './located';
+
+/**
+ * Why the delivery could not produce what a build asked for
+ */
+export /*bundle*/ interface IBuildFailure {
+	code: string;
+	message: string;
+	diagnostics?: IProducedDiagnostic[];
+}
 
 /**
  * What a build needs from the hosting service: the published modules and the delivery of each one.
@@ -18,8 +29,13 @@ export /*bundle*/ interface IBuildable {
 	published(): Promise<IPublishedModule[]>;
 	module(request: object, conditions: object): Promise<{
 		delivered?: { hash: string; styles?: string; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
-		failure?: { code: string; message: string; diagnostics?: { code: string; message: string }[] };
+		failure?: IBuildFailure;
 	}>;
+
+	/**
+	 * The public declaration of a module, when the host produces declarations
+	 */
+	declaration?(request: object): Promise<{ declaration?: { vspecifier: string; hash: string; code: string }; failure?: IBuildFailure }>;
 }
 
 /**
@@ -53,8 +69,8 @@ export /*bundle*/ interface IBuild {
 	id: string;
 	state: 'running' | 'completed' | 'failed' | 'superseded' | 'cancelled';
 	input: string;
-	modules: { vspecifier: string; platform?: string; status: 'valid' | 'invalid'; hash?: string; styles?: string }[];
-	diagnostics?: { code: string; message: string; severity: 'error' }[];
+	modules: { vspecifier: string; platform?: string; status: 'valid' | 'invalid'; hash?: string; styles?: string; declaration?: string }[];
+	diagnostics?: ILocatedDiagnostic[];
 }
 
 /**
@@ -65,6 +81,10 @@ export /*bundle*/ interface IBuild {
  * A module is built for every platform it declares, and each result names its platform, because a Node
  * consumer and a browser preview apply the artifact of their own platform. A platform that a module does not
  * declare is not a failure of the build: it is left out.
+ *
+ * The declaration of a module is checked with it: a module whose sources do not type-check keeps its valid
+ * artifacts, because the compiler that produces them does not check types, and the build reports the type
+ * errors with their file and position, so the build is `failed` while its modules stay applicable.
  */
 export /*bundle*/ class Builds {
 	static RETAINED = 50;
@@ -73,6 +93,7 @@ export /*bundle*/ class Builds {
 
 	#delivery: IBuildable;
 	#log: Log;
+	#located: Located;
 	#conditions: { platform: string }[];
 	#items = new Map<string, IBuild>();
 	#cancelled = new Set<string>();
@@ -89,9 +110,10 @@ export /*bundle*/ class Builds {
 	 * @param conditions The only conditions to build for, when the host serves one kind of consumer.
 	 * Without them every module is built for each platform it declares.
 	 */
-	constructor(delivery: IBuildable, log: Log, conditions?: { platform: string }) {
+	constructor(delivery: IBuildable, files: Files, conditions?: { platform: string }) {
 		this.#delivery = delivery;
-		this.#log = log;
+		this.#log = files.log;
+		this.#located = new Located(files.root, path => files.revision(path));
 		this.#conditions = conditions ? [conditions] : Builds.PLATFORMS.map(platform => ({ platform, environment: 'development' }));
 	}
 
@@ -146,13 +168,14 @@ export /*bundle*/ class Builds {
 	 */
 	async #module(module: IPublishedModule, build: IBuild, diagnostics: IBuild['diagnostics']) {
 		const { vspecifier } = module;
-		const report = (failure: { code: string; message: string; diagnostics?: { code: string; message: string }[] }) => {
-			for (const { code, message } of failure.diagnostics ?? [failure]) {
-				const reported = `${vspecifier}: ${message}`;
-				!diagnostics.some(one => one.code === code && one.message === reported) && diagnostics.push({ code, message: reported, severity: 'error' });
+		const report = (failure: IBuildFailure) => {
+			for (const diagnostic of failure.diagnostics ?? [failure]) {
+				const located = this.#located.of({ ...diagnostic, message: `${vspecifier}: ${diagnostic.message}` });
+				!diagnostics.some(one => one.code === located.code && one.message === located.message) && diagnostics.push(located);
 			}
 		};
 
+		const entries = build.modules.length;
 		const undeclared = [];
 		for (const conditions of this.#conditions) {
 			const { platform } = conditions;
@@ -172,9 +195,17 @@ export /*bundle*/ class Builds {
 		}
 
 		// A module that declares none of the platforms this service builds for has nothing to deliver
-		if (undeclared.length !== this.#conditions.length) return;
-		build.modules.push({ vspecifier, status: 'invalid' });
-		undeclared.forEach(report);
+		if (undeclared.length === this.#conditions.length) {
+			build.modules.push({ vspecifier, status: 'invalid' });
+			undeclared.forEach(report);
+			return;
+		}
+
+		// The declaration, checked once for the module and named by each of its platform entries
+		if (!this.#delivery.declaration) return;
+		const { declaration, failure } = await this.#delivery.declaration(module);
+		if (declaration) build.modules.slice(entries).forEach(entry => entry.status === 'valid' && (entry.declaration = declaration.hash));
+		else failure.code === 'BUILD_FAILED' && report(failure);
 	}
 
 	async #run(build: IBuild) {

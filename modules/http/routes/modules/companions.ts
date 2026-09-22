@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, Options, Policy, ResourcePath } from '@beyond-js/artifact-api';
 import { Media } from '@beyond-js/packages/publication';
-import { Production, Stylesheet, Tag } from './helpers';
+import { Diagnostics, Production, Stylesheet, Tag } from './helpers';
 
 /**
  * The sibling resource families of the compiled-module contract, for workspace modules: `/styles/<subpath>`
@@ -53,12 +53,12 @@ export class Companions {
 			if (resource.kind === 'map') {
 				// The module is resolved first, so an unknown module is reported as such
 				const { failure } = await this.#delivery.module({ name, version, subpath }, options.conditions);
-				if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: failure.diagnostics });
+				if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: Diagnostics.shared(failure.diagnostics) });
 				throw new ContractError('OUTPUT_NOT_AVAILABLE', 'This service delivers inline source maps: request sourcemap=inline');
 			}
 
 			const { styles, key, failure } = await this.#delivery.resources.styles({ name, version, subpath }, options.conditions);
-			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: failure.diagnostics });
+			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: Diagnostics.shared(failure.diagnostics) });
 			Production.check(options, key);
 			this.#send(request, response, Stylesheet.text(styles, options.sourcemap === 'inline'), 'text/css; charset=utf-8');
 		} catch (error) {

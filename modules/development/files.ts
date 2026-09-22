@@ -42,6 +42,20 @@ export /*bundle*/ class Files {
 		return this.#observer;
 	}
 
+	/**
+	 * The absolute path of the served root, resolved
+	 */
+	get root(): string {
+		return this.#root.path;
+	}
+
+	/**
+	 * The revision the index holds for a contract path, if it is an indexed file
+	 */
+	revision(path: string): string | undefined {
+		return this.#entries.get(path)?.revision;
+	}
+
 	constructor(path: string, log = new Log()) {
 		this.#root = new Root(path);
 		this.#log = log;
