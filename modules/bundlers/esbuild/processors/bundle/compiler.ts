@@ -36,6 +36,18 @@ export /*bundle*/ interface ICompilerIdentity {
 export /*bundle*/ class Compiler {
 	static #loaded: Map<string, Promise<Compiler>> = new Map();
 
+	/**
+	 * Whether a failure means the process of the compiler ended rather than the sources being wrong.
+	 *
+	 * The compiler runs in a child process of its own, which a memory ceiling of a container kills without
+	 * killing the service. Everything the service builds afterwards fails with the same message, so telling
+	 * this apart from a source error is what keeps a starved container from looking like a broken project.
+	 */
+	static ended(error: unknown): boolean {
+		const message = String((<{ message?: unknown }>error)?.message ?? '');
+		return /service is no longer running|service was stopped|write EPIPE|read ECONNRESET/i.test(message);
+	}
+
 	#api: typeof import('esbuild');
 	get api() {
 		return this.#api;
@@ -49,6 +61,20 @@ export /*bundle*/ class Compiler {
 	#error?: IDiagnostic;
 	get error() {
 		return this.#error;
+	}
+
+	/**
+	 * Releases the process of the compiler, so that the next build starts a new one.
+	 *
+	 * A compiler whose process ended answers every later build with the same failure until it is released:
+	 * without this, one child killed by a memory ceiling leaves the service unable to build anything again.
+	 */
+	restart(): void {
+		try {
+			(<{ stop?: () => void }>(<unknown>this.#api))?.stop?.();
+		} catch {
+			// The compiler is already gone, which is what is being recovered from
+		}
 	}
 
 	/**

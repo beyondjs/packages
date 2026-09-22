@@ -1,6 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Metafile, Message } from 'esbuild';
-import type { Compiler, ICompilerIdentity } from './compiler';
+import { Compiler, type ICompilerIdentity } from './compiler';
 import { Boundary, type StylesType } from './boundary';
 import { Resources, type IResource } from './resources';
 
@@ -204,6 +204,22 @@ export /*bundle*/ class Bundle {
 			return { bundled, diagnostics: [] };
 		} catch (exc) {
 			const failures: Message[] = exc.errors ?? [];
+
+			/**
+			 * A compiler whose process ended is not a module that does not compile: it is reported as itself,
+			 * and released, so that the build fails now with a diagnostic that names it and the next one has a
+			 * compiler again instead of repeating this failure forever.
+			 */
+			if (!failures.length && Compiler.ended(exc)) {
+				this.#compiler.restart();
+				const message =
+					`The compiler ended while building "${this.#request.package.subpath}" of ` +
+					`"${this.#request.package.root}" (${exc.message}). Nothing was built with it, and the next ` +
+					`build starts a new process of it. A compiler that ends on its own is what a memory ceiling ` +
+					`of a container looks like from here.`;
+				return { diagnostics: [{ code: 'COMPILER_UNAVAILABLE', message }] };
+			}
+
 			const diagnostics = failures.map(({ text, location }) => {
 				const at = location ? `${location.file} (${location.line}:${location.column}): ` : '';
 				return { code: 'BUNDLE_ERROR', message: at + text };

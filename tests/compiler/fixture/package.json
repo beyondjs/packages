@@ -1,0 +1,16 @@
+{
+	"name": "@fixture/compiler",
+	"version": "0.1.0",
+	"private": true,
+	"description": "A package compiled in the esbuild packaging mode, whose compiler runs in a process of its own",
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": { "bundle": { "compiler": "esbuild" } }
+		}
+	}
+}
