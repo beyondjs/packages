@@ -35,9 +35,15 @@ export /*bundle*/ class Toolchain {
 	 * The revision of the composition that a declared bundler produces here. It is part of the key of every
 	 * composed output, so raise it whenever the assembly of a composed module changes in a way that makes an
 	 * output generated before it incompatible: the internal-module envelope, the runtime contract, the
-	 * widget registration or the stylesheet relationship.
+	 * widget registration or the stylesheet relationship. It is also the only record of the compilers the
+	 * processors run with (Svelte, Vue, Sass, Tailwind, TypeScript): upgrading one that changes what it emits
+	 * must raise it too.
+	 *
+	 * `2`: the scope a Vue or Svelte component gives its styles is derived from the identity of its source
+	 * ([Scope](../sdk/conditional/processor/scope.ts)) instead of a path, so an output composed before it
+	 * does not select the classes or attributes one composed after it writes.
 	 */
-	static COMPOSITION = '1';
+	static COMPOSITION = '2';
 
 	/**
 	 * The revision of how the public subpaths of an ordinary npm package are delivered: on their own, or as a

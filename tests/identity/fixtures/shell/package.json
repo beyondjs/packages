@@ -1,0 +1,23 @@
+{
+	"name": "@fixture/shell",
+	"version": "1.0.0",
+	"private": true,
+	"description": "An application whose widgets render Vue and Svelte components of another package and of another module of its own, all at the same path inside their modules",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	},
+	"dependencies": {
+		"@fixture/kit": "1.0.0",
+		"@beyond-js/widgets": "*",
+		"@beyond-js/vue-widgets": "*",
+		"@beyond-js/svelte-widgets": "*"
+	}
+}

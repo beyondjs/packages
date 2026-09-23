@@ -3,6 +3,7 @@ import type { Package } from '@beyond-js/packages/package';
 import type { IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Conditions } from '@beyond-js/packages/module';
 import type { IAnalysisConditions } from '../types';
+import { basename, isAbsolute, relative, sep } from 'path';
 
 /**
  * One public module of a pinned package compiled by the bundler the package declares.
@@ -81,13 +82,23 @@ export /*bundle*/ class Composition {
 		const conditional = <Record<string, any>>(<unknown>module.conditionals.get(key));
 		await conditional.ready;
 		if (!conditional.valid || !conditional.output) {
-			const errors = <IDiagnostic[]>(conditional.errors ?? []);
-			errors.forEach(error => diagnostics.push({ ...error, message: `Module "${specifier}": ${error.message}` }));
+			const errors = <(IDiagnostic & { file?: string })[]>(conditional.errors ?? []);
+			errors.forEach(error => diagnostics.push({ ...error, ...this.#located(error.file), message: `Module "${specifier}": ${error.message}` }));
 			!errors.length && diagnostics.push({ code: 'BUNDLE_ERROR', message: `Module "${specifier}" did not produce its output` });
 			return { diagnostics };
 		}
 
 		return { bundled: this.#bundled(conditional, key), diagnostics };
+	}
+
+	/**
+	 * The file a diagnostic names, as a path in the package: where the package was extracted is a fact of
+	 * the machine that compiled it, and a diagnostic is returned to whoever prepared the package
+	 */
+	#located(file?: string): { file?: string } {
+		if (typeof file !== 'string' || !isAbsolute(file)) return {};
+		const path = relative(this.#pkg.path, file);
+		return { file: path && !path.startsWith('..') && !isAbsolute(path) ? path.split(sep).join('/') : basename(file) };
 	}
 
 	/**
@@ -121,11 +132,16 @@ export /*bundle*/ class Composition {
 	 */
 	#inputs(conditional: Record<string, any>): string[] {
 		const files: Set<string> = new Set();
-		const processors = <Map<string, { dependencies?: string[]; sources?: { forEach?: Function } }>>conditional.processors;
+		type Collection = { forEach?(callback: (item: { file?: unknown }) => void): void };
+		const processors = <Map<string, { dependencies?: string[]; sources?: { inputs?: Collection; files?: Collection } }>>conditional.processors;
 
+		// The sources of a processor are its inputs and the files it reads beside them; the dependencies are
+		// what its compiler read on its own, such as the partials of a stylesheet
+		const add = (file: unknown) => typeof file === 'string' && files.add(file);
 		processors?.forEach?.(processor => {
-			processor.dependencies?.forEach(file => typeof file === 'string' && files.add(file));
-			processor.sources?.forEach?.((value: unknown, file: unknown) => typeof file === 'string' && files.add(file));
+			processor.dependencies?.forEach(add);
+			processor.sources?.inputs?.forEach?.(input => add(input?.file));
+			processor.sources?.files?.forEach?.(input => add(input?.file));
 		});
 		return [...files].sort();
 	}

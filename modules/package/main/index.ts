@@ -15,6 +15,13 @@ interface IOptions {
 	 * The workspace the package belongs to, which resolves the public specifiers of its siblings
 	 */
 	workspace?: { resolve(specifier: string): { package: Package; subpath: string } | undefined };
+
+	/**
+	 * The identity of the source the package was read from, independent of where its files are: whoever
+	 * reads a pinned package gives its node key and integrity. Without it the package is identified by its
+	 * name and version, which is what a workspace makes unique.
+	 */
+	identity?: string;
 }
 
 interface IDone {
@@ -37,6 +44,15 @@ export /*bundle*/ class Package extends Attributes {
 	 */
 	get workspace() {
 		return this.#options.workspace;
+	}
+
+	/**
+	 * What tells this package apart from any other source of the same name and version: the identity its
+	 * reader gave, or its name and version. Never derived from where the package is, so the identifiers a
+	 * compilation generates from it are the same wherever the sources were extracted.
+	 */
+	get identity(): string {
+		return this.#options.identity ?? this.vname;
 	}
 
 	#watcher: WatcherClient;

@@ -60,9 +60,15 @@ export class Store {
 		return [...this.#packages].find(([, one]) => one.name === name)?.[0];
 	}
 
-	static node(name, version) {
-		const integrity = `sha512-${createHash('sha512').update(`${name}@${version}`).digest('base64')}`;
-		return { name, version, origin: { provider: 'npm', registry: 'https://registry.npmjs.org/' }, integrity, visibility: 'public' };
+	static NPM = { provider: 'npm', registry: 'https://registry.npmjs.org/' };
+
+	/**
+	 * @param origin The origin the node was pinned from; npm unless a validation pins another source
+	 * @param integrity What the fetch verified; derived from the identity when none is given
+	 */
+	static node(name, version, origin = Store.NPM, integrity) {
+		integrity ??= `sha512-${createHash('sha512').update(`${origin.provider}:${name}@${version}`).digest('base64')}`;
+		return { name, version, origin, integrity, visibility: 'public' };
 	}
 
 	static seal(graph) {
@@ -82,7 +88,7 @@ export class Store {
 	 */
 	get graph() {
 		const keys = [...this.#packages.keys()];
-		const nodes = Object.fromEntries([...this.#packages].map(([key, { name, version }]) => [key, Store.node(name, version)]));
+		const nodes = Object.fromEntries([...this.#packages].map(([key, { name, version, origin, integrity }]) => [key, Store.node(name, version, origin, integrity)]));
 		const edges = keys.flatMap(from => keys.filter(to => to !== from).map(to => ({ from, to, kind: 'dependency', range: '*' })));
 		const app = this.key('@fixture/cards');
 		const roots = [{ name: '@fixture/cards', range: '1.0.0', node: app, targets: ['web'] }];
@@ -93,12 +99,32 @@ export class Store {
 	 * Copies a package into the store and pins it
 	 */
 	async #add(name, from) {
+		return (await this.add(name, from)).directory;
+	}
+
+	/**
+	 * Copies a package into the store and pins it from an origin, which is how a validation places the same
+	 * name and version from two sources in one store
+	 *
+	 * @param origin `{provider, registry}` of the node; npm by default
+	 * @param integrity The integrity the node pins; derived from its key when none is given
+	 * @returns The node key and the directory the package was copied to
+	 */
+	async add(name, from, origin = Store.NPM, integrity) {
 		const manifest = JSON.parse(await readFile(join(from, 'package.json'), 'utf8'));
 		const version = manifest.version ?? '0.0.0';
-		const directory = join(this.#root, name.replace(/[^\w.-]+/g, '_'));
+		const key = `${origin.provider}:${name}@${version}`;
+		const directory = join(this.#root, `${origin.provider}_${name.replace(/[^\w.-]+/g, '_')}`);
 		await cp(from, directory, { recursive: true, filter: source => !/[\\/]node_modules$/.test(source) && !/[\\/]\.git$/.test(source) });
-		this.#packages.set(`npm:${name}@${version}`, { name, version, directory });
-		return directory;
+		this.#packages.set(key, { name, version, directory, origin, integrity });
+		return { key, directory };
+	}
+
+	/**
+	 * Unpins a package, so a graph holds only the source of a name and version a validation selects
+	 */
+	remove(key) {
+		this.#packages.delete(key);
 	}
 
 	/**

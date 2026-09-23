@@ -1,6 +1,6 @@
 import type { Conditional, ProcessorOutputs } from '@beyond-js/packages/sdk';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
-import { ConditionalProcessor } from '@beyond-js/packages/sdk';
+import { ConditionalProcessor, Scope } from '@beyond-js/packages/sdk';
 import { Analyzer } from '@beyond-js/packages/bundlers/ts/processors/ts';
 import { Component } from './component';
 
@@ -28,7 +28,8 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 			}
 
 			const relative = input.relative.file.replace(/\\/g, '/');
-			const compiled = await new Component(input.file, relative, platform).compile(input.content);
+			const scope = `svelte-${new Scope(this.conditional, input.file).hash(10)}`;
+			const compiled = await new Component(input.file, relative, platform, scope).compile(input.content);
 			if (request !== this._request) return;
 
 			compiled.diagnostics.forEach(diagnostic => output.issues.push('errors', diagnostic));

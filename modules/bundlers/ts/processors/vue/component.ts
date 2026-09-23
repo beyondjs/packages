@@ -35,16 +35,22 @@ export class Component {
 	#file: string;
 	#relative: string;
 	#platform: string;
+	#scope: string;
 
 	/**
 	 * @param file The absolute path of the component
 	 * @param relative Its path relative to the module directory, with forward slashes
 	 * @param platform The platform of the conditional: the server render function is generated for `node`
+	 * @param scope The scope id of the component, which its template writes as an attribute and its scoped
+	 * styles select. It must tell this component apart from every other one a page can hold, including a
+	 * component of another package or module at the same relative path, so it is derived from the identity
+	 * of the source and not from the relative path alone.
 	 */
-	constructor(file: string, relative: string, platform: string) {
+	constructor(file: string, relative: string, platform: string, scope: string) {
 		this.#file = file;
 		this.#relative = relative;
 		this.#platform = platform;
+		this.#scope = scope;
 	}
 
 	/**
@@ -62,15 +68,6 @@ export class Component {
 	 */
 	get #sibling(): string {
 		return `./${this.#base.split('/').pop()}`;
-	}
-
-	/**
-	 * The scope id of the component, derived from its file so that it is stable across builds
-	 */
-	get #scope(): string {
-		let hash = 0x811c9dc5;
-		for (let i = 0; i < this.#relative.length; i++) hash = Math.imul(hash ^ this.#relative.charCodeAt(i), 0x01000193) >>> 0;
-		return `data-v-${hash.toString(16).padStart(8, '0')}`;
 	}
 
 	/**

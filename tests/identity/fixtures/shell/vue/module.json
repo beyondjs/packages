@@ -1,0 +1,5 @@
+{
+	"platforms": ["web"],
+	"entry": "index.ts",
+	"widget": { "element": { "name": "shell-vue" } }
+}

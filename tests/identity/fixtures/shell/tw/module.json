@@ -1,0 +1,5 @@
+{
+	"platforms": ["web"],
+	"entry": "index.ts",
+	"tailwind": { "sources": ["index.ts"] }
+}

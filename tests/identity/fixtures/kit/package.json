@@ -1,0 +1,17 @@
+{
+	"name": "@fixture/kit",
+	"version": "1.0.0",
+	"private": true,
+	"description": "A component library whose Vue and Svelte components sit at the same path inside their modules as the components of the application that uses them",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

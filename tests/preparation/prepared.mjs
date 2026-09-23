@@ -14,7 +14,12 @@ export class Prepared {
 	cost;
 	units = new Map();
 
-	static async of(store, compiler, entries, conditions, format) {
+	/**
+	 * @param separate The sources the stylesheet of a module is generated from on its own, as a consumer
+	 * that generates every inventory item in a unit of its own does. Without it the stylesheet is taken
+	 * from the unit of its module.
+	 */
+	static async of(store, compiler, entries, conditions, format, separate) {
 		const prepared = new Prepared();
 		const { graph, sources } = store;
 		const measured = await Analysis.measured({ graph, sources, entries, conditions, compiler, format });
@@ -23,8 +28,10 @@ export class Prepared {
 
 		for (const item of prepared.inventory.items) {
 			// The stylesheet of a module is an output of the unit of that module
-			if (item.kind === 'style' && prepared.inventory.items.some(one => one.id === item.id.replace(/^style:/, 'module:'))) continue;
-			prepared.units.set(item.id, await Generation.unit({ item, graph, sources, conditions, format, compiler }));
+			const owned = item.kind === 'style' && prepared.inventory.items.some(one => one.id === item.id.replace(/^style:/, 'module:'));
+			if (owned && !separate) continue;
+			const from = owned ? separate.sources : sources;
+			prepared.units.set(item.id, await Generation.unit({ item, graph, sources: from, conditions, format, compiler }));
 		}
 		return prepared;
 	}
@@ -75,9 +82,10 @@ export class Prepared {
 
 			// The stylesheet of a module is an output of the unit of that module, in its `styles` family
 			const specifier = Keyed.specifier(item);
+			// A stylesheet generated on its own is preferred to the one the unit of its module produced
 			const owner = item.id.replace(/^style:/, 'module:');
 			const js = this.output(item.id, 'js');
-			const css = this.output(this.units.has(owner) ? owner : item.id, 'css');
+			const css = this.output(item.id.replace(/^module:/, 'style:'), 'css') ?? this.output(owner, 'css');
 
 			if (js && !imports[specifier]) {
 				const path = Prepared.file(item, 'modules');

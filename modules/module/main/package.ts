@@ -9,6 +9,7 @@ export interface Package extends DynamicProcessorImplementation {
 	get name(): string;
 	get version(): string;
 	get vname(): string;
+	get identity(): string;
 	get description(): string;
 	get keywords(): string[];
 	get license(): string;

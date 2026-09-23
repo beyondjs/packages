@@ -103,13 +103,35 @@ export /*bundle*/ class Installed {
 	}
 
 	/**
-	 * Compiles a public module of an installed package. The result is kept for the process: an installed
-	 * package does not change while the service runs.
+	 * Compiles a public module of an installed package. The result is kept while the installation it was
+	 * compiled from stays where it is and unchanged: a name and version do not identify bytes in development,
+	 * where reinstalling from another registry, a patched copy or a new link replaces the files under the same
+	 * version, so the installation located now — its real location and when its manifest was written — is
+	 * part of what the result is kept under, and a replaced one is compiled again.
 	 */
 	module(request: { name: string; version: string; subpath: string }, conditions: IConditions) {
-		const key = JSON.stringify([request.name, request.version, request.subpath, conditions.platform, conditions.environment ?? '']);
-		!this.#compiled.has(key) && this.#compiled.set(key, this.#compile(request, conditions));
+		const root = this.locate(request.name, request.version);
+		const installation = root ? `${root}\n${Installed.#written(root)}` : '';
+		const requested = JSON.stringify([request.name, request.version, request.subpath, conditions.platform, conditions.environment ?? '']);
+		const key = `${requested}\n${installation}`;
+		if (!this.#compiled.has(key)) {
+			// What was compiled from an installation that was replaced is never answered again
+			[...this.#compiled.keys()].filter(one => one.startsWith(`${requested}\n`)).forEach(one => this.#compiled.delete(one));
+			this.#compiled.set(key, this.#compile(request, conditions, root));
+		}
 		return this.#compiled.get(key);
+	}
+
+	/**
+	 * When the manifest of an installation was written, or nothing when it was removed since the package was
+	 * located: a stamp is never a reason for `module()` to throw instead of answering
+	 */
+	static #written(root: string): number | '' {
+		try {
+			return statSync(join(root, 'package.json')).mtimeMs;
+		} catch {
+			return '';
+		}
 	}
 
 	#file(root: string, target: string): string | undefined {
@@ -119,8 +141,7 @@ export /*bundle*/ class Installed {
 		return found && realpathSync(found);
 	}
 
-	async #compile({ name, version, subpath }: { name: string; version: string; subpath: string }, conditions: IConditions) {
-		const root = this.locate(name, version);
+	async #compile({ name, version, subpath }: { name: string; version: string; subpath: string }, conditions: IConditions, root: string | undefined) {
 		if (!root) return { failure: { code: 'PACKAGE_NOT_FOUND', message: `"${name}@${version}" is neither a package of the workspace nor installed for it` } };
 
 		const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));

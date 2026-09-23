@@ -1,6 +1,6 @@
 import type { Conditional, ProcessorOutputs } from '@beyond-js/packages/sdk';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
-import { ConditionalProcessor, ProcessorOutput } from '@beyond-js/packages/sdk';
+import { ConditionalProcessor, ProcessorOutput, Scope } from '@beyond-js/packages/sdk';
 import { Analyzer } from '@beyond-js/packages/bundlers/ts/processors/ts';
 import { FileData } from '@beyond-js/file/data';
 import { DynamicFile } from '@beyond-js/file/dynamic';
@@ -44,7 +44,8 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 			}
 
 			const relative = input.relative.file.replace(/\\/g, '/');
-			const compiled = await new Component(input.file, relative, platform).compile(input.content);
+			const scope = `data-v-${new Scope(this.conditional, input.file).hash(8)}`;
+			const compiled = await new Component(input.file, relative, platform, scope).compile(input.content);
 			if (request !== this._request) return;
 
 			compiled.diagnostics.forEach(diagnostic => output.issues.push('errors', diagnostic));

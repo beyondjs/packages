@@ -24,11 +24,18 @@ export class Component {
 	#file: string;
 	#relative: string;
 	#platform: string;
+	#scope: string;
 
-	constructor(file: string, relative: string, platform: string) {
+	/**
+	 * @param scope The class that scopes the styles of the component. Svelte derives it from the file name
+	 * by default, which is where the sources happen to be: the same component compiled from two extraction
+	 * directories would write one class in its code and select another in its stylesheet.
+	 */
+	constructor(file: string, relative: string, platform: string, scope: string) {
 		this.#file = file;
 		this.#relative = relative;
 		this.#platform = platform;
+		this.#scope = scope;
 	}
 
 	#position(diagnostic: any) {
@@ -47,6 +54,7 @@ export class Component {
 				filename: this.#file,
 				generate: this.#platform === 'node' ? 'server' : 'client',
 				css: 'external',
+				cssHash: () => this.#scope,
 				dev: false
 			});
 		} catch (error) {

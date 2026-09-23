@@ -38,8 +38,15 @@ export /*bundle*/ class SourcePackage extends Opened {
 		return Composition.declared(await this.read(), subpath);
 	}
 
+	/**
+	 * The package is read from the real location of its root, which is how every other location of this
+	 * preparation is compared, and with the identity of its node: what its processors derive the identifiers
+	 * of its components from, so two sources of one name and version never share them and one source yields
+	 * the same ones wherever it was extracted.
+	 */
 	async #specs() {
-		this.#pkg = this.#pkg ?? new Package(this.root);
+		const identity = JSON.stringify([this.key, this.integrity ?? null]);
+		this.#pkg = this.#pkg ?? new Package(realpathSync(this.root), { identity });
 		await this.#pkg.ready;
 		await this.#pkg.modules.ready;
 		return this.#pkg.modules;
