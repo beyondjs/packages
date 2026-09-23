@@ -1,42 +1,56 @@
 import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
-import { ContractError, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
+import { ContractError, Cors, ModulePath, Options, ResourcePath } from '@beyond-js/artifact-api';
 import { Diagnostics, Production, Tag } from './helpers';
 import { Companions } from './companions';
+import { Formats } from './formats';
+import type { Sources } from './sources';
+import { Kinds } from './kinds';
 
 /**
  * The compiled-module routes of the shared contract, answered with the artifacts that Packages builds.
  *
  * Paths and options are read with the codec of `@beyond-js/artifact-api`, the one implementation of the
  * grammar, and one handler serves every spelling of it. This adapter delivers what the development pipeline
- * produces: unminified development ES modules, with an inline source map or none. Any other combination is
- * rejected as OPTION_UNSUPPORTED instead of being answered with output that is not what was asked for, and
- * no companion resource (external map, declarations, styles) is advertised because none is served.
+ * produces: unminified development modules, as ES modules or as `System.register` modules (`format=system`,
+ * converted from the ES module), with an inline source map or none. Any other combination is rejected as
+ * OPTION_UNSUPPORTED instead of being answered with output that is not what was asked for, and no companion
+ * resource (external map, declarations, styles) is advertised because none is served.
+ *
+ * A package is addressed by its source (`Sources`): the workspace and npm unprefixed, another registry by its
+ * id, as its lockfile recorded it.
  */
 export class ModulesRoutes {
 	#delivery: Delivery;
-
 	#companions: Companions;
+	#sources: Sources;
+	#formats: Formats;
 
-	constructor(delivery: Delivery) {
+	/**
+	 * @param sources Which source each package is delivered from
+	 * @param formats The formats a module is answered in, shared with the updates of composed modules
+	 */
+	constructor(delivery: Delivery, sources: Sources, formats: Formats) {
 		this.#delivery = delivery;
-		this.#companions = new Companions(delivery, options => this.#supported(options));
+		this.#sources = sources;
+		this.#formats = formats;
+		this.#companions = new Companions(delivery, options => this.#supported(options), sources);
 	}
 
-	static setup(app: Application, delivery: Delivery) {
-		const routes = new ModulesRoutes(delivery);
+	static setup(app: Application, delivery: Delivery, sources: Sources, formats: Formats) {
+		const routes = new ModulesRoutes(delivery, sources, formats);
 		app.get('/m/*', (request, response, next) => routes.resource(request, response, next));
 	}
 
 	/**
-	 * Compiled modules and their companions may be loaded by a page of another origin, such as an existing
-	 * site that embeds a widget served here: a module script needs the cross-origin header, and a page that
-	 * revalidates needs to read the validator
+	 * Compiled modules, their companions and the resolution documents may be loaded by a page of another origin,
+	 * such as an existing site that embeds a widget served here: a module script needs the cross-origin header,
+	 * a page that revalidates needs to read the validator, and one that fails needs to read why. The headers are
+	 * those of the contract (`Cors`), on every answer, errors included.
 	 */
 	static cors(app: Application) {
 		app.use((request: Request, response: Response, next: NextFunction) => {
-			response.setHeader('Access-Control-Allow-Origin', '*');
-			response.setHeader('Access-Control-Expose-Headers', 'ETag');
+			Object.entries(Cors.headers()).forEach(([name, value]) => response.setHeader(name, value));
 			request.method === 'OPTIONS' ? response.status(204).end() : next();
 		});
 	}
@@ -67,7 +81,7 @@ export class ModulesRoutes {
 		const explicit = 'Request development output explicitly: env=development&min=false&sourcemap=inline';
 		const production = 'Request production output explicitly: env=production&min=true';
 
-		options.format !== 'esm' && unsupported('format', options.format, 'It delivers ES modules: format=esm');
+		!Formats.FORMATS.includes(options.format) && unsupported('format', options.format, 'It delivers ES modules (format=esm) and System.register modules (format=system)');
 		options.env === 'development' && options.min && unsupported('min', options.min, explicit);
 		options.env === 'production' && !options.min && unsupported('min', options.min, production);
 		options.sourcemap === 'external' && unsupported('sourcemap', 'external', explicit);
@@ -82,18 +96,25 @@ export class ModulesRoutes {
 			const query = request.originalUrl.includes('?') ? request.originalUrl.slice(request.originalUrl.indexOf('?') + 1) : '';
 			const options = new Options(new URLSearchParams(query));
 			this.#supported(options);
-
-			if (identity.registry !== 'npm') {
-				const message = `Registry "${identity.registry}" is not served: a development service delivers workspace packages`;
-				throw new ContractError('SOURCE_UNSUPPORTED', message);
-			}
+			await this.#sources.admit(identity);
 
 			const { name, version, subpath } = identity;
+			// A style module has no JavaScript output: the identity is known and this output of it does not exist,
+			// which a published service answers alike for a release that prepared the stylesheet only
+			const stylesheet = ResourcePath.format({ kind: 'style', identity });
+			const workspace = (await this.#delivery.published()).find(one => one.name === name && one.version === version && one.subpath === subpath);
+			if (workspace && (await Kinds.style(workspace))) {
+				throw new ContractError('OUTPUT_NOT_AVAILABLE', `"${identity.specifier}" is a stylesheet and has no JavaScript output: its stylesheet is ${stylesheet}`);
+			}
+
 			const { delivered, failure } = await this.#delivery.module({ name, version, subpath }, options.conditions);
+			const style = failure?.diagnostics?.find(({ code }) => code === 'OUTPUT_NOT_FOUND');
+			if (style) throw new ContractError('OUTPUT_NOT_AVAILABLE', `${style.message}. Its stylesheet is ${stylesheet}`);
 			if (failure) throw new ContractError(failure.code, failure.message, { diagnostics: Diagnostics.shared(failure.diagnostics) });
 			Production.check(options, delivered.key);
 
-			const code = delivered.code(options.sourcemap === 'inline' ? 'inline' : 'none');
+			const map = options.sourcemap === 'inline' ? 'inline' : 'none';
+			const code = this.#formats.code(delivered.code(map), options.format, `${delivered.hash}:${map}`);
 
 			// Development output changes with the sources, so it is revalidated on every request
 			const tag = new Tag(code, 'no-store');

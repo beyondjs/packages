@@ -6,6 +6,7 @@ import { join } from 'path';
 import { realpathSync } from 'fs';
 import { Compiler } from './compiler';
 import { Bundle, type IBundled } from './bundle';
+import { Located } from './located';
 
 /**
  * What the processor leaves for its conditional: the bundle of the whole module, with its stylesheet and
@@ -88,6 +89,8 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 		});
 
 		const { bundled, diagnostics } = await bundle.run();
-		done(bundled, diagnostics);
+		// The development service delivers these maps inline: every source is named by its absolute path
+		const located = new Located(root, realpathSync(module.package.path));
+		done(bundled && Object.assign(bundled, { map: located.map(bundled.map), cssmap: located.map(bundled.cssmap) }), diagnostics);
 	}
 }

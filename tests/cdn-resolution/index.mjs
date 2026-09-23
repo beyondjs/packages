@@ -10,6 +10,7 @@ import { structure } from './structure.mjs';
 import { kinds } from './kinds.mjs';
 import { metadata } from './metadata.mjs';
 import { providers } from './providers.mjs';
+import { visibility } from './visibility.mjs';
 import { contract } from './contract.mjs';
 
 const registry = await new FakeRegistry({ prefix: '/npm' }).start();
@@ -32,6 +33,7 @@ try {
 	await kinds({ registry, pin });
 	await metadata({ registry, pin });
 	await providers({ registry, pin, documents });
+	await visibility({ registry, documents });
 	await contract({ documents });
 } finally {
 	await registry.stop();

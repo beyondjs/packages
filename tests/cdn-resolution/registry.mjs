@@ -33,6 +33,11 @@ export class FakeRegistry {
 	#token;
 	#metadata;
 	#faults = new Map();
+	// On a registry with a token: packages it also answers without one, the archives it keeps behind the token
+	// even so, and the releases whose anonymous metadata differs from what the token reads
+	#open = new Set();
+	#sealed = new Set();
+	#skewed = new Set();
 
 	requests = { packument: 0, manifest: 0, tarball: 0, other: 0 };
 	// Every request: type, path and whether it carried the expected credential
@@ -51,11 +56,28 @@ export class FakeRegistry {
 	 * @param options.token Bearer token every request must carry
 	 * @param options.metadata 'full' (default) publishes release manifests in the package metadata;
 	 *   'versions' publishes only the version list, so each manifest needs its own request
+	 * @param options.open Packages a registry with a token also answers anonymously: public packages of an
+	 *   authenticated registry
 	 */
-	constructor({ prefix = '', token, metadata = 'full' } = {}) {
+	constructor({ prefix = '', token, metadata = 'full', open = [] } = {}) {
 		this.#prefix = prefix;
 		this.#token = token;
 		this.#metadata = metadata;
+		open.forEach(name => this.#open.add(name));
+	}
+
+	/**
+	 * Keeps the archives of an open package behind the token: its metadata stays anonymous
+	 */
+	seal(name) {
+		this.#sealed.add(name);
+	}
+
+	/**
+	 * Answers anonymous clients another integrity for a release than the one the token reads
+	 */
+	skew(name, version) {
+		this.#skewed.add(`${name}@${version}`);
 	}
 
 	/**
@@ -104,10 +126,11 @@ export class FakeRegistry {
 		return `${name.split('/').pop()}-${version}.tgz`;
 	}
 
-	#manifest(name, version) {
+	#manifest(name, version, credential = true) {
 		const { manifest, integrity, shasum } = this.#packages.get(name).get(version);
 		const tarball = `${this.url}/${name}/-/${this.#file(name, version)}`;
-		return { ...manifest, dist: { tarball, integrity, shasum } };
+		const skewed = !credential && this.#skewed.has(`${name}@${version}`);
+		return { ...manifest, dist: { tarball, integrity: skewed ? `sha512-${'A'.repeat(86)}==` : integrity, shasum } };
 	}
 
 	#handle(request, response) {
@@ -117,8 +140,9 @@ export class FakeRegistry {
 		};
 
 		const url = new URL(request.url, 'http://registry');
-		const authorized = !this.#token || request.headers.authorization === `Bearer ${this.#token}`;
+		const credential = !this.#token || request.headers.authorization === `Bearer ${this.#token}`;
 		const path = decodeURIComponent(url.pathname);
+		let authorized = credential;
 		const record = type => {
 			this.requests[type]++;
 			this.log.push({ type, path, authorized, credential: !!request.headers.authorization });
@@ -131,6 +155,10 @@ export class FakeRegistry {
 		// A scoped name has a slash of its own: the package document is recognized before a release
 		const packument = /^((?:@[^/]+\/)?[^/]+)$/.exec(rest);
 		const manifest = !packument && /^((?:@[^/]+\/)?[^/]+)\/([^/]+)$/.exec(rest);
+
+		// An open package is answered without the token, except a sealed archive
+		const name = (tarball || manifest || packument)?.[1];
+		authorized ||= this.#open.has(name) && !(tarball && this.#sealed.has(name));
 		record(tarball ? 'tarball' : manifest ? 'manifest' : packument ? 'packument' : 'other');
 
 		if (!authorized) return send(401, { error: 'authentication required' });
@@ -162,7 +190,7 @@ export class FakeRegistry {
 		if (manifest) {
 			const [, name, version] = manifest;
 			if (!this.#packages.get(name)?.has(version)) return send(404, { error: 'not found' });
-			return send(200, this.#manifest(name, version));
+			return send(200, this.#manifest(name, version, credential));
 		}
 
 		if (packument) {
@@ -172,7 +200,7 @@ export class FakeRegistry {
 
 			const document = { name, 'dist-tags': {}, versions: {} };
 			for (const version of versions.keys()) {
-				document.versions[version] = this.#metadata === 'full' ? this.#manifest(name, version) : null;
+				document.versions[version] = this.#metadata === 'full' ? this.#manifest(name, version, credential) : null;
 			}
 			return send(200, document);
 		}

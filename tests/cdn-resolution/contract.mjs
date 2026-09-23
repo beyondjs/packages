@@ -38,9 +38,13 @@ export async function contract({ documents }) {
 			assert.equal(digest, `sha256-${createHash('sha256').update(canonical(document)).digest('hex')}`);
 
 			const excepted = new Set(document.exceptions.map(({ node }) => node));
+			// A registry key names the release; a git key its repository and commit; a digest key its content
 			for (const [key, node] of Object.entries(document.nodes)) {
-				assert.ok(key.endsWith(`:${node.name}@${node.version}`), key);
+				if (key.startsWith('git:')) assert.match(key, /^git:[a-z0-9.:-]+\/[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+@[0-9a-f]{40}$/);
+				else if (key.startsWith('digest:')) assert.match(key, /^digest:(sha256-[0-9a-f]{64}|sha512-[0-9a-f]{128})$/);
+				else assert.ok(key.endsWith(`:${node.name}@${node.version}`), key);
 				assert.ok(node.integrity !== null || excepted.has(key), `${key} has no integrity and is no exception`);
+				assert.equal(node.access === 'anonymous', node.visibility === 'public' && node.access !== void 0, key);
 			}
 			for (const { from, to, context, kind } of document.edges) {
 				assert.ok(document.nodes[from], from);

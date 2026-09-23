@@ -20,6 +20,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 export class Prepared {
 	inventory;
 	cost;
+	/** The pinned graph the inventory was traced over, which names the package of each item */
+	graph;
 	units = new Map();
 
 	static async of(store, compiler, entries, conditions, format) {
@@ -28,6 +30,7 @@ export class Prepared {
 		const measured = await Analysis.measured({ graph, sources, entries, conditions, compiler, format });
 		prepared.inventory = measured.inventory;
 		prepared.cost = measured.cost;
+		prepared.graph = graph;
 		for (const item of prepared.inventory.items) {
 			// The stylesheet of a module is an output of the unit of that module
 			if (item.kind === 'style' && prepared.inventory.items.some(one => one.id === item.id.replace(/^style:/, 'module:'))) continue;
@@ -47,7 +50,7 @@ export class Prepared {
 		const code = new Map();
 		for (const item of this.inventory.items) {
 			const js = this.units.get(item.id)?.outputs.find(({ kind }) => kind === 'js');
-			js && code.set(Keyed.specifier(item), js.code);
+			js && code.set(Keyed.specifier(item, this.graph), js.code);
 		}
 		return code;
 	}

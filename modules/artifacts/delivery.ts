@@ -25,6 +25,12 @@ export /*bundle*/ interface IDeliveryFailure {
 	code: 'PACKAGE_NOT_FOUND' | 'VERSION_MISMATCH' | 'MODULE_NOT_FOUND' | 'BUILD_FAILED' | 'OUTPUT_NOT_AVAILABLE';
 	message: string;
 	diagnostics?: IDiagnostic[];
+
+	/**
+	 * The hash of the stylesheet of a style module, whose code is the output that is not available: the module
+	 * built, and its stylesheet is served as a companion
+	 */
+	styles?: string;
 }
 
 /**
@@ -63,6 +69,12 @@ export /*bundle*/ interface IDelivered {
 	 * stylesheet alone, so a consumer replaces the stylesheet of a module whose code did not change.
 	 */
 	styles?: string;
+
+	/**
+	 * The stylesheets the sources select by specifier (`pkg/sub.css`). They are not in the code: a document
+	 * links them, and the runtime adopts them with the styles of a composed module
+	 */
+	stylesheets?: string[];
 
 	/**
 	 * The registration of the widget the module declares, when it is one
@@ -201,6 +213,7 @@ export /*bundle*/ class Delivery {
 			key: 'installed',
 			dependencies: module.dependencies.map(specifier => ({ specifier, source: 'external' })),
 			styles: styles?.hash,
+			...(module.stylesheets.length ? { stylesheets: module.stylesheets } : {}),
 			code,
 			patch: () => void 0
 		};
@@ -264,6 +277,10 @@ export /*bundle*/ class Delivery {
 
 		const compilation = new Compilation(selected.package, subpath, new Conditions(conditions), this.#dependencies);
 		await compilation.run();
+		// A style module builds its stylesheet and no code: the module exists, and this output of it does not
+		if (!compilation.valid && compilation.styles) {
+			return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: compilation.errors[0].message, diagnostics: compilation.errors, styles: compilation.styles.hash } };
+		}
 		if (!compilation.valid) {
 			const message = `Module "${selected.specifier}" does not build: ${compilation.errors[0].message}`;
 			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
@@ -278,6 +295,7 @@ export /*bundle*/ class Delivery {
 				dependencies: compilation.dependencies,
 				runtime: conditional.artifact.runtime,
 				styles: conditional.styles?.hash,
+				...(conditional.artifact.stylesheets ? { stylesheets: conditional.artifact.stylesheets } : {}),
 				widget: conditional.artifact.widget,
 				code: sourcemap => conditional.output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
 				patch: () => conditional.patch?.code('sourcemap-inline')

@@ -90,9 +90,20 @@ export class Assembler {
 	}
 
 	/**
-	 * The bare specifiers the internal modules require, as their sources wrote them, in a stable order
+	 * The bare specifiers of code the internal modules require, as their sources wrote them, in a stable order
 	 */
 	#required: string[];
+
+	#stylesheets: string[];
+
+	/**
+	 * The stylesheets the sources select (`pkg/sub.css`), in a stable order. They are not imported: the
+	 * specification of the bundle names them, so that whoever adopts the styles of the module adopts them
+	 * too, and whoever delivers the module links them.
+	 */
+	get stylesheets() {
+		return this.#stylesheets;
+	}
 
 	#dependencies: string[];
 
@@ -129,7 +140,8 @@ export class Assembler {
 
 		const required = new Set<string>();
 		ims.forEach(({ output }) => output.code.dependencies.forEach(dependency => required.add(dependency)));
-		this.#required = [...required].sort();
+		this.#stylesheets = [...required].filter(specifier => specifier.endsWith('.css')).sort();
+		this.#required = [...required].filter(specifier => !specifier.endsWith('.css')).sort();
 
 		const dependencies = new Set(this.#required.map(specifier => this.#compatibility.resolve(specifier)));
 		this.#widget && dependencies.add(WIDGETS);
@@ -204,6 +216,7 @@ export class Assembler {
 	get #specs(): string {
 		const specs: Record<string, unknown> = { module: { vspecifier: this.#vspecifier }, type: this.#widget ? 'widget' : 'ts' };
 		this.#styles && (specs.styles = true);
+		this.#stylesheets.length && (specs.stylesheets = this.#stylesheets);
 		return JSON.stringify(specs);
 	}
 
@@ -226,7 +239,9 @@ export class Assembler {
 		// 2. The runtime package: created by the artifact, obtained by the update
 		if (!hmr) {
 			add('const { Bundle: __Bundle } = dependency_0;');
-			add(`const __pkg = new __Bundle(${this.#specs}, import.meta.url).package();`);
+			// The stylesheets the module selects are addressed where the loader of the page resolves them
+			const resolve = this.#stylesheets.length ? ', specifier => import.meta.resolve(specifier)' : '';
+			add(`const __pkg = new __Bundle(${this.#specs}, import.meta.url${resolve}).package();`);
 		} else {
 			add('const { instances: __instances } = dependency_0;');
 			add(`const __bundle = __instances.get('${this.#vspecifier}');`);
@@ -244,6 +259,8 @@ export class Assembler {
 			.map(specifier => ({ specifier, resolved: this.#compatibility.resolve(specifier) }))
 			.filter(({ resolved }) => resolved !== runtime)
 			.map(({ specifier, resolved }) => `['${specifier}', dependency_${index(resolved)}]`);
+		// A stylesheet a source requires for its effect binds nothing: its require answers an empty namespace
+		this.#stylesheets.forEach(specifier => registrations.push(`['${specifier}', {}]`));
 		add(`__pkg.dependencies.update([${registrations.join(', ')}]);`);
 		add('');
 

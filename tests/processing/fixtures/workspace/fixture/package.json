@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/processing",
+	"version": "1.0.0",
+	"exports": {
+		"./sound": "./sound/index.js",
+		"./thrown": "./thrown/index.js",
+		"./rejected": "./rejected/index.js",
+		"./faulty": "./faulty/index.js"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "fixture"
+	},
+	"bundlers": {
+		"fixture": {
+			"specifier": "FIXTURE_BUNDLER"
+		}
+	}
+}

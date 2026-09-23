@@ -75,7 +75,7 @@ export /*bundle*/ class Target {
 		const facade = shared?.source ?? this.#module.facade;
 		const entries = await this.#opened.entries(conditions, subpath);
 
-		const styles = async (specifier: string) => (await this.#pinned.land(this.#opened.key, specifier)).module?.kind === 'style';
+		// A stylesheet is selected by its `.css` specifier, which the boundary removes from the code on its own
 		return await new Bundle(compiler, {
 			root: directory,
 			entry,
@@ -86,8 +86,7 @@ export /*bundle*/ class Target {
 			environment: conditions.environment,
 			conditions: this.#module.conditions,
 			mode,
-			minify,
-			styles
+			minify
 		}).run();
 	}
 }

@@ -45,7 +45,7 @@ try {
 		for (const bare of ['@fixture/ui/widget', '@fixture/ui/chart', 'fake-react', 'fake-react-dom']) assert.ok(code.includes(`"${bare}"`), `${bare} stays bare`);
 		assert.ok(!code.includes('WIDGET_SOURCE_MARKER') && !code.includes('Invalid hook call'), 'No other public module is inlined');
 		assert.ok(!code.includes('@fixture/ui/theme'), 'A stylesheet reference is not an import of the code');
-		assert.deepEqual(relations.references.find(({ kind }) => kind === 'style'), { specifier: '@fixture/ui/theme', kind: 'style', package: UI, subpath: 'theme', builtin: undefined });
+		assert.deepEqual(relations.references.find(({ kind }) => kind === 'style'), { specifier: '@fixture/ui/theme.css', kind: 'style', package: UI, subpath: 'theme', builtin: undefined });
 		assert.equal(main.provenance.inputs.compiler.name, 'esbuild');
 		assert.equal(main.provenance.inputs.resolution['fake-react'], 'npm:fake-react@18.0.0');
 		return `compiler ${main.provenance.compiler.version}, ${widget.outputs.length} outputs for ./widget in ${widget.provenance.ms} ms`;

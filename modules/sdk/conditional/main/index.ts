@@ -45,7 +45,7 @@ export /*bundle*/ abstract class Conditional extends BaseConditional {
 		return this.#warnings.concat(super.warnings, this.#processors?.warnings ?? []);
 	}
 	get valid(): boolean {
-		return !this.#errors?.length && this.#processors.valid;
+		return !this.#errors?.length && this.#processors.valid && super.valid;
 	}
 
 	/**

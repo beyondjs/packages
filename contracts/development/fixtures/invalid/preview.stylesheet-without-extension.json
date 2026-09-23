@@ -1,0 +1,80 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"origin": "https://cdn.example.test"
+	},
+	"selection": {
+		"explicit": true
+	},
+	"modules": [
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/app@1.0.0/main",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"stylesheets": [
+				{
+					"specifier": "@example/theme/base",
+					"vspecifier": "@example/theme@2.0.0/base",
+					"url": "https://cdn.example.test/m/registry-packages-example-test-0123456789abcdef0123456789abcdef/@example/theme@2.0.0/styles/base?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+				}
+			],
+			"scope": "document"
+		},
+		{
+			"specifier": "@example/legacy/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/legacy@1.0.0/main",
+			"url": "../m/@example/legacy@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "library",
+			"source": "environment",
+			"version": "1.2.0",
+			"vspecifier": "library@1.2.0",
+			"url": "../m/registry-packages-example-test-0123456789abcdef0123456789abcdef/library@1.2.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "library",
+			"source": "environment",
+			"version": "2.0.0",
+			"vspecifier": "library@2.0.0",
+			"url": "../m/library@2.0.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "tool",
+			"source": "unresolved",
+			"version": "1.0.0",
+			"reason": "\"tool\" was installed from Git (git+ssh://git@github.com/example/tool.git), which has no registry address"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/theme/base.css": "https://cdn.example.test/m/registry-packages-example-test-0123456789abcdef0123456789abcdef/@example/theme@2.0.0/styles/base?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false",
+			"@example/legacy/main": "../m/@example/legacy@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"library": "../m/library@2.0.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		"scopes": {
+			"../m/@example/legacy@1.0.0/": {
+				"library": "../m/registry-packages-example-test-0123456789abcdef0123456789abcdef/library@1.2.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+			}
+		}
+	},
+	"updates": {
+		"reason": "The runtime of the application (none) has no development coordinator in this workspace or on the CDN, so nothing applies updates to the running page"
+	},
+	"diagnostics": [
+		{
+			"code": "PREVIEW_SOURCE_UNSUPPORTED",
+			"message": "\"tool\", imported by \"@example/app/main\": \"tool\" was installed from Git (git+ssh://git@github.com/example/tool.git), which has no registry address"
+		}
+	]
+}

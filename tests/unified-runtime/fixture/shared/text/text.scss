@@ -1,0 +1,7 @@
+// The stylesheet of `@fixture/shared/text`. The validations change the ink to follow the stylesheet through
+// its updates, and name an undefined variable to see that the last valid stylesheet is kept.
+$ink: rgb(10, 20, 30);
+
+.fixture-text {
+	color: $ink;
+}

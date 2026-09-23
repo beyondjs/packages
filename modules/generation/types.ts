@@ -34,8 +34,9 @@ export /*bundle*/ interface IRelations {
 
 	/**
 	 * The public modules the code references, as bare specifiers it still contains, with the node of the
-	 * graph that satisfies each one and its subpath as the inventory writes it. A `style` reference was removed from the code: whoever delivers the
-	 * module links that stylesheet.
+	 * graph that satisfies each one and its subpath as the inventory writes it. A `style` reference is a
+	 * stylesheet the code selected (`pkg/sub.css`), removed from the code: it names the CSS output of the
+	 * public module `subpath`, and whoever delivers the module links it.
 	 */
 	references?: { specifier: string; kind: 'eager' | 'lazy' | 'style'; package?: string; subpath?: string; builtin?: boolean }[];
 
@@ -48,6 +49,18 @@ export /*bundle*/ interface IRelations {
 	 * The static files the output addresses as `../assets/<path>`, by their path inside the package
 	 */
 	assets?: { package: string; path: string }[];
+
+	/**
+	 * The code of a widget: it adopts its stylesheets, and the ones its non-widget dependencies select, inside
+	 * a root of its own, so a document does not link them
+	 */
+	widget?: boolean;
+
+	/**
+	 * The shared stylesheet of the package of a widget, its `./global` style module, which the widget adopts in
+	 * its root before its own sheets. The inventory holds it as a `style` item the widget reaches.
+	 */
+	global?: { package: string; subpath: string };
 }
 
 export /*bundle*/ interface IOutput {

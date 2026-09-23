@@ -180,16 +180,20 @@ export async function providers({ registry, documents }) {
 
 			const [ui] = Object.values(document.nodes).filter(({ name }) => name === '@acme/ui');
 			const [base] = Object.values(document.nodes).filter(({ name }) => name === 'diamond-base');
-			assert.equal(ui.visibility, 'private');
+			// The registry answers nothing without the token: the anonymous probe keeps the release private
+			assert.deepEqual([ui.visibility, ui.access], ['private', 'credential']);
 			assert.equal(ui.origin.registry, `${restricted.url}/`);
-			assert.match(ui.origin.provider, /^registry-127-0-0-1-\d+-private-npm-[0-9a-f]{8}$/);
+			assert.match(ui.origin.provider, /^registry-127-0-0-1-\d+-private-npm-[0-9a-f]{32}$/);
 			assert.ok(ui.tarball.startsWith(`${restricted.url}/@acme/ui/-/`));
 			assert.match(ui.integrity, /^sha512-/);
 			assert.equal(base.visibility, 'public');
 			assert.equal(base.origin.registry, `${registry.url}/`);
 			assert.notEqual(base.origin.provider, ui.origin.provider);
 
-			assert.ok(restricted.log.length && restricted.log.every(({ authorized }) => authorized));
+			// Every request with the credential was authorized; the anonymous probe was refused and carried none
+			const credentialed = restricted.log.filter(({ credential }) => credential);
+			assert.ok(credentialed.length && credentialed.every(({ authorized }) => authorized));
+			assert.ok(restricted.log.filter(({ credential }) => !credential).every(({ authorized, type }) => !authorized && type === 'packument'));
 			assert.ok(
 				registry.log.length && registry.log.every(({ credential }) => !credential),
 				'a credential reached the public registry'

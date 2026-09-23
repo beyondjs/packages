@@ -13,6 +13,11 @@ export /*bundle*/ interface IAuthorizer {
 	authorize(pkg: string, url: string): Promise<Record<string, string>>;
 }
 
+/**
+ * How an archive is requested: the global `fetch`, or a transport the consumer injects
+ */
+export /*bundle*/ type SourcesTransport = (url: string, init?: RequestInit) => Promise<Response>;
+
 export interface IDownloadOutcome {
 	result?: ISourceResult;
 	diagnostic?: ISourceDiagnostic;
@@ -28,12 +33,14 @@ export class Download {
 	#limits: Limits;
 	#authorizer?: IAuthorizer;
 	#tenant?: string;
+	#transport: SourcesTransport;
 
-	constructor(store: IStore, limits: Limits, authorizer?: IAuthorizer, tenant?: string) {
+	constructor(store: IStore, limits: Limits, authorizer?: IAuthorizer, tenant?: string, transport?: SourcesTransport) {
 		this.#store = store;
 		this.#limits = limits;
 		this.#authorizer = authorizer;
 		this.#tenant = tenant;
+		this.#transport = transport || fetch;
 	}
 
 	/**
@@ -73,9 +80,10 @@ export class Download {
 			);
 		}
 
-		// What is downloaded with credentials is private, whatever the graph says
-		const headers = (await this.#authorizer?.authorize(name, tarball)) || {};
-		const restricted = pinned.visibility !== 'public' || Object.keys(headers).length > 0;
+		// The scope follows the node: a public node is downloaded without any credential, whoever holds one, and
+		// only a private node asks the authorizer for the credential of its provider
+		const restricted = pinned.visibility !== 'public';
+		const headers = restricted ? (await this.#authorizer?.authorize(name, tarball)) || {} : {};
 		if (restricted && !this.#tenant) {
 			throw new Refusal('TENANT_REQUIRED', `"${name}@${version}" is private: a tenant is required to store it`);
 		}
@@ -127,8 +135,10 @@ export class Download {
 
 		let response: Response;
 		try {
-			response = await fetch(url, { headers, signal });
-		} catch {
+			response = await this.#transport(url, { headers, signal });
+		} catch (error) {
+			// A transport that refuses a destination says so with a code of its own
+			if (error?.code === 'DESTINATION_REFUSED') throw new Refusal(error.code, String(error.message));
 			throw new Refusal('DOWNLOAD_FAILED', `The archive of "${what}" could not be requested to ${host}`);
 		}
 

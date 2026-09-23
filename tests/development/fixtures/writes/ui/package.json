@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/writes",
+	"version": "0.1.0",
+	"private": true,
+	"description": "A Vue component with a stylesheet of its module, which the writes validation breaks and corrects in quick succession",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	},
+	"dependencies": {
+		"vue": "^3.5.0"
+	}
+}

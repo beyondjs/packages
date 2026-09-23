@@ -1,5 +1,5 @@
 import { Widget } from '@fixture/ui/widget';
-import '@fixture/ui/theme';
+import '@fixture/ui/theme.css';
 import { createElement, useState } from 'fake-react';
 import { render } from 'fake-react-dom';
 export const marker: string = 'APP_MAIN_SOURCE_MARKER';

@@ -12,6 +12,10 @@ export /*bundle*/ interface INodeRelease {
 	via?: 'packument' | 'manifest';
 	// The archive of a release whose manifest does not publish one (a git commit)
 	tarball?: string;
+	// The integrity of an archive URL: the one it declares, or the one of its download when it declares none
+	integrity?: string;
+	// True when the archive URL declares no integrity and was downloaded once to pin it
+	downloaded?: boolean;
 }
 
 /**
@@ -22,14 +26,24 @@ export class Release implements INodeRelease {
 	provider?: IProviderIdentity;
 	via?: 'packument' | 'manifest';
 	tarball?: string;
+	integrity?: string;
+	downloaded?: boolean;
 
 	/**
 	 * @returns Why the release could not be described, if so
 	 */
 	async load(packages: IPackageProviders, source: DependencySource, version: string): Promise<IDiagnostic | void> {
-		// The content of an archive URL is only known once fetched
-		if (source.data.is === DependencySourceIsType.Url) {
+		// The content of an archive URL is only known once fetched: its integrity is the declared one, or the one
+		// its pinning download computed (the same download, answered once per resolution)
+		const { data } = source;
+		if (data.is === DependencySourceIsType.Url) {
 			this.provider = typeof packages.describe === 'function' ? await packages.describe(source) : void 0;
+			this.integrity = data.integrity;
+			if (data.integrity !== void 0 || typeof packages.archive !== 'function') return;
+
+			const { integrity, error } = await packages.archive(source);
+			if (error) return error;
+			Object.assign(this, { integrity, downloaded: true });
 			return;
 		}
 

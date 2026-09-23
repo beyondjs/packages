@@ -1,0 +1,8 @@
+// The stylesheet of the document, linked in its head because the entry module is not a widget. The
+// validations change the ink to follow the link through its updates, and name an undefined variable to see
+// that the last valid stylesheet is kept.
+$ink: rgb(10, 20, 30);
+
+body {
+	color: $ink;
+}

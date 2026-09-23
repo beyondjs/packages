@@ -1,0 +1,14 @@
+{
+	"name": "fixture-sheets",
+	"version": "1.0.0",
+	"description": "An ordinary npm package that publishes stylesheets under several spellings",
+	"exports": {
+		"./base.css": "./base.css",
+		"./theme": "./theme.css",
+		"./tone": "./tone.css",
+		"./tone.css": "./other.css",
+		"./code": "./code.js",
+		"./dual": "./dual.css",
+		"./dual.css": "./dual.css"
+	}
+}

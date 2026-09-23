@@ -2,12 +2,13 @@ import type { DependencyPackage } from '../..';
 import type { Node } from '../../../../node';
 import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
-const SRI = /^(sha512|sha384|sha256|sha1)-([A-Za-z0-9+/]+={0,2})$/;
+const SRI = /^(sha512|sha256)-([A-Za-z0-9+/]+={0,2})$/;
 
 /**
  * Occurrences whose release is fixed by the source itself instead of selected from a range: a git
- * reference pinned to a commit, and an archive URL pinned by its content integrity. A source that cannot
- * be pinned is reported on the occurrence; nothing is ever pinned to a placeholder.
+ * reference pinned to a commit, and an archive URL pinned by its content integrity, the one it declares or,
+ * without one, the one of the archive downloaded once. A source that cannot be pinned is reported on the
+ * occurrence; nothing is ever pinned to a placeholder.
  */
 export class FixedNodes extends Map<string, Array<Node>> {
 	#package: DependencyPackage;
@@ -40,12 +41,24 @@ export class FixedNodes extends Map<string, Array<Node>> {
 		}
 
 		if (data.is === DependencySourceIsType.Url) {
-			const match = SRI.exec(data.integrity || '');
+			// The declared integrity pins the content; without one, the archive is downloaded once and its
+			// digest pins it
+			let integrity = data.integrity;
+			if (integrity === void 0) {
+				if (typeof packages.archive !== 'function') {
+					return { error: this.#unsupported('The package providers of the project cannot pin archive URLs') };
+				}
+				const pinned = await packages.archive(node.source);
+				if (pinned.error) return { error: pinned.error };
+				integrity = pinned.integrity;
+			}
+
+			const match = SRI.exec(integrity || '');
 			if (!match) {
-				const code = 'INTEGRITY_REQUIRED';
+				const code = 'INTEGRITY_UNSUPPORTED';
 				const message =
-					`The archive URL required for "${node.package}" must declare its content integrity as the ` +
-					`URL fragment ("#sha512-…"): its content cannot be pinned otherwise`;
+					`The integrity the archive URL of "${node.package}" declares as its fragment must be one ` +
+					`sha512 or sha256 value ("#sha512-…"): its content cannot be pinned otherwise`;
 				return { error: { code, message } };
 			}
 

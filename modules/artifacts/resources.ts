@@ -64,12 +64,12 @@ export /*bundle*/ class Resources {
 
 		const compilation = new Compilation(selected.package, subpath, new Conditions(conditions), this.#dependencies);
 		await compilation.run();
-		if (!compilation.valid) {
+		// A style module builds a stylesheet and no code, so its compilation is not valid and its stylesheet is
+		const { styles } = compilation;
+		if (!compilation.valid && !styles) {
 			const message = `Module "${selected.specifier}" does not build: ${compilation.errors[0].message}`;
 			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
 		}
-
-		const styles = (<{ styles?: ConditionalOutput }>(<unknown>compilation.conditional)).styles;
 		if (styles) return { styles, key: compilation.key };
 		return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${selected.specifier}" produces no stylesheet` } };
 	}

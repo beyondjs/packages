@@ -2,6 +2,7 @@ import type { Package } from '@beyond-js/packages/package';
 import type { BaseModule } from '@beyond-js/packages/module';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { ESMConditional } from '@beyond-js/packages/sdk';
+import type { ConditionalOutput } from '@beyond-js/packages/module/output';
 import type { IArtifactDependency } from './types';
 import type { Conditions } from '@beyond-js/packages/module';
 import type { Dependencies } from './dependencies';
@@ -56,6 +57,16 @@ export /*bundle*/ class Compilation {
 		return this.valid ? this.#conditional : void 0;
 	}
 
+	#styles: ConditionalOutput;
+
+	/**
+	 * The stylesheet of the module, when it built one. A style module builds a stylesheet and no code: its
+	 * compilation is not `valid` (there is no code to publish, `OUTPUT_NOT_FOUND`) and its stylesheet is here.
+	 */
+	get styles(): ConditionalOutput | undefined {
+		return this.valid ? this.#conditional.styles : this.#styles;
+	}
+
 	#key: string;
 
 	/**
@@ -90,6 +101,7 @@ export /*bundle*/ class Compilation {
 		const module = this.#module;
 		this.#errors = [];
 		this.#conditional = void 0;
+		this.#styles = void 0;
 
 		await module.conditionals.ready;
 		const key = this.#conditions.select(module);
@@ -109,6 +121,11 @@ export /*bundle*/ class Compilation {
 		this.#key = key;
 		const conditional = <ESMConditional>module.conditionals.get(key);
 		await conditional.ready;
+		if (conditional.valid && !conditional.output && conditional.styles) {
+			this.#styles = conditional.styles;
+			this.#errors.push({ code: 'OUTPUT_NOT_FOUND', message: `Module "${specifier}" is a stylesheet and has no JavaScript output` });
+			return this;
+		}
 		if (!conditional.valid || !conditional.output) {
 			const prefix = `Module "${specifier}": `;
 			conditional.errors.forEach(error => this.#errors.push({ ...error, message: prefix + error.message }));

@@ -36,9 +36,10 @@ export /*bundle*/ interface IPinParams {
 }
 
 export /*bundle*/ interface IGraphOrigin {
-	// Identifier of the provider: `npm`, `github`, or one derived from the address of another registry
+	// Identifier of the provider: `npm`, `registry-<slug>-<digest>` for another registry, `git-<slug>-<digest>`
+	// for a repository at a commit, `digest` for an archive URL
 	provider: string;
-	// Canonical base of the registry or host, never with credentials
+	// Canonical base of the registry or the repository, never with credentials
 	registry?: string;
 }
 
@@ -55,7 +56,11 @@ export /*bundle*/ interface IGraphNode {
 	name: string;
 	version: string;
 	origin: IGraphOrigin;
+	// `public` when the release is served without credentials, `private` otherwise and on any doubt
 	visibility: 'public' | 'private';
+	// Present only for a release read with a credential: `anonymous` when an anonymous probe found the same
+	// release and archive (the node is public and fetched without the credential), `credential` otherwise
+	access?: 'anonymous' | 'credential';
 	// Subresource integrity of the archive. Null only for a node listed in `exceptions`
 	integrity: string | null;
 	// The archive URL the provider publishes for this release
@@ -90,7 +95,9 @@ export /*bundle*/ interface IGraphOverride {
 
 export /*bundle*/ interface IGraphException {
 	node: string;
-	kind: 'manifest-fetch';
+	// `manifest-fetch`: a manifest needed a request of its own; `archive-fetch`: an archive URL without an
+	// integrity was downloaded once to pin its digest
+	kind: 'manifest-fetch' | 'archive-fetch';
 	provider: string;
 	reason: string;
 }

@@ -10,11 +10,13 @@ Each directory under `fixtures/` is one extracted package, copied unchanged into
 
 | Directory | Package | Entry modules and relevant files | Intended behavior |
 | --- | --- | --- | --- |
-| [`app`](fixtures/app) | `@fixture/app@1.0.0`, Beyond sources (`beyond.publication.form: source`) | `./main` → [`main/index.ts`](fixtures/app/main/index.ts); `./admin` → `admin/index.ts` | `./main` is the traced entry: it imports `@fixture/ui/widget`, the style module `@fixture/ui/theme`, `fake-react` and `fake-react-dom`, dynamically imports `@fixture/ui/chart`, and has one dynamic import of an unknown specifier (`'@fixture/plugins/' + name`, the intended `DYNAMIC_IMPORT_UNKNOWN`). `./admin` is never reached |
+| [`app`](fixtures/app) | `@fixture/app@1.0.0`, Beyond sources (`beyond.publication.form: source`) | `./main` → [`main/index.ts`](fixtures/app/main/index.ts); `./admin` → `admin/index.ts` | `./main` is the traced entry: it imports `@fixture/ui/widget`, selects the stylesheet of the style module `@fixture/ui/theme` (`@fixture/ui/theme.css`), imports `fake-react` and `fake-react-dom`, dynamically imports `@fixture/ui/chart`, and has one dynamic import of an unknown specifier (`'@fixture/plugins/' + name`, the intended `DYNAMIC_IMPORT_UNKNOWN`). `./admin` is never reached |
 | [`ui`](fixtures/ui) | `@fixture/ui@2.0.0`, Beyond sources | `./widget` → [`widget/index.ts`](fixtures/ui/widget/index.ts) with `label.ts`, [`widget.css`](fixtures/ui/widget/widget.css), `logo.svg`, `fonts/fixture.woff2` and [`module.json`](fixtures/ui/widget/module.json) declaring both assets; `./chart`, `./theme` (`theme/index.css`), `./extra`, `./unused` | `./widget` is eager with a stylesheet whose `url()` references reach the declared logo and font; `./chart` is lazy; `./theme` is a style public module; `./extra` is reached only when a check adds a declaration; `./unused` is never reached. The font is a placeholder of 23 bytes, not a real WOFF2 file: only its identity and address are checked |
 | [`ui-distribution`](fixtures/ui-distribution) | `@fixture/ui@2.0.0` as `beyond.publication.form: distribution` (compiler `fixture-compiler@3.2.1`, format `esm`) | [`beyond-distribution.json`](fixtures/ui-distribution/beyond-distribution.json), `dist/widget.js`, `dist/widget.css`, `widget/logo.svg` | A hand-written precompiled distribution, read from its manifest and never compiled. The manifest states the `sha256` digest (base64) and byte size of each listed file, and must be changed together with them. `./extra` is deliberately absent from it |
 | [`fake-react`](fixtures/fake-react) | `fake-react@18.0.0`, CommonJS npm | `.` → `index.js` choosing `cjs/react.production.js` or `cjs/react.development.js` by `process.env.NODE_ENV`; `./jsx-runtime` with a `browser` condition | `exports` conditions and environment branches. `server.js` throws, on purpose: the `react-server` condition must never be selected. `useState` throws without a renderer, which is how a second copy of the library shows |
 | [`fake-react-dom`](fixtures/fake-react-dom) | `fake-react-dom@18.0.0`, CommonJS npm | `.` → `index.js`, `./client` → `client.js` | A renderer with `fake-react` as a peer, which must stay one shared module |
+| [`selector`](fixtures/selector) | `@fixture/selector@1.0.0`, Beyond sources compiled by the selected compiler | One entry module per way of selecting an output: `./literal`, `./stripped`, `./same`, `./ambiguous`, `./missing`, `./sheetless`, `./unselected`, `./binding`, `./attribute`, `./script`, `./sheet` (a module with a stylesheet of its own), `./alone` (which selects that stylesheet with `@fixture/selector/sheet.css`) and `./effect` (which selects it too and has no import or export left once the stylesheet is removed) | Used only by [`outputs.test.mjs`](outputs.test.mjs); each entry's expected selection or diagnostic is the name of its test |
+| [`sheets`](fixtures/sheets) | `fixture-sheets@1.0.0`, ordinary npm | `./base.css` (literal), `./theme` → `theme.css`, `./tone` → `tone.css` and `./tone.css` → `other.css` (two modules for one selection), `./dual` and `./dual.css` → `dual.css` (one module under two spellings), `./code` → `code.js` (no stylesheet) | The stylesheets the selector entries select |
 
 The JSON files are kept compact, without a final newline, exactly as the former generator wrote them, so that the move to checked-in files left every source byte, and every key or digest computed from it, unchanged. Short invalid edits (for example `export const extra = ;` in the outputs validation) and the graph variations of each check stay inline in the checks.
 
@@ -32,6 +34,22 @@ The JSON files are kept compact, without a final newline, exactly as the former 
 | trace, distribution | Read from its manifest, never compiled (`cost.read`, `cost.compiled`) |
 | trace, negative | Missing sources, unpinned dependency, missing integrity (and the one a fetch verified), no compiler, no entries, unknown format, unknown entry, unknown module, unknown graph protocol |
 | contract (3 steps) | `Publication.read` agrees with the fixtures of the CDN publication contract; the fixture graph validates and the contract's graphs are read, peer context included; four traced inventories validate against `beyond-inventory/1`, and `Compatibility.key` reproduces the keys of the contract's inventory fixtures |
+
+## Output selection (`outputs.test.mjs`)
+
+Under Node's test runner, one process: an import selects JavaScript; `.css` selects the literal `.css` subpath or the stylesheet of the module named without it, as a style relation removed from the code (`relations.references` of kind `style`); one module under both spellings is one selection; two modules are `OUTPUT_AMBIGUOUS`; an unpublished stylesheet and the stylesheet of a module that produces none are `OUTPUT_NOT_FOUND`; a style module imported without `.css` is `OUTPUT_NOT_FOUND` naming the specifier to write; a default import and `with { type: 'css' }` are `STYLE_BINDING_UNSUPPORTED`; `.js` selects the module named without it; and the stylesheet of a module selected alone is its `style` item, without the module's code, with the key it has when the module is traced, and it generates; and a module left without imports or exports once its stylesheet is removed still generates `System.register`. The composed route and the shared stylesheet of a package are checked by [the preparation validation](../preparation/README.md).
+
+```sh
+BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" --test tests/cdn-analysis/outputs.test.mjs
+```
+
+## Specifiers of items (`keyed.test.mjs`)
+
+Under Node's test runner: `Keyed.specifier(item, graph)` names an inventory item by the package the graph node pinned and its subpath, for a registry key (`npm:fake-react@18.0.0`) and for `git:` and `digest:` keys, which name a source and no package; the `fake-react` fixture is traced under each key. An item whose package the graph does not hold is refused.
+
+```sh
+BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" --test tests/cdn-analysis/keyed.test.mjs
+```
 
 ## Run
 

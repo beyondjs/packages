@@ -20,6 +20,11 @@ export /*bundle*/ interface ISelected {
 	 * The versioned identity of the module, such as `@example/app@1.0.0/main`
 	 */
 	vspecifier: string;
+
+	/**
+	 * The output the selector names: `js` unless an explicit `.css` selects the stylesheet of the module
+	 */
+	output: 'js' | 'css';
 }
 
 /**
@@ -120,11 +125,41 @@ export /*bundle*/ class Selection {
 		}
 
 		await pkg.modules.ready;
-		const { subpath } = selector;
-		if (!pkg.modules.has(subpath)) return { errors: [this.#missing(pkg, selector)] };
+		const found = this.#output(pkg, selector);
+		if (found.error) return { errors: [found.error] };
+		const { subpath, output } = found;
 
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
-		return { selected: { package: pkg, subpath, specifier: pkg.name + path, vspecifier: pkg.vname + path }, errors: [] };
+		return { selected: { package: pkg, subpath, specifier: pkg.name + path, vspecifier: pkg.vname + path, output }, errors: [] };
+	}
+
+	/**
+	 * The module and the output a selector names. An explicit `.css` selects the stylesheet of the module
+	 * named without it, unless the package declares that literal subpath; `.js` and `.mjs` state the code the
+	 * same way. Two different modules for one selector are ambiguous, and nothing is guessed.
+	 */
+	#output(pkg: Package, selector: Selector): { subpath?: string; output?: 'js' | 'css'; error?: IDiagnostic } {
+		const { subpath } = selector;
+		const extension = subpath === '.' ? void 0 : /\.(css|js|mjs)$/.exec(subpath)?.[1];
+		const output = extension === 'css' ? 'css' : 'js';
+		if (!extension) return pkg.modules.has(subpath) ? { subpath, output } : { error: this.#missing(pkg, selector) };
+
+		const stripped = subpath.slice(0, -(extension.length + 1));
+		const literal = pkg.modules.has(subpath) ? subpath : void 0;
+		const other = stripped.length > 2 && !stripped.endsWith('/') && pkg.modules.has(stripped) ? stripped : void 0;
+		if (literal && other) {
+			const message = `"${selector.input}" is ambiguous: package "${pkg.name}" declares both "${literal}" and "${other}", whose ${output === 'css' ? 'stylesheet' : 'code'} it would also select`;
+			return { error: { code: 'OUTPUT_AMBIGUOUS', message } };
+		}
+
+		const selected = literal ?? other;
+		if (!selected) return { error: this.#missing(pkg, selector) };
+		const values = <{ kind?: string }>pkg.modules.specs?.get(selected)?.values;
+		if (output === 'js' && values?.kind === 'style') {
+			const message = `"${selector.input}" selects code, and "${selected}" of "${pkg.name}" is a stylesheet: select it with ".css"`;
+			return { error: { code: 'OUTPUT_NOT_FOUND', message } };
+		}
+		return { subpath: selected, output };
 	}
 
 	/**

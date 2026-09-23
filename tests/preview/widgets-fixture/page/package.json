@@ -1,0 +1,20 @@
+{
+	"name": "@fixture/page",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Preview widgets validation: the application that composes the three widgets",
+	"dependencies": {
+		"@fixture/ui": "0.1.0",
+		"@fixture/other": "0.1.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

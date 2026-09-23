@@ -88,6 +88,11 @@ export /*bundle*/ class Artifacts {
 			for (const subpath of pkg.modules.keys()) {
 				const compilation = new Compilation(pkg, subpath, this.#conditions, this.#dependencies);
 				await compilation.run();
+				// A style module has a stylesheet and no code: the stylesheet is written, and there is no artifact of code
+				if (!compilation.valid && compilation.styles) {
+					await files.sheet(compilation.styles, files.styles(`${pkg.name}@${pkg.version}`, subpath));
+					continue;
+				}
 				if (!compilation.valid) {
 					compilation.errors.forEach(error => errors.push(error));
 					continue;

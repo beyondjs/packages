@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:,">
+<title>SystemJS page</title>
+<!-- The import map of the development service for browsers, in System.register form; its addresses are relative to it -->
+<script type="systemjs-importmap" src="/importmap.json?target=browser&format=system"></script>
+<!-- SystemJS itself, as the page server publishes it -->
+<script src="/systemjs/system.js"></script>
+</head>
+<body>
+<script>
+	// What the preview document does, with SystemJS in place of the browser's module loader: link the stylesheets
+	// the document holds, register the development runtime with the part of the session a page needs, then
+	// import the entry module. The modules and their updates are requested as System.register modules.
+	(async () => {
+		const description = await (await fetch('/preview/entry.json')).json();
+		const base = new URL('/preview/', location.href);
+		for (const module of description.modules) {
+			if (!module.styles || module.widget || module.scope === 'widget') continue;
+			const link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.setAttribute('data-beyond-styles', module.vspecifier);
+			link.href = new URL(module.styles, base).href;
+			document.head.append(link);
+		}
+
+		const { runtime, session } = description.updates;
+		const options = session.options.replace('format=esm', 'format=system');
+		const { local } = await System.import(runtime);
+		await local.register({ origin: location.origin, options, session: { ...session, options } });
+		await System.import(description.entry.specifier);
+	})().catch(error => console.error('[system page]', error));
+</script>
+</body>
+</html>

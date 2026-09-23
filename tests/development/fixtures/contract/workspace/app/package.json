@@ -1,0 +1,27 @@
+{
+	"name": "@fixture/app",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js",
+		"./theme": "./theme.css"
+	},
+	"dependencies": {
+		"@fixture/legacy": "1.0.0",
+		"library": "2.0.0",
+		"tool": "github:example/tool#0123456789abcdef0123456789abcdef01234567"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

@@ -106,13 +106,13 @@ export class Delivered {
 			await this.#report.step('http: an error answer carries no ETag and is no-store, for every status and family; artifact answers keep their validators', async () => {
 				const failures = {
 					'400 OPTION_INVALID': `${prefix}/modules/card?format=esm`,
-					'400 OPTION_UNSUPPORTED': `${prefix}/modules/card?${query.replace('format=esm', 'format=system')}`,
+					'400 OPTION_UNSUPPORTED': `${prefix}/modules/card?${query.replace('format=esm', 'format=cjs')}`,
 					'404 MODULE_NOT_FOUND': `${prefix}/modules/absent?${query}`,
 					'404 PACKAGE_NOT_FOUND': `/m/@fixture/absent@1.0.0/modules/card?${query}`,
 					'404 VERSION_MISMATCH': `/m/@fixture/served@9.9.9/modules/card?${query}`,
 					'404 OUTPUT_NOT_AVAILABLE': `${prefix}/assets/card/secret.txt`,
 					'422 BUILD_FAILED': `${prefix}/modules/broken?${query}`,
-					'501 SOURCE_UNSUPPORTED': `/m/digest/sha256-00/modules/main?${query}`
+					'501 SOURCE_UNSUPPORTED': `/m/digest/sha256-${'0'.repeat(64)}/modules/main?${query}`
 				};
 				for (const [expected, path] of Object.entries(failures)) {
 					// A conditional request must not turn an error into a validated answer either

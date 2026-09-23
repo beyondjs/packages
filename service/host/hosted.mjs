@@ -1,5 +1,6 @@
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Delivery } from '@beyond-js/packages/artifacts';
+import { Sources } from '@beyond-js/packages/http/routes';
 import { Manifests } from './manifests.mjs';
 
 /**
@@ -16,6 +17,7 @@ export class Hosted {
 	#manifests;
 	#workspace;
 	#delivery;
+	#sources = new Sources(this);
 	#reloads = 0;
 
 	/**
@@ -85,6 +87,33 @@ export class Hosted {
 
 	get resources() {
 		return this.#delivery.resources;
+	}
+
+	/**
+	 * The installed packages this environment compiles for browsers
+	 */
+	get installed() {
+		return this.#delivery.installed;
+	}
+
+	/**
+	 * The registry id the compiled-module paths of this service write for a package at an exact version, or why
+	 * it has none: the workspace and npm are unprefixed, and an installed package is addressed by the registry
+	 * its lockfile recorded
+	 *
+	 * @returns {Promise<{registry?: string, reason?: string}>}
+	 */
+	origin(name, version) {
+		return this.#sources.origin(name, version);
+	}
+
+	/**
+	 * The registry id of the base address of a registry, such as the `publishConfig.registry` of a package
+	 *
+	 * @returns {Promise<string | undefined>}
+	 */
+	registry(base) {
+		return this.#sources.origins.registry(base);
 	}
 
 	/**

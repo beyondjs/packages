@@ -1,0 +1,7 @@
+// The shared stylesheet of `@fixture/ui`: every widget of the package adopts it inside its root, before its own
+// sheets. The validation changes the ink and names an undefined variable to see that the last valid sheet is kept.
+$ink: rgb(10, 20, 30);
+
+p {
+	color: $ink;
+}

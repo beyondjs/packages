@@ -3,6 +3,7 @@ import type { Delivery } from '@beyond-js/packages/artifacts';
 import { ContractError, Options, Policy, ResourcePath } from '@beyond-js/artifact-api';
 import { Media } from '@beyond-js/packages/publication';
 import { Diagnostics, Production, Stylesheet, Tag } from './helpers';
+import type { Sources } from './sources';
 
 /**
  * The sibling resource families of the compiled-module contract, for workspace modules: `/styles/<subpath>`
@@ -16,13 +17,16 @@ import { Diagnostics, Production, Stylesheet, Tag } from './helpers';
 export class Companions {
 	#delivery: Delivery;
 	#supported: (options: Options) => void;
+	#sources: Sources;
 
 	/**
 	 * @param supported The check of the options this service honors, shared with the module route
+	 * @param sources Which source each package is delivered from, shared with the module route
 	 */
-	constructor(delivery: Delivery, supported: (options: Options) => void) {
+	constructor(delivery: Delivery, supported: (options: Options) => void, sources: Sources) {
 		this.#delivery = delivery;
 		this.#supported = supported;
+		this.#sources = sources;
 	}
 
 	#send(request: Request, response: Response, content: string | Buffer, media: string): void {
@@ -39,10 +43,8 @@ export class Companions {
 			const options = <Options | undefined>resource.options(new URLSearchParams(query));
 			options && this.#supported(options);
 
-			const { registry, name, version, subpath } = resource.identity;
-			if (registry !== 'npm') {
-				throw new ContractError('SOURCE_UNSUPPORTED', `Registry "${registry}" is not served: a development service delivers workspace packages`);
-			}
+			await this.#sources.admit(resource.identity);
+			const { name, version, subpath } = resource.identity;
 
 			if (resource.kind === 'asset') {
 				const { content, failure } = await this.#delivery.resources.asset({ name, version, path: resource.path });

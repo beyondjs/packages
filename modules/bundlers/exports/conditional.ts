@@ -17,11 +17,11 @@ export class Conditional extends BaseConditional {
 
 	#errors: IDiagnostic[] = [];
 	get errors(): IDiagnostic[] {
-		return this.#errors;
+		return this.#errors.concat(super.errors);
 	}
 
 	get valid(): boolean {
-		return !this.#errors.length;
+		return !this.#errors.length && super.valid;
 	}
 
 	#target: string;

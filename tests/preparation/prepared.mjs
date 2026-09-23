@@ -12,6 +12,8 @@ import { Generation } from '@beyond-js/packages/generation';
 export class Prepared {
 	inventory;
 	cost;
+	/** The pinned graph the inventory was traced over, which names the package of each item */
+	graph;
 	units = new Map();
 
 	/**
@@ -25,6 +27,7 @@ export class Prepared {
 		const measured = await Analysis.measured({ graph, sources, entries, conditions, compiler, format });
 		prepared.inventory = measured.inventory;
 		prepared.cost = measured.cost;
+		prepared.graph = graph;
 
 		for (const item of prepared.inventory.items) {
 			// The stylesheet of a module is an output of the unit of that module
@@ -58,8 +61,21 @@ export class Prepared {
 	}
 
 	/**
+	 * The stylesheets a document links: the ones a module that is not a widget reaches. A stylesheet that only
+	 * widgets reach — the stylesheet of a widget, the shared sheet of its package, one a widget selects — is
+	 * adopted inside their roots and never linked by the document.
+	 */
+	get documented() {
+		const widgets = new Set([...this.units].filter(([, unit]) => unit.outputs.some(one => one.kind === 'js' && one.relations.widget)).map(([id]) => id));
+		return this.inventory.items.filter(item => item.kind === 'style' && !(item.importers?.length && item.importers.every(id => widgets.has(id)))).map(({ id }) => id);
+	}
+
+	/**
 	 * Writes every generated output as a file, with an import map of the bare specifiers and an index of
-	 * the stylesheets each module owns, which is what an origin serves and a page loads
+	 * the stylesheets each module owns, which is what an origin serves and a page loads.
+	 *
+	 * A specifier maps to the code of a module; a stylesheet is mapped only under its specifier with `.css`,
+	 * which is how code selects it, so a module that selects a stylesheet never finds code under that name.
 	 *
 	 * @param directory Where to write; a temporary directory when none is given
 	 */
@@ -69,6 +85,8 @@ export class Prepared {
 
 		const imports = {};
 		const styles = {};
+		const links = [];
+		const documented = this.documented;
 		let files = 0;
 
 		const emit = async (path, code) => {
@@ -81,13 +99,13 @@ export class Prepared {
 			if (item.kind === 'asset') continue;
 
 			// The stylesheet of a module is an output of the unit of that module, in its `styles` family
-			const specifier = Keyed.specifier(item);
+			const specifier = Keyed.specifier(item, this.graph);
 			// A stylesheet generated on its own is preferred to the one the unit of its module produced
 			const owner = item.id.replace(/^style:/, 'module:');
 			const js = this.output(item.id, 'js');
 			const css = this.output(item.id.replace(/^module:/, 'style:'), 'css') ?? this.output(owner, 'css');
 
-			if (js && !imports[specifier]) {
+			if (js && item.kind === 'module' && !imports[specifier]) {
 				const path = Prepared.file(item, 'modules');
 				await emit(path, js.code);
 				imports[specifier] = `./${path}`;
@@ -96,11 +114,13 @@ export class Prepared {
 				const path = Prepared.file(item, 'styles');
 				await emit(path, css.code);
 				styles[specifier] = `./${path}`;
+				imports[specifier.endsWith('.css') ? specifier : `${specifier}.css`] = `./${path}`;
 			}
+			if (item.kind === 'style' && documented.includes(item.id) && styles[specifier]) links.push(styles[specifier]);
 		}
 
 		await writeFile(join(root, 'importmap.json'), JSON.stringify({ imports }, null, '\t'));
 		await writeFile(join(root, 'styles.json'), JSON.stringify(styles, null, '\t'));
-		return { directory: root, files, imports, styles };
+		return { directory: root, files, imports, styles, links };
 	}
 }

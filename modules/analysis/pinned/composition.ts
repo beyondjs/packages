@@ -109,7 +109,9 @@ export /*bundle*/ class Composition {
 
 		// The runtime is a public module like any other reference: the graph says which node supplies it
 		const specifiers: string[] = [...new Set<string>([...(artifact?.dependencies ?? []), artifact?.runtime].filter(Boolean))];
-		const references = specifiers.map(specifier => ({ specifier, kind: <const>'eager' }));
+		const references: { specifier: string; kind: 'eager' | 'style' }[] = specifiers.map(specifier => ({ specifier, kind: <const>'eager' }));
+		// The stylesheets the sources select are not in the code: they are references of their own kind
+		(<string[]>(artifact?.stylesheets ?? [])).forEach(specifier => references.push({ specifier, kind: 'style' }));
 
 		return <IBundled>(<unknown>{
 			code: output.code('raw-code'),
@@ -123,7 +125,8 @@ export /*bundle*/ class Composition {
 			indeterminate: [],
 			resources: [],
 			inputs: this.#inputs(conditional),
-			configuration: { conditional: key, widget: !!artifact?.widget, runtime: artifact?.runtime }
+			// A widget of a package that publishes `./global` adopts that shared stylesheet in its root
+			configuration: { conditional: key, widget: !!artifact?.widget, global: !!artifact?.widget?.global, runtime: artifact?.runtime }
 		});
 	}
 

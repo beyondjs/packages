@@ -89,6 +89,26 @@ try {
 		return `${described.name}@${described.version}, ${js.relations.references.length} references`;
 	});
 
+	await step('relations: a selected stylesheet is a style relation, never an import, and a widget relates to the shared sheet', async () => {
+		const entry = prepared.units.get(`module:${CARDS}/entry`).outputs.find(({ kind }) => kind === 'js');
+		assert.doesNotMatch(entry.code, /import[^;]*global/, 'the entry does not import the stylesheet it selects');
+		assert.match(entry.code, /"stylesheets":\["@fixture\/cards\/global\.css"\]/, 'the bundle specification names it');
+		const selected = entry.relations.references.find(({ specifier }) => specifier === '@fixture/cards/global.css');
+		assert.deepEqual([selected?.kind, selected?.package, selected?.subpath], ['style', CARDS, 'global']);
+
+		const html = prepared.units.get(`module:${CARDS}/html`).outputs.find(({ kind }) => kind === 'js');
+		assert.match(html.code, /"stylesheets":\["@fixture\/cards\/tone\.css"\]/);
+		assert.match(html.code, /import\.meta\.resolve/, 'the artifact resolves the stylesheets it selects where the page resolves modules');
+		assert.deepEqual([html.relations.widget, html.relations.global], [true, { package: CARDS, subpath: 'global' }]);
+
+		const global = prepared.inventory.items.find(({ id }) => id === `style:${CARDS}/global`);
+		const widgets = ['react', 'vue', 'svelte', 'html'].map(subpath => `module:${CARDS}/${subpath}`);
+		assert.deepEqual(global.importers, [`module:${CARDS}/entry`, ...widgets].sort(), 'the entry selects it and every widget of the package adopts it');
+		assert.deepEqual(prepared.inventory.items.find(({ id }) => id === `style:${CARDS}/tone`)?.importers, [`module:${CARDS}/html`]);
+		assert.equal(prepared.inventory.items.find(({ id }) => id === `module:${CARDS}/html`).inputs.compiler.version, '3', 'composition 3');
+		return `global.css linked by the document and adopted by ${widgets.length} widgets; tone.css adopted by the html widget alone`;
+	});
+
 	await step('processors: the stylesheet of every family is an output of its module', async () => {
 		for (const [subpath, colour] of [['react', 'rgb(8, 145, 178)'], ['vue', 'rgb(22, 163, 74)'], ['svelte', 'rgb(147, 51, 234)'], ['html', 'rgb(217, 119, 6)']]) {
 			const unit = prepared.units.get(`module:${CARDS}/${subpath}`);
@@ -134,7 +154,7 @@ try {
 	});
 
 	await step('consumption: a page of another origin loads the delivered application', async () => {
-		origin = await new Delivered(delivered.directory, document({ imports: delivered.imports }, ENTRY)).start();
+		origin = await new Delivered(delivered.directory, document({ imports: delivered.imports }, ENTRY, delivered.links)).start();
 		browser = await new Browser().start();
 		({ page, observed } = await browser.page());
 
@@ -165,9 +185,22 @@ try {
 			assert.ok(seen.found, `${element} rendered: ${JSON.stringify(seen)}\nthe page reported:\n  ${reported.join('\n  ')}`);
 			assert.equal(seen.text, text, `${element} shows its label`);
 			assert.equal(seen.color, colour, `${element} adopted its stylesheet`);
-			return `${element} ${seen.color}`;
+			assert.equal(seen.outline, 'rgb(220, 38, 38)', `${element} adopted the shared sheet of its package in its root (:host)`);
+			return `${element} ${seen.color}, outlined by the shared sheet`;
 		});
 	}
+
+	await step('consumption: a stylesheet a widget selects is adopted in its root only, one the entry selects is linked by the document', async () => {
+		const html = await shown(page, 'card-html', '.card.html');
+		const react = await shown(page, 'card-react', '.card.react');
+		assert.equal(html.decoration, 'underline', 'tone.css applies inside the root of the widget that selects it');
+		assert.equal(react.decoration, 'none', 'and not inside the root of another widget');
+
+		const linked = await page.evaluate(() => [...window.document.querySelectorAll('head link[rel="stylesheet"]')].map(link => link.getAttribute('href')));
+		assert.ok(linked.some(href => href.endsWith('/styles/global')), `the document links the sheet the entry selects: ${linked}`);
+		assert.ok(!linked.some(href => /\/styles\/(tone|html|react|vue|svelte)$/.test(href)), `nothing only widgets adopt is linked by the document: ${linked}`);
+		return `document links ${linked.length} stylesheet(s); tone.css underlines the html card only`;
+	});
 
 	await step('consumption: the page reports no error of its own', async () => {
 		const errors = observed.errors.filter(one => !/favicon/.test(one));

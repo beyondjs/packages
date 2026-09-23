@@ -1,6 +1,7 @@
-import type { IItem, IKeyInputs } from './types';
+import type { IGraph, IItem, IKeyInputs } from './types';
 import type { Opened } from './pinned/opened';
 import { Compatibility } from './compatibility';
+import { Graph } from './graph';
 import { Toolchain } from './toolchain';
 
 const MEDIA = { module: 'text/javascript', style: 'text/css' };
@@ -29,11 +30,17 @@ export /*bundle*/ class Keyed {
 	}
 
 	/**
-	 * The specifier a consumer imports for a module item: the package name of its node key and its subpath
+	 * The specifier a consumer imports for an item: the name of its package as the graph pinned it, and its
+	 * subpath. The name is read from the graph node, never from the key: a `git:` or `digest:` key names a
+	 * source, not a package.
+	 *
+	 * @param graph The pinned graph the item was traced over, or its `Graph` when the caller holds one
+	 * @throws Error when the graph has no node for the package of the item
 	 */
-	static specifier(item: Pick<IItem, 'package' | 'subpath'>): string {
-		const name = item.package.slice(item.package.indexOf(':') + 1).replace(/@[^@/]+$/, '');
-		return item.subpath === '.' ? name : `${name}/${Keyed.subpath(item.subpath)}`;
+	static specifier(item: Pick<IItem, 'package' | 'subpath'>, graph: IGraph | Graph): string {
+		const node = (graph instanceof Graph ? graph : new Graph(graph)).node(item.package);
+		if (!node) throw new Error(`The graph has no node "${item.package}"`);
+		return item.subpath === '.' ? node.name : `${node.name}/${Keyed.subpath(item.subpath)}`;
 	}
 
 	/**

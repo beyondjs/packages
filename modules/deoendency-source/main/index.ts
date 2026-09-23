@@ -113,8 +113,8 @@ export /*bundle*/ class DependencySource {
 			return;
 		}
 
-		// Git source (shorthand or git+ protocol). An unmatched specifier yields no info: never test the
-		// instance itself, which is always truthy
+		// Git source (shorthand, git+ protocol or an http(s) address ending in `.git`). An unmatched specifier
+		// yields no info: never test the instance itself, which is always truthy
 		const git = GitInfo.parse(spec);
 		if (git) {
 			const { error, baseurl, base, owner, repo, ref, pinned } = git;
@@ -128,8 +128,9 @@ export /*bundle*/ class DependencySource {
 			return;
 		}
 
-		// Tarball source (e.g., "https://.../mypackage.tgz#sha512-…")
-		if (/^https?:\/\//.test(spec)) {
+		// Archive URL (e.g., "https://.../mypackage.tgz#sha512-…"): any http(s) address that is not a git form.
+		// It is classified by its form, never by its host: an archive on a registry or a git host is an archive
+		if (/^https?:\/\//i.test(spec)) {
 			let parsed: URL;
 			try {
 				parsed = new URL(spec);
@@ -137,7 +138,7 @@ export /*bundle*/ class DependencySource {
 				parsed = void 0;
 			}
 
-			if (parsed && /\.(tgz|tar\.gz)$/.test(parsed.pathname)) {
+			if (parsed && parsed.pathname.length > 1) {
 				const { host, pathname } = parsed;
 				const file = pathname.split('/').pop();
 				const fname = file.replace(/\.(tgz|tar\.gz)$/, '');
@@ -149,7 +150,7 @@ export /*bundle*/ class DependencySource {
 				parsed.password = '';
 
 				const hostname = host.toLowerCase();
-				this.#id = `url:${hostname}${pathname}`;
+				this.#id = `url:${hostname}${pathname}${parsed.search}`;
 				this.#data = {
 					is: DependencySourceIsType.Url,
 					hostname,

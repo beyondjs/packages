@@ -46,6 +46,9 @@ export /*bundle*/ class SystemFormat {
 			reportDiagnostics: true,
 			compilerOptions: {
 				module: ts.ModuleKind.System,
+				// A module without imports or exports (a side-effect-only module) is still a module: detected as
+				// a script it would be emitted without `System.register`, which a SystemJS loader refuses
+				moduleDetection: ts.ModuleDetectionKind.Force,
 				target: ts.ScriptTarget.ES2022,
 				allowJs: true,
 				sourceMap: !!map,

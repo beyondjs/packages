@@ -1,6 +1,6 @@
 import type { IGraphDocument } from '@beyond-js/packages/resolution';
 import type { IStore, ILimits, ISourcesReport, ISourceResult, ISourceDiagnostic } from './types';
-import { type IAuthorizer, Download } from './download';
+import { type IAuthorizer, type SourcesTransport, Download } from './download';
 import { Limits } from './limits';
 import { Queue } from './queue';
 
@@ -22,14 +22,17 @@ export /*bundle*/ class Sources {
 	 * @param store Where verified sources are kept
 	 * @param limits Bounds of each archive and of the fetch
 	 * @param tenant The organization private packages are stored for
-	 * @param authorizer The providers that know the credentials, required for private packages
+	 * @param authorizer The providers that know the credentials, required for private packages. Only a
+	 *   private node is downloaded with a credential: a public node is downloaded anonymously
+	 * @param transport How archives are requested; the global `fetch` when absent
 	 */
 	static async fetch(
 		graph: IGraphDocument,
 		store: IStore,
 		limits?: ILimits,
 		tenant?: string,
-		authorizer?: IAuthorizer
+		authorizer?: IAuthorizer,
+		transport?: SourcesTransport
 	): Promise<ISourcesReport> {
 		const report = (packages: ISourceResult[], diagnostics: ISourceDiagnostic[]): ISourcesReport => {
 			const order = (a: { node?: string }, b: { node?: string }) => ((a.node || '') < (b.node || '') ? -1 : 1);
@@ -55,7 +58,7 @@ export /*bundle*/ class Sources {
 		}
 
 		const bounds = new Limits(limits);
-		const download = new Download(store, bounds, authorizer, tenant);
+		const download = new Download(store, bounds, authorizer, tenant, transport);
 		const queue = new Queue(bounds.concurrency);
 		const excepted = new Set((graph.exceptions || []).map(({ node }) => node));
 

@@ -5,6 +5,7 @@ import type {
 	IPackumentResponse,
 	IPackageTarballResponse,
 	IPackageCommitResponse,
+	IPackageArchiveResponse,
 	ICacheOptions
 } from '@beyond-js/packages/providers/types';
 import type { IDist } from '@beyond-js/packages/types';
@@ -15,9 +16,18 @@ import { DependencySourceRelease } from '@beyond-js/packages/dependency-source/r
 import { SemverRegistry } from './semver';
 import { GitProvider } from './git';
 import { AuthHeaders } from './tools';
+import type { Transport } from './fetcher';
+import { type ForgeKind, Forges } from './forges';
+import { Archives } from './archives';
 import { PendingPromise } from '@beyond-js/pending-promise/main';
 
-export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions {}
+export /*bundle*/ interface IProvidersOptions extends IProvidersSettingsOptions {
+	// How every request reaches the network; the global `fetch` when absent. A consumer that must validate
+	// destinations (a service that fetches for tenants) injects its own
+	fetch?: Transport;
+	// Git hosts of a known kind besides github.com, gitlab.com and bitbucket.org, by host (`gitlab.acme.example`)
+	forges?: Record<string, ForgeKind>;
+}
 
 /**
  * Requests package metadata to the provider that serves each source (npm-compatible registries and git
@@ -31,6 +41,15 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 
 	#semver: SemverRegistry;
 	#git: GitProvider;
+	#archives: Archives;
+
+	#transport?: Transport;
+	/**
+	 * The transport of every request, which a fetch of the sources uses as well; undefined for the global `fetch`
+	 */
+	get transport() {
+		return this.#transport;
+	}
 
 	#initialized = false;
 	get initialized() {
@@ -68,8 +87,10 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 			})
 			.finally(() => this.#ready.resolve());
 
-		this.#semver = new SemverRegistry();
-		this.#git = new GitProvider();
+		this.#transport = options?.fetch;
+		this.#semver = new SemverRegistry(this.#transport);
+		this.#git = new GitProvider(this.#transport, new Forges(options?.forges));
+		this.#archives = new Archives(this.#transport);
 
 		this.set('semver', this.#semver);
 		this.set('git', this.#git);
@@ -129,6 +150,35 @@ export /*bundle*/ class PackageProviders extends Map<string, IPackageProvider> i
 		if (source.data.is !== DependencySourceIsType.Git) return this.#unsupported(source.data.is);
 
 		return await this.#git.commit(new DependencySourceProvider(source, this.#settings));
+	}
+
+	/**
+	 * Whether a registry release that was read with a credential is public as well (see `SemverRegistry.probe`)
+	 *
+	 * @param dist The distribution metadata of the release, as it was read with the credential
+	 */
+	async probe(source: DependencySource, release: string, dist?: IDist): Promise<boolean> {
+		await this.#ready;
+		if (this.#error) return false;
+
+		source = source.target;
+		if (source.data.is !== DependencySourceIsType.Semver) return false;
+		const dependency = new DependencySourceRelease(new DependencySourceProvider(source, this.#settings), release);
+		return await this.#semver.probe(dependency, dist);
+	}
+
+	/**
+	 * Downloads an archive URL once and answers its `sha512` integrity, which pins a URL that declares none
+	 */
+	async archive(source: DependencySource): Promise<IPackageArchiveResponse> {
+		await this.#ready;
+		if (this.#error) return { error: this.#error };
+		const { data } = source;
+		if (data.is !== DependencySourceIsType.Url) return this.#unsupported(data.is);
+
+		const { url } = data;
+		const provider = new DependencySourceProvider(source, this.#settings).provider;
+		return await this.#archives.digest(url, AuthHeaders.within(provider, url));
 	}
 
 	/**

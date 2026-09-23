@@ -42,8 +42,12 @@ export /*bundle*/ class Toolchain {
 	 * `2`: the scope a Vue or Svelte component gives its styles is derived from the identity of its source
 	 * ([Scope](../sdk/conditional/processor/scope.ts)) instead of a path, so an output composed before it
 	 * does not select the classes or attributes one composed after it writes.
+	 *
+	 * `3`: a stylesheet the sources select (`pkg/sub.css`) is a style relation, named by the specification of
+	 * the bundle and never imported, where an output composed before imported it as a module; and a widget
+	 * whose package publishes `./global` relates to that sheet.
 	 */
-	static COMPOSITION = '2';
+	static COMPOSITION = '3';
 
 	/**
 	 * The revision of how the public subpaths of an ordinary npm package are delivered: on their own, or as a
@@ -55,10 +59,12 @@ export /*bundle*/ class Toolchain {
 	static SHARING = '1';
 
 	/**
-	 * What transforms an ES module into `System.register`
+	 * What transforms an ES module into `System.register`. `revision` is raised whenever the transformation
+	 * changes what it emits for the same input: revision 2 registers a module without imports or exports
+	 * instead of emitting it as a plain script.
 	 */
 	static get system() {
-		return { transform: 'typescript', version: ts.version };
+		return { transform: 'typescript', version: ts.version, revision: '2' };
 	}
 
 	/**

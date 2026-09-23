@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/other",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Preview widgets validation: a package with a widget and no shared stylesheet",
+	"dependencies": {
+		"@beyond-js/widgets": "*"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

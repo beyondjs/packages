@@ -5,9 +5,11 @@ import type {
 	IPackageTarballResponse,
 	IPackageCommitResponse,
 	IPackumentResponse,
+	IPackageArchiveResponse,
 	IProviderIdentity,
 	IMetadataStore
 } from '@beyond-js/packages/providers/types';
+import type { IPackageManifest } from '@beyond-js/packages/types';
 import type { IProviderData } from '@beyond-js/packages/providers/settings/types';
 import type { PackageProviders } from './';
 import { DependencySource, DependencySourceIsType } from '@beyond-js/packages/dependency-source';
@@ -31,6 +33,9 @@ export /*bundle*/ interface IMetadataOptions {
  * - Writes are awaited, and concurrent requests of one document share a single fetch.
  * - Release manifests are read from the package metadata; a provider that does not publish them there
  *   requires a manifest request, which is reported in `exceptions`.
+ * - Visibility belongs to each release, not to the credential: a registry release read with a credential is
+ *   public only when an anonymous probe finds the same release and its archive (`PackageProviders.probe`);
+ *   otherwise, and on any doubt, it is private. A release read without a credential is public.
  */
 export /*bundle*/ class Metadata implements IPackageProviders {
 	#providers: PackageProviders;
@@ -71,8 +76,21 @@ export /*bundle*/ class Metadata implements IPackageProviders {
 	}
 
 	#identity(provider: IProviderData): IProviderIdentity {
-		const visibility = this.#scope(provider) === 'public' ? 'public' : 'private';
-		return { registry: provider.registry || provider.hostname, base: provider.base, visibility };
+		const registry = provider.registry || provider.hostname;
+		if (this.#scope(provider) === 'public') return { registry, base: provider.base, visibility: 'public' };
+		return { registry, base: provider.base, visibility: 'private', access: 'credential' };
+	}
+
+	/**
+	 * The identity of one registry release: a release read with a credential is public when the anonymous probe
+	 * finds it, and is then fetched without the credential
+	 */
+	async #release(source: DependencySource, release: string, manifest: IPackageManifest, provider: IProviderIdentity) {
+		if (provider.visibility === 'public' || source.data.is !== DependencySourceIsType.Semver) return provider;
+
+		const key = ['probe', provider.registry, source.package, release].join('|');
+		const open = await this.#once(key, () => this.#providers.probe(source, release, manifest?.dist));
+		return open ? { ...provider, visibility: <const>'public', access: <const>'anonymous' } : provider;
 	}
 
 	/**
@@ -133,7 +151,9 @@ export /*bundle*/ class Metadata implements IPackageProviders {
 			if (error || !found) return { error, found, provider };
 
 			const manifest = packument.versions?.[release];
-			if (manifest && typeof manifest === 'object') return { found: true, manifest, via: 'packument', provider };
+			if (manifest && typeof manifest === 'object') {
+				return { found: true, manifest, via: 'packument', provider: await this.#release(source, release, manifest, provider) };
+			}
 		}
 
 		const scope = this.#scope(data);
@@ -146,19 +166,29 @@ export /*bundle*/ class Metadata implements IPackageProviders {
 			const exception = { registry: provider.registry, package: source.package, release };
 			if (response.notmodified && cached) {
 				this.#exceptions.set(key, exception);
-				return { found: true, manifest: cached.document, via: 'manifest', provider };
+				const identity = await this.#release(source, release, cached.document, provider);
+				return { found: true, manifest: cached.document, via: 'manifest', provider: identity };
 			}
 			if (response.error || !response.found) return { error: response.error, found: response.found, provider };
 
 			this.#exceptions.set(key, exception);
 			await this.#store.set(key, { scope, document: response.manifest, cache: response.cache });
-			return { found: true, manifest: response.manifest, via: 'manifest', provider };
+			const identity = await this.#release(source, release, response.manifest, provider);
+			return { found: true, manifest: response.manifest, via: 'manifest', provider: identity };
 		});
 	}
 
 	async commit(source: DependencySource): Promise<IPackageCommitResponse> {
 		await this.#providers.ready;
 		return this.#once(`commit|${source.id}`, () => this.#providers.commit(source));
+	}
+
+	/**
+	 * The `sha512` integrity of an archive URL, downloaded once per instance
+	 */
+	async archive(source: DependencySource): Promise<IPackageArchiveResponse> {
+		await this.#providers.ready;
+		return this.#once(`archive|${source.id}`, () => this.#providers.archive(source));
 	}
 
 	/**

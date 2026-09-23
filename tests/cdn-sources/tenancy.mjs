@@ -1,16 +1,19 @@
 /**
- * Private packages: credentials, the scope a source is stored in, and who can find it afterwards.
+ * Private packages: credentials, the scope a source is stored in (it follows the node, not the credential),
+ * and who can find it afterwards; git and archive URL sources; the injected transport.
  */
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
+import { join } from 'node:path';
 import { Resolution } from '@beyond-js/packages/resolution';
-import { Sources } from '@beyond-js/packages/sources';
+import { Sources, FilesystemStore } from '@beyond-js/packages/sources';
 import { PackageProviders } from '@beyond-js/packages/providers';
-import { FakeRegistry, archive } from '../cdn-resolution/registry.mjs';
+import { FakeRegistry } from '../cdn-resolution/registry.mjs';
+import { Forge } from '../cdn-resolution/forge.mjs';
 import { step, valid } from '../cdn-resolution/harness.mjs';
 
 const TOKEN = 'npm_SECRETtokenA1B2C3';
 const COMMIT = '89abcdef0123456789abcdef0123456789abcdef';
+const OTHER = 'fedcba9876543210fedcba9876543210fedcba98';
 
 export async function tenancy({ registry, store, staged }) {
 	const restricted = await new FakeRegistry({ prefix: '/private/npm', token: TOKEN }).start();
@@ -116,16 +119,46 @@ export async function tenancy({ registry, store, staged }) {
 			assert.equal(owner.packages.find(({ node }) => node === key).reused, true);
 		});
 
-		await step(
-			'credentials decide: what is downloaded with a credential is private whatever the graph says',
-			async () => {
-				const forged = JSON.parse(JSON.stringify(graph));
-				forged.nodes[key].visibility = 'public';
-				const report = await Sources.fetch(forged, store, {}, 'initech', new PackageProviders(settings(TOKEN)));
-				assert.equal(report.packages.find(({ node }) => node === key).scope, 'org:initech');
-				assert.equal(await store.has(record('public')), false);
+		await step('the node decides: a node the graph calls public is downloaded without any credential', async () => {
+			// A private release forged public is requested anonymously, refused, and nothing is stored
+			const forged = JSON.parse(JSON.stringify(graph));
+			forged.nodes[key].visibility = 'public';
+			restricted.reset();
+			const report = await Sources.fetch(forged, store, {}, 'initech', new PackageProviders(settings(TOKEN)));
+			outputs.push(JSON.stringify(report));
+			assert.deepEqual(report.diagnostics.map(({ code, node }) => [code, node]), [['PROVIDER_AUTH_REQUIRED', key]]);
+			assert.ok(restricted.log.length && restricted.log.every(({ credential }) => !credential), 'a credential reached the archive of a public node');
+			assert.equal(await store.has(record('public')), false);
+			assert.equal(await store.has(record('org:initech')), false);
+		});
+
+		await step('the node decides: a public package of an authenticated registry is fetched anonymously and stored as public', async () => {
+			const mixed = await new FakeRegistry({ prefix: '/mixed/npm', token: TOKEN, open: ['@mixed/open'] }).start();
+			try {
+				await mixed.publish({ name: '@mixed/open', version: '1.0.0' });
+				await mixed.publish({ name: '@mixed/closed', version: '1.0.0', dependencies: { '@mixed/open': '1.0.0' } });
+				const values = { default: { registry: registry.url }, scopes: { '@mixed': { registry: mixed.url, auth: { mode: 'token', token: TOKEN } } } };
+				const options = { user: false, global: false, env: false, values };
+				const pinned = await Resolution.pin({ roots: { '@mixed/closed': '1.0.0' }, providers: options, tenant: 'acme' });
+				assert.ok(valid(pinned), JSON.stringify(pinned.diagnostics));
+
+				mixed.reset();
+				const report = await Sources.fetch(pinned, store, {}, 'acme', new PackageProviders(options));
+				outputs.push(JSON.stringify(report));
+				assert.equal(report.complete, true, JSON.stringify(report.diagnostics));
+				const scopes = Object.fromEntries(report.packages.map(({ node, scope }) => [pinned.nodes[node].name, scope]));
+				assert.deepEqual(scopes, { '@mixed/closed': 'org:acme', '@mixed/open': 'public' });
+
+				// Each archive was requested as its node says: the public one without the credential
+				const archives = mixed.log.filter(({ type }) => type === 'tarball');
+				assert.deepEqual(archives.map(({ path, credential }) => [path.split('/-/')[0].split('/').slice(-2).join('/'), credential]).sort(), [
+					['@mixed/closed', true],
+					['@mixed/open', false]
+				]);
+			} finally {
+				await mixed.stop();
 			}
-		);
+		});
 
 		await step('secrets: no credential appears in any report', async () => {
 			const text = outputs.join('\n');
@@ -135,24 +168,17 @@ export async function tenancy({ registry, store, staged }) {
 			}
 		});
 
-		await step('exceptions: a release without published integrity gets one established at fetch', async () => {
-			const bytes = await archive([
-				{
-					name: 'widgets-main/package.json',
-					content: JSON.stringify({ name: '@acme/widgets', version: '3.0.0' })
-				},
-				{ name: 'widgets-main/index.js', content: 'export default 3;' }
-			]);
-			const server = createServer((request, response) => {
-				if (request.url.endsWith('/package.json'))
-					return response.end(JSON.stringify({ name: '@acme/widgets', version: '3.0.0' }));
-				response.end(bytes);
-			});
-			await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-
+		await step('exceptions: a git release without published integrity gets one established at fetch', async () => {
+			const forge = await new Forge().start();
 			try {
-				const range = `git+http://127.0.0.1:${server.address().port}/acme/widgets.git#${COMMIT}`;
-				const pinned = await Resolution.pin({ roots: { widgets: range }, providers: settings() });
+				const manifest = { name: '@acme/widgets', version: '3.0.0' };
+				forge.repository('acme/widgets', {
+					commits: { [COMMIT]: { manifest, files: { 'index.js': 'export default 3;' } }, [OTHER]: { manifest, files: { 'index.js': 'export default 4;' } } },
+					branches: { main: OTHER }
+				});
+				const options = { ...settings(), forges: { [forge.host]: 'gitlab' } };
+				const pin = ref => Resolution.pin({ roots: { widgets: `git+http://${forge.host}/acme/widgets.git#${ref}` }, providers: options });
+				const pinned = await pin(COMMIT);
 				assert.ok(valid(pinned), JSON.stringify(pinned.diagnostics));
 
 				const report = await Sources.fetch(pinned, store);
@@ -160,7 +186,16 @@ export async function tenancy({ registry, store, staged }) {
 				const [result] = report.packages;
 				assert.equal(result.established, true);
 				assert.match(result.integrity, /^sha512-/);
+				assert.equal(forge.requests.archive, 1);
 				assert.equal((await Sources.fetch(pinned, store)).packages[0].reused, true);
+
+				// Another commit with the same manifest name and version is another source, never the first one reused
+				const branch = await pin('main');
+				assert.ok(valid(branch), JSON.stringify(branch.diagnostics));
+				const second = await Sources.fetch(branch, store);
+				assert.deepEqual([second.complete, second.packages[0].reused], [true, false]);
+				assert.notEqual(second.packages[0].integrity, result.integrity);
+				assert.equal(forge.requests.archive, 2);
 
 				// The same node outside the recorded exceptions is refused
 				const unlisted = { ...pinned, exceptions: [] };
@@ -169,8 +204,49 @@ export async function tenancy({ registry, store, staged }) {
 					['INTEGRITY_MISSING']
 				);
 			} finally {
-				await new Promise(resolve => server.close(resolve));
+				await forge.stop();
 			}
+		});
+
+		await step('archive URLs: a pinned digest is verified at fetch, with or without a declared integrity', async () => {
+			const release = registry.release('app-core', '1.0.3');
+			const url = `${registry.url}/app-core/-/app-core-1.0.3.tgz`;
+			for (const spec of [`${url}#${release.integrity}`, url]) {
+				const pinned = await Resolution.pin({ roots: { archived: spec }, providers: settings() });
+				assert.ok(valid(pinned), JSON.stringify(pinned.diagnostics));
+				const [node] = Object.keys(pinned.nodes);
+				assert.match(node, /^digest:sha512-[0-9a-f]{128}$/);
+
+				const report = await Sources.fetch(pinned, store);
+				assert.equal(report.complete, true, JSON.stringify(report.diagnostics));
+				assert.deepEqual([report.packages[0].scope, report.packages[0].integrity], ['public', release.integrity]);
+			}
+
+			// Content that changed after it was pinned is refused
+			const pinned = await Resolution.pin({ roots: { archived: url }, providers: settings() });
+			registry.fault('app-core', '1.0.3', registry.release('app-extra', '2.0.0').bytes);
+			try {
+				const fresh = new FilesystemStore(join(store.root, '..', 'digest-store'));
+				const report = await Sources.fetch(pinned, fresh);
+				assert.deepEqual(report.diagnostics.map(({ code }) => code), ['INTEGRITY_MISMATCH']);
+			} finally {
+				registry.fault('app-core', '1.0.3');
+			}
+		});
+
+		await step('transport: archives are requested through the injected fetch, and a refused destination stores nothing', async () => {
+			const pinned = await Resolution.pin({ roots: { 'app-extra': '2.0.0' }, providers: settings() });
+			const fresh = new FilesystemStore(join(store.root, '..', 'transport-store'));
+			const refuse = url => Promise.reject(Object.assign(new Error(`${new URL(url).host} is not a permitted destination`), { code: 'DESTINATION_REFUSED' }));
+			const refused = await Sources.fetch(pinned, fresh, {}, void 0, void 0, refuse);
+			assert.deepEqual([...new Set(refused.diagnostics.map(({ code }) => code))], ['DESTINATION_REFUSED']);
+			assert.equal(refused.packages.length, 0);
+
+			const seen = [];
+			const passing = (url, init) => (seen.push(url), fetch(url, init));
+			const report = await Sources.fetch(pinned, fresh, {}, void 0, void 0, passing);
+			assert.equal(report.complete, true, JSON.stringify(report.diagnostics));
+			assert.equal(seen.length, Object.keys(pinned.nodes).length);
 		});
 	} finally {
 		await restricted.stop();

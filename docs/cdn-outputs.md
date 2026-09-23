@@ -95,7 +95,7 @@ The result is a `beyond-inventory/1` document exactly as the CDN contract define
 | Item | Identity and meaning |
 | --- | --- |
 | `module` | `module:<node key>/<subpath>`. A reachable public module. `loading` is `eager` when static references alone lead to it from an entry, `lazy` otherwise. |
-| `style` | `style:<node key>/<subpath>`. A style public module (an `exports` target that is a `.css` file), or the stylesheet the sources of a module import, which has the subpath of that module and is produced by its unit. Never dropped, never injected into code. |
+| `style` | `style:<node key>/<subpath>`. A style public module (an `exports` target that is a `.css` file), or the stylesheet of a module — the one its sources produce, which has the subpath of that module and is produced by its unit. It is reached from the module that produces it, from a module that selects it with `.css`, and from every widget of a package that publishes `./global`. Never dropped, never injected into code. |
 | `asset` | `asset:<node key>/<path in the package>`. `declared: true` when a module manifest (`assets`, relative to the module directory) or the package (`beyond.assets`) declares it; a file only a `url()` or a source import references is inventoried too. |
 
 `importers` lists who references an item, `targets` the application targets whose entries reach it, and `declared: true` on a module means only a declaration reaches it. An unreachable public module is never opened and never listed.
@@ -104,7 +104,26 @@ An `import()` or `require()` whose argument is not a literal is listed in `unkno
 
 Source and npm modules are read by running the selected compiler over one public module in memory (`write: false`, `metafile: true`), through the same `Bundle` and boundary that generation uses, so an inventory lists what a generation produces. The compiled text is dropped: nothing is written and no code is returned. A distribution is read from its manifest and never compiled. Measured on the validation fixture: about 100 ms for 6 in-memory compilations of small modules (`cost.ms`, `cost.compiled`, `cost.read`). Large packages cost what bundling them costs; React's five entry points and `scheduler` trace and generate in a few seconds.
 
-Other diagnostics: `GRAPH_PROTOCOL_UNKNOWN`, `GRAPH_NODE_INVALID`, `GRAPH_EDGE_INVALID`, `ENTRIES_MISSING`, `ENTRY_UNRESOLVED`, `CONDITIONS_INVALID`, `FORMAT_UNSUPPORTED`, `SOURCES_MISSING`, `PACKAGE_NOT_PINNED`, `MANIFEST_UNREADABLE`, `DEPENDENCY_UNRESOLVED`, `MODULE_NOT_FOUND`, `MODULE_ENTRY_MISSING`, `PLATFORM_UNSUPPORTED`, `ASSET_NOT_FOUND`, `ASSET_OUTSIDE_PACKAGE`, `BUNDLE_ERROR`, and the warnings `DEPENDENCY_EDGE_MISSING` and `NODE_BUILTIN_REFERENCED`. A trace that fails before it resolves an entry answers a document with empty `entries`, which the contract does not accept as an inventory: its diagnostics are the result.
+Other diagnostics: `OUTPUT_NOT_FOUND`, `OUTPUT_AMBIGUOUS` and `STYLE_BINDING_UNSUPPORTED` ([output selection](#output-selection)), `GRAPH_PROTOCOL_UNKNOWN`, `GRAPH_NODE_INVALID`, `GRAPH_EDGE_INVALID`, `ENTRIES_MISSING`, `ENTRY_UNRESOLVED`, `CONDITIONS_INVALID`, `FORMAT_UNSUPPORTED`, `SOURCES_MISSING`, `PACKAGE_NOT_PINNED`, `MANIFEST_UNREADABLE`, `DEPENDENCY_UNRESOLVED`, `MODULE_NOT_FOUND`, `MODULE_ENTRY_MISSING`, `PLATFORM_UNSUPPORTED`, `ASSET_NOT_FOUND`, `ASSET_OUTSIDE_PACKAGE`, `BUNDLE_ERROR`, and the warnings `DEPENDENCY_EDGE_MISSING` and `NODE_BUILTIN_REFERENCED`. A trace that fails before it resolves an entry answers a document with empty `entries`, which the contract does not accept as an inventory: its diagnostics are the result.
+
+## Output selection
+
+An import selects the **JavaScript** output of a public module. An explicit extension at the end of the specifier selects another output ([Output](../modules/analysis/pinned/output.ts), [Specifier](../modules/analysis/specifier.ts)):
+
+| Specifier | Selects |
+| --- | --- |
+| `pkg/sub` | The JavaScript of `./sub`. A style module has none: `OUTPUT_NOT_FOUND`, whose message names `pkg/sub.css` |
+| `pkg/sub.css` | The literal subpath `./sub.css` when the package publishes it (npm packages export stylesheets under their file names), otherwise the stylesheet of `./sub`: the style module, or the stylesheet the module produces. Both published as different modules: `OUTPUT_AMBIGUOUS`, nothing guessed. Neither, or a module that produces no stylesheet: `OUTPUT_NOT_FOUND` |
+| `pkg/sub.js`, `pkg/sub.mjs` | The JavaScript of `./sub.js` when published, otherwise of `./sub`, with the same ambiguity rule |
+| Any other extension | Nothing: it is part of the subpath |
+
+A package name that ends with `.css` (`normalize.css`) selects the stylesheet of its root module. A selected stylesheet is a **style relation**: it is removed from the code in both routes — the boundary of the esbuild route, the assembly of a composed module — reached as the `style` item of its module, never as an eager JavaScript import, and related in the outputs as a `style` reference whose `subpath` is the module that produces it. Only the stylesheet is reached: `import 'pkg/sub.css'` does not load the code of `./sub`, and that stylesheet has one key however it was reached. A stylesheet binds no value: `import sheet from 'pkg/sub.css'`, a named import of it and `with { type: 'css' }` are `STYLE_BINDING_UNSUPPORTED`. A reference a distribution manifest declares with kind `style` selects the stylesheet whatever its spelling.
+
+Nothing in a specifier makes a browser apply a stylesheet: whoever delivers the module links it (a document) or adopts it (a widget root, through the runtime's styles registry).
+
+### The shared stylesheet of a package
+
+A package that publishes `./global` (a stylesheet export, or a module of that subpath that produces a stylesheet) has a shared stylesheet that every one of its widgets adopts inside its root. The composition declares it in the registration of each widget (`global: true`), and the analysis reaches it from every such widget as the `style` item of `./global`, so preparing a widget alone prepares the sheet. A package without `./global` has no such item and its widgets request nothing. The JavaScript output of such a widget relates `widget: true` and `global: {package, subpath}`, which tells a document that the widget adopts its sheets in its own root.
 
 ## Compatibility key
 
@@ -134,7 +153,7 @@ A `source` package whose module selects a bundler of its own is therefore compil
 
 `Toolchain.COMPOSITION` is the revision of the composition this implementation produces. It is part of the key of every composed output, so it is raised whenever the assembly of a composed module changes in a way that makes an output generated before it incompatible: the internal-module envelope, the runtime contract, the widget registration or the stylesheet relationship.
 
-It is also the only record of the compilers the processors run with (Svelte, Vue, Sass, Tailwind, TypeScript): the key of a composed output names the composition revision, not their versions, so upgrading one of them in a way that changes what it emits must raise it too. It is `2` since the scopes of Vue and Svelte components are derived from the identity of their source (below), so no output composed before selects the attributes or classes one composed after it writes.
+It is also the only record of the compilers the processors run with (Svelte, Vue, Sass, Tailwind, TypeScript): the key of a composed output names the composition revision, not their versions, so upgrading one of them in a way that changes what it emits must raise it too. It became `2` when the scopes of Vue and Svelte components were derived from the identity of their source (below), and it is `3` since a stylesheet a composed module selects (`pkg/sub.css`) is a style relation named by its bundle specification instead of an import of its code, and a widget relates to the shared stylesheet of its package: every composed output key changed with it.
 
 ### Identity of compiled components
 
@@ -161,7 +180,7 @@ import { Generation } from '@beyond-js/packages/generation';
 const { outputs, diagnostics, warnings, provenance } = await Generation.unit({ item, graph, sources, conditions, format, compiler });
 ```
 
-One call generates exactly one inventory item and writes nothing. `item` needs `kind`, `package` and `subpath` (the path, for an asset); the resolution its `inputs` recorded is followed as it is. Outputs are `{kind: 'js' | 'css' | 'map' | 'asset', media, code | bytes, size, digest, key, relations}`. `relations` hold the public references that remain bare in the code with the node that satisfies each, `style` references (removed from the code, to be linked by whoever delivers the module), whether the unit produced a stylesheet, the static files an output addresses, and for a map the output it describes. `provenance` holds the compiler (name, version, fork capability and revision) with the options it ran with, the files that were read, and the exact inputs and value of the key.
+One call generates exactly one inventory item and writes nothing. `item` needs `kind`, `package` and `subpath` (the path, for an asset); the resolution its `inputs` recorded is followed as it is. Outputs are `{kind: 'js' | 'css' | 'map' | 'asset', media, code | bytes, size, digest, key, relations}`. `relations` hold the public references that remain bare in the code with the node that satisfies each, `style` references (a stylesheet the code selected, removed from the code, to be linked by whoever delivers the module; its `subpath` is the module that produces it), whether the unit produced a stylesheet, the static files an output addresses, for a map the output it describes, and for a widget `widget: true` and the `global` sheet of its package it adopts, when there is one. `provenance` holds the compiler (name, version, fork capability and revision) with the options it ran with, the files that were read, and the exact inputs and value of the key.
 
 Essential build errors are always returned as `BUNDLE_ERROR` with file and position, with no output; nothing here knows about entitlements.
 

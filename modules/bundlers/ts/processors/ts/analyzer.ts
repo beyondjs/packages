@@ -12,13 +12,24 @@ const ready = init();
  * - The names it exports, which define the public API when the internal module is the entry point of its
  *   public module
  * - The internal modules it re-exports with `export * from`, whose names the entry point also publishes
- * - The bare specifiers it requires, which are the public modules this one depends on
+ * - The bare specifiers it requires, which are the public modules this one depends on, and the stylesheets
+ *   it selects (`pkg/sub.css`), which it may only import for their effect
  *
  * The analysis reads the emitted code rather than the original source, so the exported names are the ones
  * the runtime actually produces, including those TypeScript generates. Relative requires address internal
  * modules and are resolved by the runtime, so they are not dependencies of the public module.
  */
 export /*bundle*/ class Analyzer {
+	/**
+	 * Whether a require is a statement of its own, which is what an import for its effect alone compiles to:
+	 * a stylesheet (`pkg/sub.css`) is selected that way and binds nothing
+	 */
+	static #effect(code: string, start: number, end: number): boolean {
+		const before = code.slice(0, start).split(/[;\n]/).pop();
+		const after = code.slice(end).split(/[;\n]/)[0];
+		return !before.trim() && !after.trim();
+	}
+
 	static async process(output: ProcessorOutput): Promise<void> {
 		await ready;
 
@@ -51,6 +62,11 @@ export /*bundle*/ class Analyzer {
 		while ((match = requires.exec(code))) {
 			const specifier = match[2];
 			if (specifier.startsWith('.') || specifier === 'beyond_context') continue;
+			if (specifier.endsWith('.css') && !Analyzer.#effect(code, match.index, requires.lastIndex)) {
+				const message = `"${specifier}" is a stylesheet: import it for its effect alone (import '${specifier}'), which links it; a stylesheet binds no value`;
+				output.issues.push('errors', { code: 'STYLE_BINDING_UNSUPPORTED', message });
+				continue;
+			}
 			dependencies.add(specifier);
 		}
 	}

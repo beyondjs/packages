@@ -78,14 +78,15 @@ export class Delivered {
 }
 
 /**
- * The document of the application: the import map of the delivered modules and the import of its entry
+ * The document of the application: the import map of the delivered modules, the stylesheets the document
+ * links and the import of its entry
  */
-export const document = (importmap, entry) => `<!DOCTYPE html>
+export const document = (importmap, entry, links = []) => `<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<title>Prepared application</title>
-		<script type="importmap">${JSON.stringify(importmap)}</script>
+${links.map(href => `\t\t<link rel="stylesheet" href="${href}" />\n`).join('')}		<script type="importmap">${JSON.stringify(importmap)}</script>
 	</head>
 	<body>
 		<script type="module">
@@ -96,7 +97,9 @@ export const document = (importmap, entry) => `<!DOCTYPE html>
 `;
 
 /**
- * What a widget of the page shows: the text of its card and the colour its stylesheet gives it
+ * What a widget of the page shows: the text of its card, the colour its stylesheet gives it, the decoration
+ * a stylesheet it selects gives it, and the outline the shared sheet of its package gives its element from
+ * inside its root (`:host`)
  */
 export const shown = (page, element, selector) =>
 	page.evaluate(
@@ -104,7 +107,9 @@ export const shown = (page, element, selector) =>
 			const host = window.document.querySelector(element);
 			const found = host?.shadowRoot?.querySelector(selector);
 			if (!found) return { found: false, root: !!host?.shadowRoot, html: host?.shadowRoot?.innerHTML?.slice(0, 200) };
-			return { found: true, text: found.textContent.trim(), color: window.getComputedStyle(found).color };
+			const style = window.getComputedStyle(found);
+			const outline = window.getComputedStyle(host).outlineColor;
+			return { found: true, text: found.textContent.trim(), color: style.color, decoration: style.textDecorationLine, outline };
 		},
 		{ element, selector }
 	);

@@ -79,6 +79,30 @@ export /*bundle*/ class GitInfo {
 		return this.#error;
 	}
 
+	/**
+	 * A reference that selects something else than one repository root at one revision: a sub-path of a
+	 * monorepo (`::path:`, `&path:`) or a semver range over the tags (`semver:`)
+	 */
+	#unsupported(ref: string | undefined): boolean {
+		if (!ref) return false;
+		if (/(^|::|&)path:/.test(ref) || /(^|::|&)semver:/.test(ref)) {
+			const message = `The git reference "${ref}" selects a sub-path or a range: only a repository root at a branch, a tag or a commit is supported`;
+			this.#error = { code: 'SOURCE_UNSUPPORTED', message };
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * An owner and a repository that an identity can carry: letters, digits, `.`, `_` and `-`
+	 */
+	#named(owner: string, repo: string): boolean {
+		const segment = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,100}$/;
+		if (segment.test(owner) && segment.test(repo)) return true;
+		this.#error = { code: 'INVALID_GIT_URL', message: 'The owner and the repository of a git source are letters, digits, ".", "_" or "-"' };
+		return false;
+	}
+
 	constructor(version: string) {
 		if (typeof version !== 'string') return;
 
@@ -97,6 +121,7 @@ export /*bundle*/ class GitInfo {
 			}
 
 			const [, owner, repo, ref] = match;
+			if (this.#unsupported(ref) || !this.#named(owner, repo)) return;
 			this.#baseurl = shorthands[prefix ? prefix[1] : 'github'];
 			this.#base = `https://${this.#baseurl}`;
 			this.#owner = owner;
@@ -105,8 +130,10 @@ export /*bundle*/ class GitInfo {
 			return;
 		}
 
-		// Full git URLs: git+https://host/owner/repo.git[#ref], git+ssh://git@host/owner/repo.git, git://host/...
-		if (!/^git(\+[a-z]+)?:\/\//.test(version)) return;
+		// Full git URLs: git+https://host/owner/repo.git[#ref], git+ssh://git@host/owner/repo.git, git://host/...,
+		// and an http(s) address of a repository, which the `.git` suffix tells apart from an archive URL
+		const form = /^git(\+[a-z]+)?:\/\//.test(version) || /^https?:\/\/[^#?]+\.git\/?(#.*)?$/i.test(version);
+		if (!form) return;
 		this.#matched = true;
 
 		let url: URL;
@@ -117,11 +144,20 @@ export /*bundle*/ class GitInfo {
 			return;
 		}
 
-		const [owner, repo] = url.pathname.replace(/^\/+/, '').split('/');
+		const segments = url.pathname.replace(/^\/+|\/+$/g, '').split('/');
+		const [owner, repo] = segments;
 		if (!owner || !repo) {
 			this.#error = { code: 'INVALID_GIT_URL', message: 'The git URL must name an owner and a repository' };
 			return;
 		}
+		if (segments.length !== 2) {
+			const message = 'Only a repository addressed as <host>/<owner>/<repository> is supported: nested groups and sub-paths are not';
+			this.#error = { code: 'SOURCE_UNSUPPORTED', message };
+			return;
+		}
+
+		const ref = url.hash ? decodeURIComponent(url.hash.slice(1)) : undefined;
+		if (this.#unsupported(ref) || !this.#named(owner, repo.replace(/\.git$/, ''))) return;
 
 		// Requests are made over HTTP(S): ssh and git transports identify the same host
 		const scheme = url.protocol === 'http:' ? 'http' : 'https';
@@ -129,7 +165,7 @@ export /*bundle*/ class GitInfo {
 		this.#base = `${scheme}://${this.#baseurl}`;
 		this.#owner = owner;
 		this.#repo = repo.replace(/\.git$/, '');
-		this.#ref = url.hash ? decodeURIComponent(url.hash.slice(1)) : undefined;
+		this.#ref = ref;
 	}
 
 	/**

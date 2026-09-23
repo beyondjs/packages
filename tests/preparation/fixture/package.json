@@ -15,7 +15,8 @@
 		}
 	},
 	"exports": {
-		"./global": "./global.css"
+		"./global": "./global.css",
+		"./tone": "./tone.css"
 	},
 	"dependencies": {
 		"@beyond-js/widgets": "*",

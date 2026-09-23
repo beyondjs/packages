@@ -72,6 +72,12 @@ export /*bundle*/ interface IESMArtifact {
 	styles?: boolean;
 
 	/**
+	 * The stylesheets the sources select by specifier (`pkg/sub.css`), which the code does not import: the
+	 * runtime adopts them with the styles of the module, and whoever delivers the module links them
+	 */
+	stylesheets?: string[];
+
+	/**
 	 * The registration of the widget the module declares, when it is one
 	 */
 	widget?: IWidgetSpecs;
@@ -335,6 +341,7 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 			exports: assembler.exports,
 			ims: assembler.ims.map(({ id, hash }) => ({ id, hash })),
 			...(styles ? { styles: true } : {}),
+			...(assembler.stylesheets.length ? { stylesheets: assembler.stylesheets } : {}),
 			...(widget.specs ? { widget: widget.specs } : {})
 		};
 	}

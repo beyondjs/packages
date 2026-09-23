@@ -56,11 +56,45 @@ export class Externals {
 	}
 
 	async #manifest(name: string, from: string): Promise<Record<string, any> | undefined> {
-		for (let directory = from; ; directory = dirname(directory)) {
-			const manifest = await this.#json(join(directory, 'node_modules', ...name.split('/'), 'package.json'));
-			if (typeof manifest?.version === 'string') return manifest;
-			if (dirname(directory) === directory) return;
+		const root = await this.root(name, from);
+		return root && this.#json(join(root, 'package.json'));
+	}
+
+	/**
+	 * The directory of a package installed for a directory, as Node finds it, or else with the service. It is
+	 * where the dependencies of that installation resolve from.
+	 */
+	async root(name: string, from: string | undefined): Promise<string | undefined> {
+		const bases = [from, this.#runtime].filter(base => !!base);
+		for (const base of bases) {
+			for (let directory = base; ; directory = dirname(directory)) {
+				const root = join(directory, 'node_modules', ...name.split('/'));
+				const manifest = await this.#json(join(root, 'package.json'));
+				if (typeof manifest?.version === 'string') return root;
+				if (dirname(directory) === directory) break;
+			}
 		}
+	}
+
+	/**
+	 * Whether a public module of the workspace is a style module: its `exports` target is a stylesheet. It has
+	 * no JavaScript, so it is neither an entry nor compiled as code.
+	 */
+	async style(module: { path?: string; subpath: string }): Promise<boolean> {
+		const exports = module.path ? (await this.#json(join(module.path, 'package.json')))?.exports : void 0;
+		const target = typeof exports === 'string' && module.subpath === '.' ? exports : exports?.[module.subpath];
+		return typeof target === 'string' && target.startsWith('./') && /\.(css|scss|sass)$/.test(target);
+	}
+
+	/**
+	 * The registry a package of the workspace is published to, as its `publishConfig.registry` declares it
+	 *
+	 * @param path The directory of the package
+	 */
+	async publication(path: string | undefined): Promise<string | undefined> {
+		const manifest = path ? await this.#json(join(path, 'package.json')) : void 0;
+		const registry = manifest?.publishConfig?.registry;
+		return typeof registry === 'string' ? registry : void 0;
 	}
 
 	async #installed(name: string, from: string): Promise<string | undefined> {

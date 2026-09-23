@@ -61,9 +61,9 @@ export /*bundle*/ class Generation {
 			if (distribution) {
 				// The resolution slice is established the way tracing does: by following what the module references
 				const resolution: Record<string, string> = {};
-				for (const { specifier } of found.module.distributed.references) {
+				for (const { specifier, kind } of found.module.distributed.references) {
 					const name = new Specifier(specifier).name;
-					const landing = await pinned.land(opened.key, specifier, { key: frozen[name] });
+					const landing = await pinned.land(opened.key, specifier, { key: frozen[name], css: kind === 'style' });
 					if (landing.opened) resolution[name] = landing.opened.key;
 				}
 				return await prebuilt.module(distribution, found.module, resolution, only);

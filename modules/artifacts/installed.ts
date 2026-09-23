@@ -1,5 +1,5 @@
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
-import { Bundle, Compiler, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
+import { Bundle, Compiler, Located, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Exports } from '@beyond-js/packages/publication';
 import { Interop, Sharing } from '@beyond-js/packages/analysis';
 import { ConditionalOutput } from '@beyond-js/packages/module/output';
@@ -19,6 +19,11 @@ export /*bundle*/ interface IInstalledModule {
 	code: (sourcemap: 'inline' | 'none') => string;
 	styles?: ConditionalOutput;
 	dependencies: string[];
+
+	/**
+	 * The stylesheets its sources select (`pkg/sub.css`), removed from its code
+	 */
+	stylesheets: string[];
 	compiler: { specifier: string; version: string };
 }
 
@@ -187,6 +192,9 @@ export /*bundle*/ class Installed {
 		}).run();
 		if (!bundled) return { failure: { code: 'BUILD_FAILED', message: diagnostics[0]?.message ?? `"${name}" could not be compiled`, diagnostics } };
 
+		// Its maps are delivered inline: every source is named by its absolute path in the installation
+		const located = new Located(root, root);
+		Object.assign(bundled, { map: located.map(bundled.map), cssmap: located.map(bundled.cssmap) });
 		return { module: Installed.#describe(name, version, subpath, bundled) };
 	}
 
@@ -207,6 +215,7 @@ export /*bundle*/ class Installed {
 			code: sourcemap => output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
 			styles,
 			dependencies: bundled.dependencies,
+			stylesheets: bundled.references.filter(({ kind }) => kind === 'style').map(({ specifier }) => specifier),
 			compiler: { specifier: bundled.compiler.specifier, version: bundled.compiler.version }
 		};
 	}

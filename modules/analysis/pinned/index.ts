@@ -10,6 +10,7 @@ import type { Opened, IPublicModule } from './opened';
 import { SourcePackage } from './source';
 import { DistributedPackage } from './distributed';
 import { NpmPackage } from './npm';
+import { Output } from './output';
 
 /**
  * Where a public specifier imported from a package lands in the pinned inputs
@@ -18,6 +19,11 @@ export /*bundle*/ interface ILanding {
 	builtin?: boolean;
 	opened?: Opened;
 	module?: IPublicModule;
+
+	/**
+	 * The output of the module the specifier selects: `js` unless an explicit `.css` selects its stylesheet
+	 */
+	output?: 'js' | 'css';
 	warnings: IDiagnostic[];
 	diagnostics: IDiagnostic[];
 }
@@ -92,9 +98,10 @@ export /*bundle*/ class Pinned {
 	 *
 	 * @param from The key of the importing node
 	 * @param hint `context`: the key of the node that reached the importing one, which selects its peers;
-	 * `key`: the node an inventory already resolved the package to
+	 * `key`: the node an inventory already resolved the package to; `css`: the reference is a stylesheet
+	 * whatever its spelling, which is how a distribution declares one
 	 */
-	async land(from: string, specifier: string, hint: { context?: string; key?: string } = {}): Promise<ILanding> {
+	async land(from: string, specifier: string, hint: { context?: string; key?: string; css?: boolean } = {}): Promise<ILanding> {
 		const warnings: IDiagnostic[] = [];
 		const name = specifier.replace(/^node:/, '');
 		if (specifier.startsWith('node:') || builtinModules.includes(name)) return { builtin: true, warnings, diagnostics: [] };
@@ -110,8 +117,8 @@ export /*bundle*/ class Pinned {
 		const { opened, diagnostics } = await this.open(key);
 		if (!opened) return { warnings, diagnostics };
 
-		const found = await opened.module(parsed.subpath, this.#conditions);
-		return { opened, module: found.module, warnings, diagnostics: found.diagnostics };
+		const found = await Output.select(opened, parsed, this.#conditions, hint.css);
+		return { opened, module: found.module, output: found.output, warnings, diagnostics: found.diagnostics };
 	}
 
 	destroy(): void {

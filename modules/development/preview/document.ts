@@ -50,14 +50,21 @@ export class Document {
 
 	/**
 	 * The stylesheets the document holds: those of the modules that are not widgets and that the entry
-	 * reaches without crossing a widget, linked and marked with the module they belong to, which is how
-	 * the development runtime replaces them when a build changes them. A stylesheet reached through a
-	 * widget only is adopted inside the root of that widget.
+	 * reaches without crossing a widget, and the ones those modules select by specifier (`pkg/sub.css`),
+	 * linked and marked with the module they belong to, which is how the development runtime replaces them
+	 * when a build changes them. A stylesheet reached through a widget only is adopted inside the root of
+	 * that widget.
 	 */
 	get #links(): string[] {
-		return this.#description.modules
-			.filter(module => module.styles && !module.widget && module.scope !== 'widget')
-			.map(module => `<link rel="stylesheet" data-beyond-styles="${this.#text(module.vspecifier ?? module.specifier)}" href="${this.#text(module.styles)}">`);
+		const held = this.#description.modules.filter(module => !module.widget && module.scope !== 'widget');
+		const sheets = held.flatMap(module => [
+			...(module.styles ? [{ vspecifier: module.vspecifier ?? module.specifier, url: module.styles }] : []),
+			...(module.stylesheets ?? [])
+		]);
+
+		// A stylesheet that several modules select, or that a module owns and another selects, is linked once
+		const linked = new Map(sheets.map(sheet => [sheet.url, sheet]));
+		return [...linked.values()].map(({ vspecifier, url }) => `<link rel="stylesheet" data-beyond-styles="${this.#text(vspecifier)}" href="${this.#text(url)}">`);
 	}
 
 	get html(): string {

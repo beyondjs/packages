@@ -1,0 +1,27 @@
+{
+	"name": "@fixture/selector",
+	"version": "1.0.0",
+	"description": "One entry module per way of selecting the output of a public module",
+	"exports": {
+		"./literal": "./literal/index.ts",
+		"./stripped": "./stripped/index.ts",
+		"./same": "./same/index.ts",
+		"./ambiguous": "./ambiguous/index.ts",
+		"./missing": "./missing/index.ts",
+		"./sheetless": "./sheetless/index.ts",
+		"./unselected": "./unselected/index.ts",
+		"./binding": "./binding/index.ts",
+		"./attribute": "./attribute/index.ts",
+		"./script": "./script/index.ts",
+		"./sheet": "./sheet/index.ts",
+		"./alone": "./alone/index.ts",
+		"./effect": "./effect/index.ts"
+	},
+	"dependencies": {
+		"fixture-sheets": "1.0.0"
+	},
+	"beyond": {
+		"modules": { "path": "." },
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	}
+}

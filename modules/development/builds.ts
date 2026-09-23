@@ -26,9 +26,22 @@ export /*bundle*/ interface IBuildable {
 	 * Whether the host delivers an installed package at an exact version to browsers
 	 */
 	supplies?(name: string, version: string): Promise<boolean>;
+
+	/**
+	 * The registry id the compiled-module paths of the host write for a package at an exact version, or why it
+	 * has none: the workspace and npm are unprefixed, and an installed package is addressed by the registry its
+	 * lockfile recorded. A host without it addresses every package unprefixed.
+	 */
+	origin?(name: string, version: string): Promise<{ registry?: string; reason?: string }>;
+
+	/**
+	 * The registry id of the base address of a registry, such as the `publishConfig.registry` of a package
+	 */
+	registry?(base: string): Promise<string | undefined>;
+
 	published(): Promise<IPublishedModule[]>;
 	module(request: object, conditions: object): Promise<{
-		delivered?: { hash: string; styles?: string; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
+		delivered?: { hash: string; styles?: string; stylesheets?: string[]; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
 		failure?: IBuildFailure;
 	}>;
 
@@ -186,12 +199,16 @@ export /*bundle*/ class Builds {
 				undeclared.push(failure);
 				continue;
 			}
+			// A style module built its stylesheet and has no code: it is valid, and its sheet is what changes
+			const sheet = !delivered && failure.code === 'OUTPUT_NOT_AVAILABLE' ? failure.styles : void 0;
 			build.modules.push(
 				delivered
 					? { vspecifier, platform, status: 'valid', hash: delivered.hash, ...(delivered.styles ? { styles: delivered.styles } : {}) }
-					: { vspecifier, platform, status: 'invalid' }
+					: sheet
+						? { vspecifier, platform, status: 'valid', styles: sheet }
+						: { vspecifier, platform, status: 'invalid' }
 			);
-			failure && report(failure);
+			failure && !sheet && report(failure);
 		}
 
 		// A module that declares none of the platforms this service builds for has nothing to deliver

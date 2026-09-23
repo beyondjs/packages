@@ -617,6 +617,33 @@
 								"type": "string",
 								"description": "The address of the stylesheet of a module served by this environment, relative to the document, when its sources produce one. The document links the stylesheets of the modules that are not widgets; a widget adopts its own inside its shadow root."
 							},
+							"stylesheets": {
+								"type": "array",
+								"description": "The stylesheets the sources of the module select by specifier (`pkg/sub.css`): the stylesheet of that public module, with its address and the versioned identity the runtime replaces it by. The document links those of the modules in its scope; a widget adopts them.",
+								"items": {
+									"type": "object",
+									"required": [
+										"specifier",
+										"vspecifier",
+										"url"
+									],
+									"additionalProperties": false,
+									"properties": {
+										"specifier": {
+											"type": "string",
+											"pattern": "\\.css$"
+										},
+										"vspecifier": {
+											"type": "string",
+											"minLength": 1
+										},
+										"url": {
+											"type": "string",
+											"minLength": 1
+										}
+									}
+								}
+							},
 							"widget": {
 								"type": "boolean",
 								"description": "Whether the module declares a widget."
@@ -707,6 +734,20 @@
 							"additionalProperties": {
 								"type": "string",
 								"pattern": "^(\\.\\./m/|https?://)"
+							}
+						},
+						"scopes": {
+							"type": "object",
+							"description": "The imports of the importers that resolve another version of a specifier, by the package prefix of the importer's address, as a release scopes them. Present only when an importer needs one.",
+							"propertyNames": {
+								"pattern": "^(\\.\\./m/|https?://)"
+							},
+							"additionalProperties": {
+								"type": "object",
+								"additionalProperties": {
+									"type": "string",
+									"pattern": "^(\\.\\./m/|https?://)"
+								}
 							}
 						}
 					}

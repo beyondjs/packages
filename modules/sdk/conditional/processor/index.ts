@@ -156,9 +156,17 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 
 	async _process(request: IRequest) {
 		const outputs = new ProcessorOutputs({ delegates: this.#delegates });
-		await this._build(request, outputs);
+		// A build that throws would leave the readiness of this processor, and of its conditional, unsettled: it
+		// is a diagnostic of the processor instead
+		let failure: IDiagnostic;
+		try {
+			await this._build(request, outputs);
+		} catch (exc) {
+			failure = { code: 'PROCESSOR_FAILED', message: `The "${this.name}" processor failed: ${exc instanceof Error ? exc.message : exc}` };
+		}
 		if (request !== this._request) return;
 
+		this.#errors = failure ? [failure] : [];
 		this.#outputs = outputs;
 	}
 

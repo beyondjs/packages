@@ -42,33 +42,51 @@ export class Addresses {
 	}
 
 	/**
-	 * The path of a module in the compiled-module contract, without the origin and the query
+	 * The path of a module in the compiled-module contract, without the origin and the query. The registry is
+	 * part of it: npm is written unprefixed, any other registry by its id, so an address names its source.
 	 */
-	path(name: string, version: string, subpath: string): string {
-		return ModulePath.format(new Identity({ name, version, subpath }));
+	path(name: string, version: string, subpath: string, registry = 'npm'): string {
+		return ModulePath.format(new Identity({ registry, name, version, subpath }));
 	}
 
 	/**
 	 * The address of a module served by this environment, relative to the preview document
 	 */
-	environment(name: string, version: string, subpath: string): string {
-		return `..${this.path(name, version, subpath)}?${this.#development.query}`;
+	environment(name: string, version: string, subpath: string, registry?: string): string {
+		return `..${this.path(name, version, subpath, registry)}?${this.#development.query}`;
 	}
 
 	/**
 	 * The address of the stylesheet of a module served by this environment, relative to the preview document
 	 */
-	styles(name: string, version: string, subpath: string): string {
-		const path = ResourcePath.format({ kind: 'style', identity: new Identity({ name, version, subpath }) });
+	styles(name: string, version: string, subpath: string, registry = 'npm'): string {
+		const path = ResourcePath.format({ kind: 'style', identity: new Identity({ registry, name, version, subpath }) });
 		return `..${path}?${this.#development.query}`;
 	}
 
 	/**
-	 * The address of a module on the CDN, at an exact version
+	 * The address of a module on the CDN, at an exact version and under the registry it is published to
 	 *
 	 * @returns undefined when no CDN origin is configured
 	 */
-	published(name: string, version: string, subpath: string): string | undefined {
-		return this.#cdn && `${this.#cdn}${this.path(name, version, subpath)}?${this.#published.query}`;
+	published(name: string, version: string, subpath: string, registry?: string): string | undefined {
+		return this.#cdn && `${this.#cdn}${this.path(name, version, subpath, registry)}?${this.#published.query}`;
+	}
+
+	/**
+	 * The address of the stylesheet of a module on the CDN
+	 */
+	stylesheet(name: string, version: string, subpath: string, registry = 'npm'): string | undefined {
+		const path = ResourcePath.format({ kind: 'style', identity: new Identity({ registry, name, version, subpath }) });
+		return this.#cdn && `${this.#cdn}${path}?${this.#published.query}`;
+	}
+
+	/**
+	 * The package prefix of an address, which is the scope of the modules that address imports:
+	 * `../m/@example/app@1.0.0/` for `../m/@example/app@1.0.0/modules/main?…`
+	 */
+	static prefix(url: string): string | undefined {
+		const index = url.indexOf('/modules/');
+		return index === -1 ? void 0 : url.slice(0, index + 1);
 	}
 }

@@ -83,7 +83,7 @@ export /*bundle*/ class Analysis {
 			const landing = await pinned.land(keys[0], Specifier.of(parsed.name, parsed.subpath));
 			landing.diagnostics.forEach(({ code, message }) => fail(code, message));
 			if (!landing.module) continue;
-			const id = tracer.enqueue(landing.opened, landing.module);
+			const id = tracer.enqueue(landing.opened, landing.module, void 0, landing.output);
 			entries.push({ id, target: target ?? (conditions.platform === 'node' ? 'backend' : 'web'), package: keys[0], subpath: Keyed.subpath(parsed.subpath) });
 		}
 

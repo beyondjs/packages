@@ -222,7 +222,10 @@ export /*bundle*/ class Bundle {
 
 			const diagnostics = failures.map(({ text, location }) => {
 				const at = location ? `${location.file} (${location.line}:${location.column}): ` : '';
-				return { code: 'BUNDLE_ERROR', message: at + text };
+				// A default or named import of a stylesheet, or a CSS module script: a stylesheet binds no value
+				const style = /No matching export in "beyond-style:([^"]+)"/.exec(text);
+				if (style) return { code: 'STYLE_BINDING_UNSUPPORTED', message: at + Boundary.binding(style[1]) };
+				return { code: boundary.refused(text) ? 'STYLE_BINDING_UNSUPPORTED' : 'BUNDLE_ERROR', message: at + text };
 			});
 			return { diagnostics: diagnostics.length ? diagnostics : [{ code: 'BUNDLE_ERROR', message: exc.message }] };
 		}

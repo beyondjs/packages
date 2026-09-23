@@ -9,7 +9,8 @@
  */
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Artifacts } from '@beyond-js/packages/artifacts';
@@ -153,8 +154,12 @@ try {
 		}
 		assert.deepEqual(await consumer.call('runtime'), [], 'Nothing registered in a runtime, even where one can be resolved');
 
-		const map = JSON.parse(await readFile(join(production.report.path, `${app.file}.map`), 'utf8'));
-		assert.deepEqual(map.sources.sort(), ['decorate.ts', 'index.ts']);
+		// A written map names its sources relative to itself, so it keeps resolving when it moves with the workspace
+		const written = join(production.report.path, `${app.file}.map`);
+		const map = JSON.parse(await readFile(written, 'utf8'));
+		const located = map.sources.map(source => resolve(dirname(written), source));
+		assert.deepEqual(located.map(source => basename(source)).sort(), ['decorate.ts', 'index.ts']);
+		for (const source of located) assert.ok(existsSync(source), `${source} is a file of the workspace`);
 		assert.ok(map.sourcesContent.every(content => typeof content === 'string' && content.length));
 		return `exports ${app.exports.join(', ')}; sources ${map.sources.join(', ')} with content`;
 	});

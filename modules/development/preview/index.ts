@@ -17,7 +17,11 @@ export /*bundle*/ interface IPreviewDescription {
 	cdn: { origin?: string; reason?: string };
 	selection: { explicit: boolean };
 	modules: IPreviewModule[];
-	importmap: { imports: Record<string, string> };
+	/**
+	 * What the document gives the browser: the import of each specifier, and the scopes of the importers that
+	 * resolve another version of one
+	 */
+	importmap: { imports: Record<string, string>; scopes?: Record<string, Record<string, string>> };
 
 	/**
 	 * Whether the document registers a development runtime, which is what applies updates to the page while
@@ -69,8 +73,9 @@ export /*bundle*/ class Preview {
 		const failures: IPreviewDiagnostic[] = [];
 
 		for (const module of published) {
-			// The packages the toolchain supplies are libraries of the application, never its entry
-			if (module.supplied) continue;
+			// The packages the toolchain supplies are libraries of the application, never its entry, and a style
+			// module has no code to start from
+			if (module.supplied || (await this.#externals.style(module))) continue;
 			const { delivered, failure } = await this.#delivery.module(module, WEB);
 			if (!delivered) {
 				const diagnostics = failure.diagnostics ?? [failure];
@@ -141,9 +146,7 @@ export /*bundle*/ class Preview {
 			? { runtime: coordinator, session }
 			: { reason: `The runtime of the application (${graph.runtimes.join(', ') || 'none'}) has no development coordinator in this workspace or on the CDN, so nothing applies updates to the running page` };
 
-		const { modules, diagnostics } = graph;
-		const imports: Record<string, string> = {};
-		modules.forEach(({ specifier, url }) => url && (imports[specifier] = url));
+		const { modules, diagnostics, importmap } = graph;
 
 		const { cdn } = this.#addresses;
 		return {
@@ -153,7 +156,7 @@ export /*bundle*/ class Preview {
 			cdn: cdn ? { origin: cdn } : { reason: `${Addresses.VARIABLE} is not set: modules that are not in development have no address` },
 			selection: { explicit: selection.explicit },
 			modules,
-			importmap: { imports },
+			importmap,
 			updates,
 			diagnostics
 		};

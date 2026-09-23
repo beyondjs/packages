@@ -6,9 +6,9 @@
 import { createServer, request } from 'node:http';
 import { createPrivateKey, sign } from 'node:crypto';
 import { cp, mkdtemp, mkdir, realpath, rm } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export { step, results, Fork, Host, Runtime } from '../unified-runtime/harness.mjs';
@@ -19,6 +19,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 const listening = server => new Promise(done => server.listen(0, '127.0.0.1', () => done(`http://127.0.0.1:${server.address().port}`)));
 
 /**
+ * The sources of the Widgets package, `widgets/widgets/src` of the suite unless BEYOND_WIDGETS names them
+ */
+export class Widgets {
+	#root = resolve(process.env.BEYOND_WIDGETS || resolve(here, '../../../widgets/widgets/src'));
+	get root() {
+		return this.#root;
+	}
+
+	constructor() {
+		if (!existsSync(join(this.#root, 'modules/controller/module.json'))) throw new Error(`The Widgets sources were not found in ${this.#root}. Set BEYOND_WIDGETS.`);
+	}
+}
+
+/**
  * A temporary workspace with the fixture packages and the sources of the development runtime
  */
 export class Workspace {
@@ -27,13 +41,21 @@ export class Workspace {
 		return this.#root;
 	}
 
-	async create(runtime) {
+	/**
+	 * @param fixture The directory of this validation whose packages are copied
+	 * @param widgets The Widgets sources, copied as the package `widgets` of the workspace when given
+	 */
+	async create(runtime, { fixture = 'fixture', widgets } = {}) {
 		this.#root = await realpath(await mkdtemp(join(tmpdir(), 'beyond-preview-')));
-		await cp(join(here, 'fixture'), this.#root, { recursive: true });
+		await cp(join(here, fixture), this.#root, { recursive: true });
 
 		const target = join(this.#root, 'runtime');
 		await mkdir(target);
 		for (const entry of Runtime.entries(runtime.root)) await cp(join(runtime.root, entry), join(target, entry), { recursive: true });
+
+		// Installed dependencies and generated contexts of the checkout are not sources
+		const sources = source => !/[\\/](node_modules|\.beyond)([\\/]|$)/.test(source.slice(widgets?.root.length));
+		widgets && (await cp(widgets.root, join(this.#root, 'widgets'), { recursive: true, filter: sources }));
 		return this;
 	}
 

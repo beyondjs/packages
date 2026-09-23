@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction, Application } from 'express';
 import type { Delivery } from '@beyond-js/packages/artifacts';
 import { Options, ResourcePath } from '@beyond-js/artifact-api';
 import { Stylesheet } from '../modules/helpers';
+import { Formats } from '../modules/formats';
 
 /**
  * Delivers what a running consumer applies after a build: the update of a composed module, which
@@ -14,26 +15,30 @@ import { Stylesheet } from '../modules/helpers';
  * route adds nothing to it and answers its own errors, so it can move into that contract, or be replaced
  * by it, without having changed what `/m/` means.
  *
- *     /u/<hash>/[<registry>/]<package>@<version>/modules/<subpath>?target=…&format=esm&env=development&…
- *     /u/<hash>/[<registry>/]<package>@<version>/styles/<subpath>?target=…&format=esm&env=development&…
+ *     /u/<hash>/[<registry>/]<package>@<version>/modules/<subpath>?target=…&format=esm|system&env=development&…
+ *     /u/<hash>/[<registry>/]<package>@<version>/styles/<subpath>?target=…&format=esm|system&env=development&…
  *
  * `<hash>` is the hash of the artifact, or of the stylesheet, that a `build.ended` event announced. It
  * makes every update a different URL, which a module loader and a browser need because they evaluate or
  * cache a URL once, and it lets this route refuse a notification that is no longer current instead of
  * answering it with newer code than it announced. The rest of the path and the query are read with the
- * codec of the compiled-module contract.
+ * codec of the compiled-module contract. With `format=system` the update is the `System.register` form of the
+ * same patch, converted as the module route converts a module, for a consumer that loads modules through
+ * SystemJS.
  */
 export class UpdatesRoutes {
 	static PREFIX = '/u/';
 
 	#delivery: Delivery;
+	#formats: Formats;
 
-	constructor(delivery: Delivery) {
+	constructor(delivery: Delivery, formats: Formats) {
 		this.#delivery = delivery;
+		this.#formats = formats;
 	}
 
-	static setup(app: Application, delivery: Delivery) {
-		const routes = new UpdatesRoutes(delivery);
+	static setup(app: Application, delivery: Delivery, formats: Formats) {
+		const routes = new UpdatesRoutes(delivery, formats);
 		app.get(`${UpdatesRoutes.PREFIX}*`, (request, response, next) => routes.update(request, response, next));
 	}
 
@@ -53,8 +58,8 @@ export class UpdatesRoutes {
 
 			const query = request.originalUrl.includes('?') ? request.originalUrl.slice(request.originalUrl.indexOf('?') + 1) : '';
 			const options = new Options(new URLSearchParams(query));
-			if (options.format !== 'esm' || options.env !== 'development' || options.min) {
-				return this.#refuse(response, 400, 'UPDATE_INVALID', 'Updates are development ES modules: format=esm&env=development&min=false');
+			if (!Formats.FORMATS.includes(options.format) || options.env !== 'development' || options.min) {
+				return this.#refuse(response, 400, 'UPDATE_INVALID', 'Updates are development modules: format=esm or format=system, env=development&min=false');
 			}
 
 			const { name, version, subpath } = resource.identity;
@@ -77,8 +82,9 @@ export class UpdatesRoutes {
 				return this.#refuse(response, 404, 'UPDATE_NOT_APPLICABLE', message);
 			}
 
+			const answered = this.#formats.code(code, options.format, `${hash}:patch`);
 			response.set('Cache-Control', 'no-store').type('application/javascript; charset=utf-8');
-			response.status(200).send(Buffer.from(code, 'utf-8'));
+			response.status(200).send(Buffer.from(answered, 'utf-8'));
 		} catch (error) {
 			// A path or an option that the codec of the contract rejects is answered by the error handler of the routes
 			next(error);

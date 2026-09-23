@@ -1,0 +1,21 @@
+{
+	"name": "@fixture/bare",
+	"version": "1.0.0",
+	"private": true,
+	"description": "A widget package that publishes no shared stylesheet, and modules that select a stylesheet the wrong way",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	},
+	"dependencies": {
+		"@beyond-js/widgets": "*",
+		"@fixture/cards": "*"
+	}
+}

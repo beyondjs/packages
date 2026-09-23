@@ -1,4 +1,5 @@
 import type { ESMConditional } from '@beyond-js/packages/sdk';
+import type { ConditionalOutput } from '@beyond-js/packages/module/output';
 import { promises as fs } from 'fs';
 import { join, dirname, posix, relative, sep, isAbsolute } from 'path';
 
@@ -74,17 +75,7 @@ export class Files {
 		}
 
 		// The stylesheet of the module is written beside its code, with its own map
-		if (styles && conditional.styles) {
-			const sheet = join(this.#path, styles);
-			const map = conditional.styles.map();
-			const comment = map ? `\n/*# ${['sourceMappingURL'].join('')}=${posix.basename(styles)}.map */\n` : '\n';
-			await fs.writeFile(sheet, `${conditional.styles.code()}${comment}`);
-			this.#written.add(styles);
-			if (map) {
-				await fs.writeFile(`${sheet}.map`, map);
-				this.#written.add(`${styles}.map`);
-			}
-		}
+		styles && conditional.styles && (await this.sheet(conditional.styles, styles));
 
 		// A packaged module has no update: whatever a previous build in another mode wrote for it is pruned
 		if (!conditional.patch) return;
@@ -92,6 +83,24 @@ export class Files {
 		// The update carries its map inline: it is imported by URL, with no sibling file to resolve
 		await fs.writeFile(join(this.#path, patch), conditional.patch.code('sourcemap-inline'));
 		this.#written.add(patch);
+	}
+
+	/**
+	 * Writes the stylesheet of a module and its map. A style module has no code, and this is all it writes.
+	 *
+	 * @param file The stylesheet, relative to the artifacts directory (`styles()`)
+	 */
+	async sheet(styles: ConditionalOutput, file: string): Promise<void> {
+		const sheet = join(this.#path, file);
+		await fs.mkdir(dirname(sheet), { recursive: true });
+		const map = styles.map();
+		const comment = map ? `\n/*# ${['sourceMappingURL'].join('')}=${posix.basename(file)}.map */\n` : '\n';
+		await fs.writeFile(sheet, `${styles.code()}${comment}`);
+		this.#written.add(file);
+		if (map) {
+			await fs.writeFile(`${sheet}.map`, map);
+			this.#written.add(`${file}.map`);
+		}
 	}
 
 	/**

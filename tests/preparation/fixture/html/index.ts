@@ -1,4 +1,6 @@
 import { WidgetClientController } from '@beyond-js/widgets/controller';
+// A stylesheet of the package selected by the widget: adopted in its root, never linked by the document
+import '@fixture/cards/tone.css';
 
 /**
  * A widget written without a view framework: it writes its own markup into the holder of its element

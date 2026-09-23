@@ -25,15 +25,25 @@ export /*bundle*/ interface IPackageVersionsResponse extends IPackageResponseBas
 }
 
 /**
- * Who served a release and whether it required credentials. It never carries the credentials.
+ * Who served a release and whether it is public. It never carries the credentials.
  */
 export /*bundle*/ interface IProviderIdentity {
 	// Identity of the registry or host: `host[:port][/prefix]`
 	registry: string;
 	// Normalized base address (scheme, host, port, prefix). It never carries credentials
 	base?: string;
-	// `private` when the provider is accessed with credentials, `public` otherwise
+	// `public` when the release is served without credentials; `private` otherwise, and on any doubt
 	visibility: 'public' | 'private';
+	// Only for a release read with a credential: `anonymous` when an anonymous probe established that the
+	// same release is public (it is then fetched without the credential), `credential` when it stays private
+	access?: 'anonymous' | 'credential';
+}
+
+export /*bundle*/ interface IPackageArchiveResponse {
+	error?: IDiagnostic;
+	// `sha512-<base64>` of the archive as it was downloaded
+	integrity?: string;
+	bytes?: number;
 }
 
 export /*bundle*/ interface IPackageManifestResponse extends IPackageResponseBase {
@@ -117,4 +127,10 @@ export /*bundle*/ interface IPackageProviders {
 	 * @param release - Package release version
 	 */
 	tarball(source: DependencySource, release: string): Promise<IPackageTarballResponse>;
+
+	/**
+	 * Downloads an archive URL once and answers its `sha512` integrity: how an archive URL that declares no
+	 * integrity is pinned
+	 */
+	archive?(source: DependencySource): Promise<IPackageArchiveResponse>;
 }

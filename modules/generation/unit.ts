@@ -37,7 +37,7 @@ export /*bundle*/ class Unit {
 		const resolution: Record<string, string> = {};
 		const references: IRelations['references'] = [];
 		for (const { specifier, kind } of bundled.references) {
-			const landing = await this.#pinned.land(this.#opened.key, specifier, { key: this.#frozen[new Specifier(specifier).name] });
+			const landing = await this.#pinned.land(this.#opened.key, specifier, { key: this.#frozen[new Specifier(specifier).name], css: kind === 'style' });
 			warnings.push(...landing.warnings);
 			diagnostics.push(...landing.diagnostics);
 			if (landing.opened) resolution[new Specifier(specifier).name] = landing.opened.key;
@@ -59,6 +59,16 @@ export /*bundle*/ class Unit {
 
 		const { version, assigned, provenance } = this.#compiler.identity;
 		return { name: 'esbuild', version, assigned, revision: provenance?.revision, options: toolchain.options(this.#opened), system };
+	}
+
+	/**
+	 * What the code of a widget relates to beside its references: that it is a widget, which adopts its
+	 * styles in a root of its own, and the shared stylesheet of its package it adopts there
+	 */
+	#widget(bundled: IBundled): Pick<IRelations, 'widget' | 'global'> {
+		const { widget, global } = <{ widget?: boolean; global?: boolean }>(bundled.configuration ?? {});
+		if (!widget) return {};
+		return { widget: true, ...(global ? { global: { package: this.#opened.key, subpath: 'global' } } : {}) };
 	}
 
 	/**
@@ -100,7 +110,7 @@ export /*bundle*/ class Unit {
 		const assets = (via: 'js' | 'css') => bundled.resources.filter(resource => resource.via === via).map(({ path }) => ({ package: key, path }));
 		const stylesheet = typeof bundled.css === 'string';
 		if (typeof code === 'string' && !only) {
-			outputs.text('js', code, { references, stylesheet, assets: assets('js') });
+			outputs.text('js', code, { references, stylesheet, assets: assets('js'), ...this.#widget(bundled) });
 			map && outputs.text('map', map, { of: 'js' });
 		}
 		if (stylesheet) {

@@ -4,10 +4,17 @@ export type CodeOutputType = 'raw-code' | 'sourcemap-inline';
 
 export type MapType = 'string' | 'object' | 'base64';
 
+/**
+ * The code and the source map of one output of a conditional.
+ *
+ * An output without code (a module whose sources produce only a stylesheet, a processing that failed) answers
+ * `undefined` for its code and its hash, and never throws: a conditional reads its outputs while it processes,
+ * and a throw there would leave its readiness, and every request waiting for it, unsettled.
+ */
 export /*bundle*/ class ConditionalOutput {
 	#code: Map<'sourcemap-inline' | 'raw-code', any>;
 	code(output?: CodeOutputType) {
-		if (!this.#code) return;
+		if (typeof this.#code?.get('raw-code') !== 'string') return;
 
 		if (output === 'sourcemap-inline') {
 			if (this.#code.has('sourcemap-inline')) return this.#code.get('sourcemap-inline');
@@ -55,17 +62,24 @@ export /*bundle*/ class ConditionalOutput {
 			if (this.#map.has('object')) return this.#map.get('object');
 
 			// If the object map does not exist, but a string map does, parse it
+			// A map that is not JSON is no map
+			const parse = (text: string) => {
+				try {
+					return JSON.parse(text);
+				} catch {
+					return void 0;
+				}
+			};
 			if (this.#map.has('string')) {
-				const map = JSON.parse(<string>this.#map.get('string'));
-				this.#map.set('object', map);
+				const map = parse(<string>this.#map.get('string'));
+				map !== void 0 && this.#map.set('object', map);
 				return map;
 			}
 
 			// If map exists in base64 format, decode it and parse
 			if (this.#map.has('base64')) {
-				const raw = decode64();
-				const map = JSON.parse(raw);
-				this.#map.set('object', map);
+				const map = parse(decode64());
+				map !== void 0 && this.#map.set('object', map);
 				return map;
 			}
 		} else if (format === 'base64') {
@@ -95,26 +109,26 @@ export /*bundle*/ class ConditionalOutput {
 	#hash: string | undefined;
 	get hash() {
 		if (this.#hash !== void 0) return this.#hash;
-		if (!this.#code) return void 0;
+		if (typeof this.#code?.get('raw-code') !== 'string') return void 0;
 
 		this.#hash = createHash('md5').update(this.#code.get('raw-code')).digest('hex');
 		return this.#hash;
 	}
 
-	set(values: { code: string; map: string | object }) {
-		if (typeof values !== 'object') throw new Error('Invalid parameters');
-
-		const { code, map } = values;
+	/**
+	 * Sets the code and its map. A value that is not a string is no code, and a map that is neither a string nor
+	 * an object is no map: they are left out rather than refused, because this runs inside a processing.
+	 */
+	set(values: { code?: string; map?: string | object }) {
+		const { code, map } = values && typeof values === 'object' ? values : <{ code?: string; map?: string | object }>{};
 		this.#code = new Map();
-		this.#code.set('raw-code', code);
+		typeof code === 'string' && this.#code.set('raw-code', code);
 
 		this.#map = new Map();
 		if (typeof map === 'string') {
 			this.#map.set('string', map);
 		} else if (typeof map === 'object' && map !== null) {
 			this.#map.set('object', map);
-		} else if (map) {
-			throw new Error('Invalid map property. It must be a string or an object.');
 		}
 
 		this.#hash = void 0; // Reset hash when code or map changes

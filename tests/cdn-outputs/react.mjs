@@ -61,7 +61,7 @@ export class RealReact {
 				const prepared = await prepare({ platform: 'node', environment: 'production' }, 'esm');
 				assert.deepEqual(prepared.diagnostics, []);
 				assert.deepEqual(prepared.inventory.diagnostics, []);
-				const modules = prepared.inventory.items.filter(({ kind }) => kind === 'module').map(item => Keyed.specifier(item)).sort();
+				const modules = prepared.inventory.items.filter(({ kind }) => kind === 'module').map(item => Keyed.specifier(item, prepared.graph)).sort();
 				assert.deepEqual(modules, [...ENTRIES, 'scheduler'].sort());
 
 				for (const specifier of ['react-dom', 'react-dom/client', 'react-dom/server']) {

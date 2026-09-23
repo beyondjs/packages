@@ -1,8 +1,8 @@
 import type { Readable } from 'stream';
 
 /**
- * Where a source is kept: `public`, or `org:<tenant>` for what was obtained with credentials. The scope
- * is part of every lookup and never part of the key.
+ * Where a source is kept: `public`, or `org:<tenant>` for a private node of the graph. The scope is part of
+ * every lookup and never part of the key.
  */
 export /*bundle*/ type StoreScope = string;
 

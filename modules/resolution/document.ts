@@ -33,7 +33,11 @@ export class Document {
 	#judged = false;
 
 	/**
-	 * The key of the release an occurrence resolved to: `provider:name@version`. Null when it failed.
+	 * The key of the release an occurrence resolved to, null when it failed:
+	 *
+	 * - `<registry id>:<name>@<version>` for a registry release (`npm:react@18.3.1`);
+	 * - `git:<host>/<owner>/<repo>@<commit>` for a git source, the repository at its pinned commit;
+	 * - `digest:<algorithm>-<hex>` for an archive URL, its content.
 	 */
 	#key(node: Node): string | null {
 		if (this.#keys.has(node)) return this.#keys.get(node);
@@ -46,22 +50,30 @@ export class Document {
 			return null;
 		}
 
-		const described = this.#describe(owner);
-		const key = `${described.origin.provider}:${described.name}@${described.version}`;
+		const { key, described } = this.#describe(owner);
 		this.#keys.set(node, key);
 		if (!this.#nodes.has(key)) this.#nodes.set(key, described);
 		return key;
 	}
 
-	#describe(owner: Node): IGraphNode {
+	/**
+	 * The visibility of a release, and how it was established when a credential was involved
+	 */
+	#visibility({ provider }: Node['release']): Pick<IGraphNode, 'visibility' | 'access'> {
+		return provider.access ? { visibility: provider.visibility, access: provider.access } : { visibility: provider.visibility };
+	}
+
+	#describe(owner: Node): { key: string; described: IGraphNode } {
 		const { source, version, release } = owner;
-		const { visibility } = release.provider;
+		const visibility = this.#visibility(release);
 		const { data } = source;
 
 		if (data.is === DependencySourceIsType.Url) {
-			const origin = Origin.of('url', release.provider);
-			const base = { name: owner.package, version: version.resolved, origin, visibility };
-			return { ...base, integrity: data.integrity, tarball: data.url };
+			const [algorithm, value] = release.integrity.split('-');
+			const digest = `${algorithm}-${Buffer.from(value, 'base64').toString('hex')}`;
+			const base = { name: owner.package, version: version.resolved, origin: Origin.digest(release.provider) };
+			const described = { ...base, ...visibility, integrity: release.integrity, tarball: this.#clean(data.url) };
+			return { key: `digest:${digest}`, described };
 		}
 
 		const manifest = release.manifest;
@@ -69,27 +81,30 @@ export class Document {
 		const publication = forms.includes(form) ? { publication: form } : {};
 
 		if (data.is === DependencySourceIsType.Git) {
-			// The commit is what is pinned: it is kept as build metadata of the declared version
-			const name = manifest?.name || owner.package;
-			const pinned = `${manifest?.version || '0.0.0'}+git.${version.resolved}`;
-			const origin = Origin.of('git', release.provider);
-			return {
-				name,
-				version: pinned,
-				origin,
-				visibility,
+			// The repository and its commit are the identity; the name and the version are the ones its manifest
+			// declares, which is how the runtime registers its modules
+			const commit = version.resolved;
+			const repository = `${data.baseurl}/${data.owner}/${data.repo}`;
+			const declared = typeof manifest?.version === 'string' && /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/.test(manifest.version);
+			const described: IGraphNode = {
+				name: manifest?.name || owner.package,
+				version: declared ? manifest.version : '0.0.0',
+				origin: Origin.git(repository, commit, data.base),
+				...visibility,
 				integrity: null,
 				tarball: release.tarball,
 				...publication
 			};
+			return { key: `git:${repository}@${commit}`, described };
 		}
 
 		const dist = manifest?.dist;
 		const hex = typeof dist?.shasum === 'string' && /^[0-9a-f]{40}$/i.test(dist.shasum) ? dist.shasum : void 0;
 		const integrity = dist?.integrity || (hex ? `sha1-${Buffer.from(hex, 'hex').toString('base64')}` : null);
-		const origin = Origin.of('registry', release.provider);
-		const base = { name: source.package, version: version.resolved, origin, visibility };
-		return { ...base, integrity, tarball: this.#clean(dist?.tarball), ...publication };
+		const origin = Origin.registry(release.provider);
+		const base = { name: source.package, version: version.resolved, origin, ...visibility };
+		const described = { ...base, integrity, tarball: this.#clean(dist?.tarball), ...publication };
+		return { key: `${origin.provider}:${described.name}@${described.version}`, described };
 	}
 
 	/**
@@ -120,6 +135,10 @@ export class Document {
 		if (owner.release.via === 'manifest') {
 			const reason = 'The provider publishes no package metadata; the manifest was fetched to read dependencies';
 			this.#exceptions.set(key, { node: key, kind: 'manifest-fetch', provider, reason });
+		}
+		if (owner.release.downloaded) {
+			const reason = 'The archive URL declares no integrity; it was downloaded once to pin its content digest';
+			this.#exceptions.set(key, { node: key, kind: 'archive-fetch', provider, reason });
 		}
 		if (owner.source.data.is === DependencySourceIsType.Url) {
 			const message = 'The dependencies of an archive URL are unknown until it is fetched: none was pinned';
