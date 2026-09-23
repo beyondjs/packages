@@ -5,18 +5,18 @@
  * whose types are wrong, and the check reports it with the file relative to the package, the range and the
  * compiler code. It also checks how the types of public dependencies are supplied, that missing types are a
  * category of their own instead of errors of the module, that a check is bounded and cancellable, and that
- * no result describes the host. The packages are temporary; nothing of the repository is edited.
+ * no result describes the host. The packages are a temporary copy of `fixtures/workspace`; nothing of the
+ * repository is edited.
  *
  * Run it under BEE Node with a bootstrap Engine serving the implementation; read the local README.
  */
 import { Fixture, results } from './harness.mjs';
-import { files } from './fixtures.mjs';
 import { semantic } from './semantic.mjs';
 import { dependencies } from './dependencies.mjs';
 import { generation } from './generation.mjs';
 import { bounds } from './bounds.mjs';
 
-const fixture = await new Fixture(files).create();
+const fixture = await new Fixture().create();
 
 try {
 	await semantic(fixture);

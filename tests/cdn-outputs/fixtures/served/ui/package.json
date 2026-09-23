@@ -1,0 +1,1 @@
+{"name":"@fixture/served","version":"1.0.0","exports":{"./card":"./card/index.ts","./plain":"./plain/index.ts","./broken":"./broken/index.ts"},"beyond":{"modules":".","bundler":"esbuild"},"bundlers":{"esbuild":{"specifier":"@beyond-js/packages/bundlers/esbuild","processors":{"bundle":{"compiler":"esbuild"}}}}}

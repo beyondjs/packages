@@ -1,0 +1,9 @@
+{
+	"name": "@fixture/app",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		"./main": "./src/main.js",
+		"./package.json": "./package.json"
+	}
+}

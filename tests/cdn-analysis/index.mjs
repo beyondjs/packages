@@ -4,7 +4,6 @@
  * entries over a pinned graph, inspected before any output exists. Read the local README.
  */
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { Publication, Exports } from '@beyond-js/packages/publication';
 import { Analysis, Compatibility } from '@beyond-js/packages/analysis';
 import { Report } from './harness.mjs';
@@ -184,27 +183,9 @@ try {
 	});
 
 	await report.step('trace: a distribution is read from its manifest and never compiled', async () => {
-		const digest = content => `sha256-${createHash('sha256').update(content).digest('base64')}`;
-		const file = (kind, name, content, media) => ({ kind, file: name, media, digest: digest(content), bytes: Buffer.byteLength(content) });
-		const js = 'export const Widget = { label: "distributed" };\n';
-		const css = '.widget { background: url(../assets/widget/logo.svg); }\n';
-		const logo = '<svg xmlns="http://www.w3.org/2000/svg"/>\n';
-		const variant = { conditions: { platform: 'browser' }, format: 'esm', outputs: [file('js', 'dist/widget.js', js, 'text/javascript'), file('css', 'dist/widget.css', css, 'text/css')] };
-		const manifest = {
-			protocol: 'beyond-distribution/1', package: { name: '@fixture/ui', version: '2.0.0' },
-			modules: {
-				'./widget': { kind: 'module', references: [], assets: ['widget/logo.svg'], variants: [variant] },
-				'./chart': { kind: 'module', references: [{ specifier: '@fixture/ui/widget', kind: 'eager' }], assets: [], variants: [] },
-				'./theme': { kind: 'style', references: [], assets: [], variants: [] },
-				'./unused': { kind: 'module', references: [], assets: [], variants: [] }
-			},
-			assets: { 'widget/logo.svg': { file: 'widget/logo.svg', media: 'image/svg+xml', digest: digest(logo), bytes: Buffer.byteLength(logo) } }
-		};
-		const publication = { protocol: 'beyond-publication/1', form: 'distribution', compiler: { name: 'fixture-compiler', version: '3.2.1' }, formats: ['esm'] };
-		await store.add(UI, '@fixture/ui', '2.0.0', 'ui-distribution', {
-			'package.json': JSON.stringify({ name: '@fixture/ui', version: '2.0.0', beyond: { publication } }),
-			'beyond-distribution.json': JSON.stringify(manifest), 'dist/widget.js': js, 'dist/widget.css': css, 'widget/logo.svg': logo
-		});
+		// fixtures/ui-distribution: the library as a hand-written distribution, whose manifest states the digests
+		// and sizes of its outputs and of the logo
+		await store.copy(UI, '@fixture/ui', '2.0.0', 'ui-distribution');
 
 		const { inventory: distributed, cost } = await Analysis.measured({ graph: store.graph, sources: store.sources, entries: ['@fixture/app/main'], conditions: browser, compiler });
 		await store.add(UI, '@fixture/ui', '2.0.0', 'ui');

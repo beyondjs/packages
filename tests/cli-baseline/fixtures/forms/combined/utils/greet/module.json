@@ -1,0 +1,6 @@
+{
+	"bundler": "ts",
+	"platforms": [
+		"node"
+	]
+}

@@ -2,6 +2,8 @@
 .idea
 node_modules
 !src/modules/node_modules
+# A checked-in test fixture: a node_modules-like root the diagnostics validation resolves types from
+!tests/cdn-diagnostics/fixtures/workspace/typed/node_modules
 credentials
 .env
 .DS_Store

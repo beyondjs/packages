@@ -1,0 +1,11 @@
+{
+	"name": "form-manifest",
+	"version": "1.0.0",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

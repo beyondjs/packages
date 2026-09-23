@@ -1,0 +1,30 @@
+{
+	"name": "@fixture/app",
+	"version": "1.0.0",
+	"private": true,
+	"exports": {
+		"./broken": "./broken/index.ts",
+		"./clean": "./clean/index.ts",
+		"./syntax": "./syntax/index.ts",
+		"./consumer": "./consumer/index.ts",
+		"./misuse": "./misuse/index.ts",
+		"./rooted": "./rooted/index.ts",
+		"./platform": "./platform/index.ts",
+		"./escape": "./escape/index.ts",
+		"./large": "./large/index.ts",
+		"./configured": "./configured/index.ts",
+		"./compiled": "./compiled/index.ts",
+		"./own": "./own/index.ts",
+		"./derived": "./derived/index.ts"
+	},
+	"dependencies": {
+		"@fixture/shared": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

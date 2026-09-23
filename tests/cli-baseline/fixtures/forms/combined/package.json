@@ -1,0 +1,13 @@
+{
+	"name": "@form/combined",
+	"version": "1.0.0",
+	"exports": {
+		"./utils/greet": "./utils/greet/index.ts"
+	},
+	"beyond": {
+		"modules": "."
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

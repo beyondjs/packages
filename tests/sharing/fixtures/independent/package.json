@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/independent",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/a.js",
+		"./b": "./src/b.js",
+		"./package.json": "./package.json"
+	}
+}

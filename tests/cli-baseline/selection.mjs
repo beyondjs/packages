@@ -1,6 +1,9 @@
 /**
  * How a selector typed in a command becomes a public module: qualified and local forms, exact versions,
  * the packages of a workspace and a standalone package that has no workspace file.
+ *
+ * The workspace of the qualified and shorthand selectors is `fixtures/selection`. The duplicated name and the
+ * standalone package are small single-purpose inputs written by their checks.
  */
 import assert from 'node:assert/strict';
 import { step } from '../stage-1/harness.mjs';
@@ -11,19 +14,6 @@ import { Fixture, bundlers } from './fixtures.mjs';
 const pkg = (name, exports, values = {}) =>
 	Object.assign({ name, version: '1.2.3', exports, beyond: { bundler: 'ts' }, bundlers }, values);
 const code = `export const ok = true;\n`;
-
-/**
- * Two packages that publish a module with the same subpath, a root module and a nested subpath
- */
-const files = {
-	'beyond.json': { packages: ['app', 'tools'] },
-	'app/package.json': pkg('@example/app', { './main': './main/index.ts', '.': './src/index.ts' }),
-	'app/main/index.ts': code,
-	'app/src/index.ts': code,
-	'tools/package.json': pkg('tools', { './main': './main/index.ts', './utils/text': './utils/text/index.ts' }),
-	'tools/main/index.ts': code,
-	'tools/utils/text/index.ts': code
-};
 
 export async function selection() {
 	await step('selector: forms are parsed as public identities, never as files', async () => {
@@ -50,7 +40,9 @@ export async function selection() {
 	});
 
 	await step('selection: qualified selectors resolve, ambiguous shorthand does not', async () => {
-		const fixture = await Fixture.create('selection', files);
+		// fixtures/selection: two packages that publish a module with the same subpath, a root module and a
+		// nested subpath
+		const fixture = await Fixture.copy('selection', 'selection');
 		const workspace = new Workspace(fixture.root);
 		try {
 			const selection = new Selection(workspace);

@@ -16,6 +16,7 @@ Beyond also compiles packages into distributable outputs for publication and con
 - [Architecture and bundlers SDK](docs/architecture.md): actual public extension interfaces, source/output flow, artifacts, diagnostics and lifecycle.
 - [Programming conventions](docs/programming.md): Beyond authoring, public versus internal modules, naming, state and tests.
 - [Coding standards](docs/coding-standards.md): binding file-length, object-oriented design and naming rules.
+- [Tests](tests/README.md): every validation group, its command, prerequisites and readable fixtures, and the rules for adding one.
 - [First-stage validation](tests/stage-1/README.md): two packages compiled, executed and updated, with the commands to reproduce it.
 
 The manifest supplies Beyond build/distribution configuration, not a standalone npm start command. Begin with the development guide before running historical fixtures or changing public interfaces.

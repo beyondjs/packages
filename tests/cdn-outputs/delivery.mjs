@@ -6,9 +6,10 @@
  */
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { Options } from '@beyond-js/artifact-api';
 import { Service } from '@beyond-js/artifact-api/conformance';
@@ -16,7 +17,31 @@ import { Workspace } from '@beyond-js/packages/workspace';
 import { Delivery } from '@beyond-js/packages/artifacts';
 import { Routes } from '@beyond-js/packages/http/routes';
 
-const LOGO = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>\n`;
+/**
+ * The workspace of `fixtures/served`: one package, `@fixture/served`, whose modules are packaged by the esbuild
+ * bundler. `./card` imports a stylesheet that references a logo its manifest declares, beside a file it does
+ * not declare; `./plain` has no stylesheet; `./broken` does not parse, on purpose. Read the local README.
+ */
+export class Served {
+	static FIXTURE = fileURLToPath(new URL('./fixtures/served/', import.meta.url));
+
+	/**
+	 * Copies the fixture into a new temporary directory. The one substitution is the compiler the bundle
+	 * processor selects, written into the copied manifest; the checked-in manifest names `esbuild`.
+	 *
+	 * @returns The root of the copy
+	 */
+	static async create(compiler) {
+		const root = await realpath(await mkdtemp(join(tmpdir(), 'beyond-cdn-delivery-')));
+		await cp(Served.FIXTURE, root, { recursive: true });
+
+		const manifest = join(root, 'ui/package.json');
+		const value = JSON.parse(await readFile(manifest, 'utf8'));
+		value.bundlers.esbuild.processors.bundle.compiler = compiler;
+		await writeFile(manifest, JSON.stringify(value));
+		return root;
+	}
+}
 
 export class Delivered {
 	#report;
@@ -27,39 +52,9 @@ export class Delivered {
 		this.#compiler = compiler;
 	}
 
-	/**
-	 * A workspace with one package whose module is packaged by the esbuild bundler, imports a stylesheet
-	 * that references a declared logo, and declares that logo in its manifest
-	 */
-	async #workspace() {
-		const root = await realpath(await mkdtemp(join(tmpdir(), 'beyond-cdn-delivery-')));
-		const processors = { bundle: { compiler: this.#compiler } };
-		const files = {
-			'beyond.json': JSON.stringify({ packages: ['ui'] }),
-			'ui/package.json': JSON.stringify({
-				name: '@fixture/served', version: '1.0.0', exports: { './card': './card/index.ts', './plain': './plain/index.ts', './broken': './broken/index.ts' },
-				beyond: { modules: '.', bundler: 'esbuild' },
-				bundlers: { esbuild: { specifier: '@beyond-js/packages/bundlers/esbuild', processors } }
-			}),
-			'ui/card/module.json': JSON.stringify({ platforms: ['web', 'node'], assets: ['logo.svg'] }),
-			'ui/card/index.ts': `import './card.css';\nexport const card: string = 'card';\n`,
-			'ui/card/card.css': `.card { background: url(./logo.svg); }\n`,
-			'ui/card/logo.svg': LOGO,
-			'ui/card/secret.txt': 'not declared',
-			'ui/plain/module.json': JSON.stringify({ platforms: ['web', 'node'] }),
-			'ui/plain/index.ts': `export const plain: string = 'plain';\n`,
-			'ui/broken/module.json': JSON.stringify({ platforms: ['web', 'node'] }),
-			'ui/broken/index.ts': `export const broken = ;\n`
-		};
-		for (const [file, content] of Object.entries(files)) {
-			await mkdir(dirname(join(root, file)), { recursive: true });
-			await writeFile(join(root, file), content);
-		}
-		return root;
-	}
-
 	async run() {
-		const root = await this.#workspace();
+		const svg = await readFile(join(Served.FIXTURE, 'ui/card/logo.svg'), 'utf8');
+		const root = await Served.create(this.#compiler);
 		const workspace = new Workspace(root);
 		const delivery = new Delivery(workspace);
 		const app = express();
@@ -96,7 +91,7 @@ export class Delivered {
 				const address = new URL('../assets/card/logo.svg', `${origin}${prefix}/styles/card?${query}`);
 				assert.equal(address.pathname, `${prefix}/assets/card/logo.svg`);
 				const logo = await fetch(address);
-				assert.deepEqual([logo.status, logo.headers.get('content-type'), await logo.text()], [200, 'image/svg+xml', LOGO]);
+				assert.deepEqual([logo.status, logo.headers.get('content-type'), await logo.text()], [200, 'image/svg+xml', svg]);
 
 				const code = async path => [(await get(path)).status, (await (await get(path)).json()).error.code];
 				assert.deepEqual(await code(`${prefix}/styles/plain?${query}`), [404, 'OUTPUT_NOT_AVAILABLE']);

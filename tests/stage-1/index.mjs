@@ -9,17 +9,19 @@
  * in the negative, which is what a package developer sees when something is wrong.
  *
  * The checks live in [build](build.mjs) and [updates](updates.mjs); this file owns the services they need
- * and the cleanup. The fixture is the suite testbed (`@suite/shared` and `@suite/app`): negative cases run
- * on temporary copies of it, so only the update checks edit it, and it is restored even when a step fails.
+ * and the cleanup. The fixture is the suite testbed scenario (`@suite/shared` and `@suite/app`), compiled
+ * and edited in a temporary copy that is removed at the end; negative cases build further copies of it. The
+ * permanent scenario is never written, even when a step fails.
  * Read the local README for the processes involved and how to run this file.
  */
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Artifacts } from '@beyond-js/packages/artifacts';
 import { WatchersService } from '@beyond-js/packages/watchers';
-import { artifactsPath, conditions, Consumer, results, step, testbed } from './harness.mjs';
+import { conditions, Consumer, results, step } from './harness.mjs';
+import { artifactsPath, directory, release } from './copy.mjs';
 import { build } from './build.mjs';
 import { updates } from './updates.mjs';
 
@@ -28,23 +30,29 @@ import { updates } from './updates.mjs';
  * The Packages implementation itself is served to this process by the loader that started it.
  */
 const { WATCHERS_URL } = process.env;
-if (!WATCHERS_URL) throw new Error('Set WATCHERS_URL to the Engine server that serves the watchers utility.');
+if (!WATCHERS_URL) {
+	await release();
+	throw new Error('Set WATCHERS_URL to the Engine server that serves the watchers utility.');
+}
 
 /**
- * The fixture sources the update checks edit, read before anything runs so they can be restored
+ * The sources of the copy the update checks edit, read before anything runs so those checks can restore them
  */
-const formatFile = join(testbed, 'shared/message/format.ts');
-const indexFile = join(testbed, 'shared/message/index.ts');
+const formatFile = join(directory, 'shared/message/format.ts');
+const indexFile = join(directory, 'shared/message/index.ts');
 const sources = {
 	formatFile,
 	indexFile,
 	format: await readFile(formatFile, 'utf8'),
 	index: await readFile(indexFile, 'utf8')
 };
-if (!sources.format.includes('${subject}!`')) throw new Error('The shared fixture is not in its original state');
+if (!sources.format.includes('${subject}!`')) {
+	await release();
+	throw new Error('The shared fixture is not in its original state');
+}
 
 const service = new WatchersService('watchers', { env: { BEE_URL: WATCHERS_URL } });
-const workspace = new Workspace(testbed, { watcher: true });
+const workspace = new Workspace(directory, { watcher: true });
 const consumer = new Consumer();
 
 /**
@@ -82,9 +90,6 @@ try {
 	await build(context);
 	await updates(context);
 } finally {
-	await writeFile(formatFile, sources.format);
-	await writeFile(indexFile, sources.index);
-
 	await step('cleanup: consumer exits, watcher child stops, workspace destroyed', async () => {
 		const code = await consumer.stop();
 		assert.equal(code, 0);
@@ -97,6 +102,7 @@ try {
 		workspace.destroy();
 		return `consumer exit 0; watcher child ${pid} terminated`;
 	});
+	await release();
 }
 
 const failed = results.filter(result => !result.ok);

@@ -17,6 +17,16 @@ Validates `@beyond-js/packages/generation` and the output half of the esbuild pr
 | react (3) | The real `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, `react-dom/server` and `scheduler`: separate units, `renderToString` of a component with hooks under Node (production and development), browser units without Node builtins, and the `System.register` units rendering in the minimal loader |
 | http (4) | The module route answers exactly what `Delivery.module` compiles; `/styles/` and `/assets/` serve the stylesheet and the declared logo, whose reference resolves to the asset address; every error answer (400, 404, 422, 501, all families, also for a conditional request) is `no-store` JSON without an `ETag`, while 200 and 304 keep their strong validators; the conformance rules of `@beyond-js/artifact-api` pass with both families |
 
+## Fixtures
+
+- The fixture store of [the analysis validation](../cdn-analysis/README.md#fixtures) (`../cdn-analysis/fixtures`): the application, the library, its distribution and the two React-shaped npm packages. The distribution steps also lay out `@fixture/ui` from its generated outputs ([forms.mjs](forms.mjs)), because generating it is what they check; the React steps copy installed `react`, `react-dom` and `scheduler` packages ([react.mjs](react.mjs)); the diagnostics step writes the short invalid edit `export const extra = ;` into its copy and restores it.
+- [`fixtures/served`](fixtures/served), the workspace of the four `http` steps ([delivery.mjs](delivery.mjs)): `beyond.json` names one package, `ui`, which is `@fixture/served@1.0.0`. Its manifest selects the esbuild bundler (`@beyond-js/packages/bundlers/esbuild`), whose `bundle` processor names the compiler `esbuild`. It publishes:
+  - `./card` → [`card/index.ts`](fixtures/served/ui/card/index.ts), which imports [`card.css`](fixtures/served/ui/card/card.css); the stylesheet references `logo.svg`, which [`card/module.json`](fixtures/served/ui/card/module.json) declares as an asset. `card/secret.txt` is intentionally **not** declared and must never be served.
+  - `./plain` → `plain/index.ts`, a module without a stylesheet, whose `/styles/` answer is `OUTPUT_NOT_AVAILABLE`.
+  - `./broken` → [`broken/index.ts`](fixtures/served/ui/broken/index.ts), which **does not parse on purpose** (`export const broken = ;`) and must answer `422 BUILD_FAILED`.
+
+  `Served.create()` copies it into a temporary directory, removed at the end of the run. The one substitution is the compiler the validation selected (`BEYOND_ESBUILD` or the installed `esbuild`), written into the copied `ui/package.json`; the checked-in files are never written. The manifests are compact JSON without a final newline, byte-identical to what the former inline generator wrote.
+
 ## Run
 
 ```sh

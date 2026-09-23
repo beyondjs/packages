@@ -1,0 +1,11 @@
+{
+	"name": "@fixture/compiled",
+	"version": "2.0.0",
+	"exports": {
+		"./tool": {
+			"types": "./dist/tool.d.ts",
+			"import": "./dist/tool.js"
+		},
+		"./features/*": "./dist/features/*.js"
+	}
+}

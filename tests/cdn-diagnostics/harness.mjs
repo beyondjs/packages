@@ -2,9 +2,11 @@
  * What the checks of the semantic diagnostics are written against: how a step is run and reported, and the
  * temporary packages they check.
  */
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * The outcome of every step that ran, in order
@@ -41,15 +43,16 @@ export const position = (source, text, offset = 0) => {
 };
 
 /**
- * A temporary directory holding the packages one run checks. Nothing of the repository is edited.
+ * A temporary copy of the checked-in workspace `fixtures/workspace`, holding the packages one run checks. The
+ * checked-in sources are never edited, and the local README describes them.
  */
 export class Fixture {
+	static SOURCE = fileURLToPath(new URL('./fixtures/workspace/', import.meta.url));
+
 	#root;
 	get root() {
 		return this.#root;
 	}
-
-	#files;
 
 	/**
 	 * Every result a check returned, kept to verify that none of them describes the host
@@ -59,17 +62,9 @@ export class Fixture {
 		return this.#observed;
 	}
 
-	constructor(files) {
-		this.#files = files;
-	}
-
 	async create() {
 		this.#root = await mkdtemp(join(tmpdir(), 'beyond-cdn-diagnostics-'));
-		for (const [relative, content] of Object.entries(this.#files)) {
-			const file = join(this.#root, relative);
-			await mkdir(dirname(file), { recursive: true });
-			await writeFile(file, typeof content === 'string' ? content : JSON.stringify(content, null, '\t'));
-		}
+		await cp(Fixture.SOURCE, this.#root, { recursive: true });
 		return this;
 	}
 
@@ -81,10 +76,10 @@ export class Fixture {
 	}
 
 	/**
-	 * The content a file of the fixture was written with
+	 * The checked-in content of a file of the fixture
 	 */
 	source(relative) {
-		return this.#files[relative];
+		return readFileSync(join(Fixture.SOURCE, relative), 'utf8');
 	}
 
 	/**

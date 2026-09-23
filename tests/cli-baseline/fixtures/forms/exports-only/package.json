@@ -1,0 +1,13 @@
+{
+	"name": "form-exports",
+	"version": "1.0.0",
+	"exports": {
+		"./greet": "./greet/index.ts"
+	},
+	"beyond": {
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

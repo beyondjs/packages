@@ -1,0 +1,6 @@
+{
+	"entry": "index.ts",
+	"platforms": [
+		"node"
+	]
+}

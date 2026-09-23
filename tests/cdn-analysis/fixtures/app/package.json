@@ -1,0 +1,1 @@
+{"name":"@fixture/app","version":"1.0.0","exports":{"./main":"./main/index.ts","./admin":"./admin/index.ts"},"dependencies":{"@fixture/ui":"^2.0.0","fake-react":"^18.0.0","fake-react-dom":"^18.0.0"},"beyond":{"modules":{"path":"."},"publication":{"protocol":"beyond-publication/1","form":"source"}}}

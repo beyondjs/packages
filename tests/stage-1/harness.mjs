@@ -13,10 +13,10 @@ import { Artifacts } from '@beyond-js/packages/artifacts';
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * The fixture compiled by this validation, and where its artifacts are written
+ * The permanent scenario this validation compiles. Stage 1 compiles and edits a temporary copy of it
+ * (`copy.mjs`); other validations import this location and copy it themselves. Nothing writes it.
  */
 export const testbed = resolve(process.env.BEYOND_TESTBED || resolve(here, '../../../testbed'), 'module-updates');
-export const artifactsPath = join(testbed, '.artifacts');
 export const conditions = { platform: 'node' };
 
 /**
@@ -77,16 +77,18 @@ export const json = async (file, mutate) => {
  */
 export async function variant(name, mutate) {
 	const root = await mkdtemp(join(tmpdir(), `beyond-stage1-${name}-`));
-	await cp(testbed, root, { recursive: true, filter: source => !source.includes('/.artifacts') });
-	await mutate(root);
+	let workspace;
+	try {
+		await cp(testbed, root, { recursive: true, filter: source => !source.includes('/.artifacts') });
+		await mutate(root);
 
-	const workspace = new Workspace(root);
-	const artifacts = new Artifacts(workspace, { path: join(root, '.artifacts'), conditions });
-	const report = await artifacts.build();
-
-	workspace.destroy();
-	await rm(root, { recursive: true, force: true });
-	return report;
+		workspace = new Workspace(root);
+		const artifacts = new Artifacts(workspace, { path: join(root, '.artifacts'), conditions });
+		return await artifacts.build();
+	} finally {
+		workspace?.destroy();
+		await rm(root, { recursive: true, force: true });
+	}
 }
 
 /**

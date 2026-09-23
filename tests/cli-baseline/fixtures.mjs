@@ -1,10 +1,14 @@
 /**
- * Temporary workspaces written from a description, so every case of this validation owns the exact package
- * it checks instead of sharing (and editing) the suite testbed.
+ * Temporary workspaces, so every case of this validation owns the exact package it checks instead of sharing
+ * (and editing) the suite testbed. A workspace is a copy of a checked-in fixture under `./fixtures/`, or, for
+ * a small invalid or single-purpose input, written from a description in the check itself.
  */
-import { mkdtemp, mkdir, writeFile, rm, realpath } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, writeFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url));
 
 /**
  * The Beyond configuration every minimal package needs: which bundler compiles the modules that select none,
@@ -19,6 +23,8 @@ export class Fixture {
 		return this.#root;
 	}
 
+	#source;
+
 	/**
 	 * @param name Identifies the temporary directory, which deliberately contains a space
 	 * @param files Relative path → content; objects are written as JSON
@@ -29,6 +35,27 @@ export class Fixture {
 		fixture.#root = await realpath(created);
 		await fixture.write(files);
 		return fixture;
+	}
+
+	/**
+	 * A temporary copy of a checked-in fixture. The checked-in files are never written.
+	 *
+	 * @param name Identifies the temporary directory, which deliberately contains a space
+	 * @param source The fixture, relative to `./fixtures/`
+	 */
+	static async copy(name, source) {
+		const fixture = await Fixture.create(name, {});
+		fixture.#source = join(FIXTURES, source);
+		await cp(fixture.#source, fixture.#root, { recursive: true });
+		return fixture;
+	}
+
+	/**
+	 * Copies a file or directory of the checked-in fixture over its copy again, which undoes the edits a case
+	 * made to it
+	 */
+	async restore(relative) {
+		await cp(join(this.#source, relative), join(this.#root, relative), { recursive: true, force: true });
 	}
 
 	async write(files) {

@@ -1,130 +1,30 @@
 /**
- * The fixture of the CDN analysis and output validations: a store of extracted packages and the pinned graph
- * that joins them, built in a temporary directory without any network access.
+ * The fixture store of the CDN analysis and output validations: the packages under `./fixtures/`, copied into
+ * a temporary directory as extracted packages, and the pinned graph that joins them. No network access.
  *
- * - `@fixture/app` (Beyond sources): the application. `./main` is its entry; `./admin` is never reached.
- * - `@fixture/ui` (Beyond sources): `./widget` (eager, with a stylesheet, a declared logo and a font),
- *   `./chart` (reached only through a dynamic import), `./theme` (a style public module), `./extra` (only
- *   reachable through a declaration) and `./unused` (never reached).
- * - `fake-react`, `fake-react-dom`: ordinary CommonJS npm packages shaped like React and its renderer:
- *   `exports` conditions, `process.env.NODE_ENV` branches, and a peer that must stay one shared module.
+ * - `@fixture/app` (Beyond sources, `fixtures/app`): the application. `./main` is its entry; `./admin` is
+ *   never reached.
+ * - `@fixture/ui` (Beyond sources, `fixtures/ui`): `./widget` (eager, with a stylesheet, a declared logo and a
+ *   font), `./chart` (reached only through a dynamic import), `./theme` (a style public module), `./extra`
+ *   (only reachable through a declaration) and `./unused` (never reached).
+ * - `fake-react`, `fake-react-dom` (`fixtures/fake-react`, `fixtures/fake-react-dom`): ordinary CommonJS npm
+ *   packages shaped like React and its renderer: `exports` conditions, `process.env.NODE_ENV` branches, and a
+ *   peer that must stay one shared module.
+ *
+ * `fixtures/ui-distribution` is `@fixture/ui` laid out as a hand-written precompiled distribution; the checks
+ * that need it place it with `copy()`. The README of this directory describes every fixture.
  */
-import { mkdtemp, mkdir, writeFile, rm, realpath, readdir } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, writeFile, rm, realpath, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const publication = { protocol: 'beyond-publication/1', form: 'source' };
-
-const app = {
-	'package.json': JSON.stringify({
-		name: '@fixture/app', version: '1.0.0',
-		exports: { './main': './main/index.ts', './admin': './admin/index.ts' },
-		dependencies: { '@fixture/ui': '^2.0.0', 'fake-react': '^18.0.0', 'fake-react-dom': '^18.0.0' },
-		beyond: { modules: { path: '.' }, publication }
-	}),
-	'main/index.ts': [
-		`import { Widget } from '@fixture/ui/widget';`,
-		`import '@fixture/ui/theme';`,
-		`import { createElement, useState } from 'fake-react';`,
-		`import { render } from 'fake-react-dom';`,
-		`export const marker: string = 'APP_MAIN_SOURCE_MARKER';`,
-		`export const chart = () => import('@fixture/ui/chart');`,
-		`export const plugin = (name: string) => import('@fixture/plugins/' + name);`,
-		`export const view = () => render(createElement(() => useState(Widget.label)));`,
-		''
-	].join('\n'),
-	'admin/index.ts': `export const admin = 'never reached';\n`
-};
-
-const ui = {
-	'package.json': JSON.stringify({
-		name: '@fixture/ui', version: '2.0.0',
-		exports: {
-			'./widget': './widget/index.ts', './chart': './chart/index.ts', './theme': './theme/index.css',
-			'./extra': './extra/index.ts', './unused': './unused/index.ts'
-		},
-		beyond: { modules: { path: '.' }, publication }
-	}),
-	'widget/module.json': JSON.stringify({ assets: ['logo.svg', 'fonts/fixture.woff2'] }),
-	'widget/index.ts': [
-		`import './widget.css';`,
-		`import { label } from './label';`,
-		`export const Widget = { label, source: 'WIDGET_SOURCE_MARKER' };`,
-		''
-	].join('\n'),
-	'widget/label.ts': `export const label: string = 'widget';\n`,
-	'widget/widget.css': [
-		`.widget { background: url(./logo.svg); }`,
-		`@font-face { font-family: Fixture; src: url("./fonts/fixture.woff2") format("woff2"); }`,
-		''
-	].join('\n'),
-	'widget/logo.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>\n`,
-	'widget/fonts/fixture.woff2': Buffer.from('wOF2-fixture-font-bytes'),
-	'chart/index.ts': `import { Widget } from '@fixture/ui/widget';\nexport const chart = () => 'chart of ' + Widget.label;\n`,
-	'theme/index.css': `:root { --fixture-accent: #d9684a; }\n`,
-	'extra/index.ts': `export const extra = 'declared';\n`,
-	'unused/index.ts': `export const unused = 'never reached';\n`
-};
-
-const react = {
-	'package.json': JSON.stringify({
-		name: 'fake-react', version: '18.0.0', main: 'index.js',
-		exports: {
-			'.': { 'react-server': './server.js', default: './index.js' },
-			'./jsx-runtime': { browser: './jsx-runtime.browser.js', default: './jsx-runtime.js' },
-			'./package.json': './package.json'
-		}
-	}),
-	'index.js': [
-		`'use strict';`,
-		`if (process.env.NODE_ENV === 'production') {`,
-		`  module.exports = require('./cjs/react.production.js');`,
-		`} else {`,
-		`  module.exports = require('./cjs/react.development.js');`,
-		`}`,
-		''
-	].join('\n'),
-	'server.js': `throw new Error('The react-server condition must not be selected');\n`,
-	'jsx-runtime.js': `'use strict';\nvar React = require('fake-react');\nexports.jsx = function (type, props) { return React.createElement(type, props); };\nexports.runtime = 'default';\n`,
-	'jsx-runtime.browser.js': `'use strict';\nvar React = require('fake-react');\nexports.jsx = function (type, props) { return React.createElement(type, props); };\nexports.runtime = 'browser';\n`
-};
-for (const mode of ['development', 'production']) {
-	react[`cjs/react.${mode}.js`] = [
-		`'use strict';`,
-		`var internals = { dispatcher: null };`,
-		`exports.__internals = internals;`,
-		`exports.mode = '${mode}';`,
-		`exports.version = '18.0.0';`,
-		`exports.createElement = function (type, props) { return { type: type, props: props || {} }; };`,
-		`exports.useState = function (initial) {`,
-		`  if (!internals.dispatcher) throw new Error('Invalid hook call: the renderer uses another copy of fake-react');`,
-		`  return internals.dispatcher.useState(initial);`,
-		`};`,
-		''
-	].join('\n');
-}
-
-const renderer = {
-	'package.json': JSON.stringify({
-		name: 'fake-react-dom', version: '18.0.0', main: 'index.js',
-		exports: { '.': './index.js', './client': './client.js', './package.json': './package.json' },
-		peerDependencies: { 'fake-react': '^18.0.0' }
-	}),
-	'index.js': [
-		`'use strict';`,
-		`var React = require('fake-react');`,
-		`exports.react = React;`,
-		`exports.render = function (element) {`,
-		`  React.__internals.dispatcher = { useState: function (initial) { return 'state:' + initial; } };`,
-		`  try { return element.type(element.props); } finally { React.__internals.dispatcher = null; }`,
-		`};`,
-		''
-	].join('\n'),
-	'client.js': `'use strict';\nvar ReactDOM = require('fake-react-dom');\nexports.createRoot = function () { return { render: ReactDOM.render }; };\nexports.dom = ReactDOM;\n`
-};
+/**
+ * The checked-in fixture packages, located from this module so the store works from any working directory
+ */
+const FIXTURES = fileURLToPath(new URL('./fixtures/', import.meta.url));
 
 /**
  * The store of extracted packages and its graph
@@ -193,17 +93,29 @@ export class Store {
 
 	async create() {
 		this.#root = await realpath(await mkdtemp(join(tmpdir(), 'beyond-cdn-store-')));
-		await this.add('npm:@fixture/app@1.0.0', '@fixture/app', '1.0.0', 'app', app);
-		await this.add('npm:@fixture/ui@2.0.0', '@fixture/ui', '2.0.0', 'ui', ui);
-		await this.add('npm:fake-react@18.0.0', 'fake-react', '18.0.0', 'fake-react', react);
-		await this.add('npm:fake-react-dom@18.0.0', 'fake-react-dom', '18.0.0', 'fake-react-dom', renderer);
+		await this.copy('npm:@fixture/app@1.0.0', '@fixture/app', '1.0.0', 'app');
+		await this.copy('npm:@fixture/ui@2.0.0', '@fixture/ui', '2.0.0', 'ui');
+		await this.copy('npm:fake-react@18.0.0', 'fake-react', '18.0.0', 'fake-react');
+		await this.copy('npm:fake-react-dom@18.0.0', 'fake-react-dom', '18.0.0', 'fake-react-dom');
 		return this;
+	}
+
+	/**
+	 * Adds a package to the store from a checked-in fixture, copied into the directory of its node. The
+	 * fixture itself is never written.
+	 *
+	 * @param fixture The directory under `./fixtures/`; the directory of the node by default
+	 */
+	async copy(key, name, version, directory, fixture = directory) {
+		await cp(join(FIXTURES, fixture), join(this.#root, directory), { recursive: true });
+		return this.add(key, name, version, directory);
 	}
 
 	/**
 	 * Adds a package to the store, or replaces the directory of a node
 	 *
-	 * @param files Its files by relative path; omitted when the directory is filled by the caller
+	 * @param files Its files by relative path, for a small package a check writes itself; omitted when the
+	 *   directory is filled by the caller or by `copy()`
 	 */
 	async add(key, name, version, directory, files = {}) {
 		this.#packages.set(key, { name, version, directory });

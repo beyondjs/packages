@@ -1,0 +1,15 @@
+{
+	"name": "@case/shared",
+	"version": "1.0.0",
+	"private": true,
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	},
+	"exports": {
+		"./value": "./value/index.ts"
+	}
+}

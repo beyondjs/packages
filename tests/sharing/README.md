@@ -25,7 +25,17 @@ This validation checks that from the outside: the outputs a consumer receives, a
 
 ## The fixtures
 
-They are written by [store.mjs](store.mjs), not copied from anywhere, so what decides a role — which files a subpath reaches and which names it exports — is readable beside the checks. `@fixture/app` imports every public subpath of every one of them and reports what it observed.
+Seven small ordinary npm packages, all version `1.0.0`, checked in under [`fixtures/`](fixtures) so that what decides a role — which files a subpath reaches and which names it exports — is readable as ordinary source. [store.mjs](store.mjs) copies each one into a temporary directory (as `_fixture_<name>`, the directory the former inline generator used) and pins them as a graph in which every package depends on every other one; the copy is removed at the end and the checked-in files are never written. Each `package.json` is tab-indented without a final newline, byte-identical to what that generator wrote.
+
+| Directory | Public subpaths | What it is expected to be delivered as |
+| --- | --- | --- |
+| [`shared-state`](fixtures/shared-state) | `.` → `src/index.js`, `./state` → `src/state/index.js` | The shape that loses a runtime: the root imports `src/state/store.js`, a file of `./state` that is not its entry point, and also reaches that entry point, which relates them. `.` is the carrier and `./state` its facade, so both read one `store` |
+| [`independent`](fixtures/independent) | `.` → `src/a.js`, `./b` → `src/b.js` | Two subpaths that reach nothing of each other: each is delivered on its own and neither is a facade |
+| [`collision`](fixtures/collision) | `.`, `./state` | The shape of `shared-state`, except that both subpaths export `value`: naming every re-export carries it for both instead of dropping an ambiguous name |
+| [`defaulted`](fixtures/defaulted) | `.`, `./view` | The contained subpath has a default export, which `export *` never carries: its facade names it back |
+| [`commonjs`](fixtures/commonjs) | `.` → `src/index.js`, `./state` → `src/state.js`, `"type": "commonjs"` | The same shape written as CommonJS, which is not an ES module boundary: neither subpath is planned, and the `require` of the other subpath's entry point stays a public reference |
+| [`opaque`](fixtures/opaque) | `.`, `./state` | **Intentionally unlistable**: `./state` re-exports the external `@fixture/independent` with a star, so its API cannot be listed; it is not carried and the root keeps its own copy of the state |
+| [`app`](fixtures/app) | `./main` → [`src/main.js`](fixtures/app/src/main.js) | The application and the entry of the run (`@fixture/app/main`): it imports every public subpath of every package above and `report()` returns the state each package holds, written through one subpath and read through the other |
 
 ## Run
 

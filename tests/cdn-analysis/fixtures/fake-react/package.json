@@ -1,0 +1,1 @@
+{"name":"fake-react","version":"18.0.0","main":"index.js","exports":{".":{"react-server":"./server.js","default":"./index.js"},"./jsx-runtime":{"browser":"./jsx-runtime.browser.js","default":"./jsx-runtime.js"},"./package.json":"./package.json"}}

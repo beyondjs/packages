@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { artifactsPath, once, step, timeout } from './harness.mjs';
+import { once, step, timeout } from './harness.mjs';
+import { artifactsPath } from './copy.mjs';
 
 /**
  * @param context The workspace, artifacts writer, consumer, fixture sources and report holder of the run

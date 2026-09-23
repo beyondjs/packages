@@ -2,8 +2,9 @@
  * The authoring forms a package can use to declare its public modules. Each form is built and executed on
  * its own, because a fixture that combines them (as the suite testbed does) proves none of them separately.
  *
- * The manifests written here are the complete minimal configuration of each form: they are the examples the
- * Packages documentation refers to.
+ * Each form is a checked-in workspace under `fixtures/forms/<form>`: its manifests are the complete minimal
+ * configuration of that form, the examples the Packages documentation refers to. The invalid declarations
+ * below are small single-package manifests written by their checks, each isolating one refusal.
  */
 import assert from 'node:assert/strict';
 import { step } from '../stage-1/harness.mjs';
@@ -13,10 +14,9 @@ import { Build } from './runner.mjs';
 const source = text => `export const form = '${text}';\nexport default () => 'default of ${text}';\n`;
 
 /**
- * Builds a single-package workspace and executes one of its public modules
+ * Builds a workspace and executes one of its public modules, then removes the workspace
  */
-async function single(name, files, specifier) {
-	const fixture = await Fixture.create(name, { 'beyond.json': { packages: ['.'] }, ...files });
+async function built(fixture, specifier) {
 	try {
 		const build = new Build(fixture);
 		await build.run();
@@ -27,80 +27,46 @@ async function single(name, files, specifier) {
 	}
 }
 
+/**
+ * Builds a single-package workspace written from a description and executes one of its public modules
+ */
+async function single(name, files, specifier) {
+	return built(await Fixture.create(name, { 'beyond.json': { packages: ['.'] }, ...files }), specifier);
+}
+
+/**
+ * Each form is the workspace `fixtures/forms/<name>`
+ */
 const forms = [
 	{
 		name: 'exports-only',
 		notes: 'no manifest and no platforms: one platform-neutral conditional satisfies the node request',
-		specifier: 'form-exports/greet',
-		files: {
-			'package.json': {
-				name: 'form-exports',
-				version: '1.0.0',
-				exports: { './greet': './greet/index.ts' },
-				beyond: { bundler: 'ts' },
-				bundlers
-			},
-			'greet/index.ts': source('exports-only')
-		}
+		specifier: 'form-exports/greet'
 	},
 	{
 		name: 'manifest-only',
 		notes: 'no exports: the manifest is discovered under beyond.modules and names its entry point',
-		specifier: 'form-manifest/greet',
-		files: {
-			'package.json': { name: 'form-manifest', version: '1.0.0', beyond: { modules: '.', bundler: 'ts' }, bundlers },
-			'greet/module.json': { entry: 'index.ts', platforms: ['node'] },
-			'greet/index.ts': source('manifest-only')
-		}
+		specifier: 'form-manifest/greet'
 	},
 	{
 		name: 'combined',
 		notes: 'exports locate the entry point, the manifest adds the platforms and selects the bundler',
-		specifier: '@form/combined/utils/greet',
-		files: {
-			'package.json': {
-				name: '@form/combined',
-				version: '1.0.0',
-				exports: { './utils/greet': './utils/greet/index.ts' },
-				beyond: { modules: '.' },
-				bundlers
-			},
-			'utils/greet/module.json': { bundler: 'ts', platforms: ['node'] },
-			'utils/greet/index.ts': source('combined')
-		}
+		specifier: '@form/combined/utils/greet'
 	},
 	{
 		name: 'root-exports',
 		notes: 'the "." subpath publishes the package name itself',
-		specifier: '@form/root',
-		files: {
-			'package.json': {
-				name: '@form/root',
-				version: '1.0.0',
-				exports: { '.': './src/index.ts' },
-				beyond: { bundler: 'ts' },
-				bundlers
-			},
-			'src/index.ts': source('root-exports')
-		}
+		specifier: '@form/root'
 	},
 	{
 		name: 'root-string',
 		notes: 'a string is the shorthand of the root entry',
-		specifier: 'form-string',
-		files: {
-			'package.json': { name: 'form-string', version: '1.0.0', exports: './src/index.ts', beyond: { bundler: 'ts' }, bundlers },
-			'src/index.ts': source('root-string')
-		}
+		specifier: 'form-string'
 	},
 	{
 		name: 'root-main',
 		notes: 'without exports, a source-valued main publishes the root',
-		specifier: 'form-main',
-		files: {
-			'package.json': { name: 'form-main', version: '1.0.0', main: 'src/index.ts', beyond: { bundler: 'ts' }, bundlers },
-			'src/index.ts': source('root-main')
-		}
+		specifier: 'form-main'
 	}
 ];
 
@@ -111,9 +77,9 @@ const unsupported = [
 ];
 
 export async function declarations() {
-	for (const { name, notes, specifier, files } of forms) {
+	for (const { name, notes, specifier } of forms) {
 		await step(`declaration form: ${name} builds and executes`, async () => {
-			const { build, execution } = await single(name, files, specifier);
+			const { build, execution } = await built(await Fixture.copy(name, `forms/${name}`), specifier);
 			assert.deepEqual(build.report.errors, []);
 			assert.ok(build.artifact(specifier), `artifact of ${specifier}`);
 			assert.equal(execution.code, 0, execution.stderr);

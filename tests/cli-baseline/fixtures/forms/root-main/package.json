@@ -1,0 +1,11 @@
+{
+	"name": "form-main",
+	"version": "1.0.0",
+	"main": "src/index.ts",
+	"beyond": {
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

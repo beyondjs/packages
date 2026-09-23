@@ -1,0 +1,1 @@
+{"name":"fake-react-dom","version":"18.0.0","main":"index.js","exports":{".":"./index.js","./client":"./client.js","./package.json":"./package.json"},"peerDependencies":{"fake-react":"^18.0.0"}}

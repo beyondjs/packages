@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/commonjs",
+	"version": "1.0.0",
+	"type": "commonjs",
+	"exports": {
+		".": "./src/index.js",
+		"./state": "./src/state.js",
+		"./package.json": "./package.json"
+	}
+}

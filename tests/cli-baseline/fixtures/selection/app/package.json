@@ -1,0 +1,14 @@
+{
+	"name": "@example/app",
+	"version": "1.2.3",
+	"exports": {
+		"./main": "./main/index.ts",
+		".": "./src/index.ts"
+	},
+	"beyond": {
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

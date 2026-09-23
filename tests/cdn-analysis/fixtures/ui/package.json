@@ -1,0 +1,1 @@
+{"name":"@fixture/ui","version":"2.0.0","exports":{"./widget":"./widget/index.ts","./chart":"./chart/index.ts","./theme":"./theme/index.css","./extra":"./extra/index.ts","./unused":"./unused/index.ts"},"beyond":{"modules":{"path":"."},"publication":{"protocol":"beyond-publication/1","form":"source"}}}

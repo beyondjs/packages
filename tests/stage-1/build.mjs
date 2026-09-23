@@ -9,7 +9,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Artifacts } from '@beyond-js/packages/artifacts';
-import { artifactsPath, conditions, json, step, testbed, variant } from './harness.mjs';
+import { conditions, json, step, variant } from './harness.mjs';
+import { artifactsPath, directory } from './copy.mjs';
 
 /**
  * @param context The workspace, its artifacts writer and the report holder shared by the whole run
@@ -230,7 +231,7 @@ export async function build(context) {
 
 	await step('conditions: an undeclared platform of a module fails clearly', async () => {
 		const path = join(tmpdir(), 'beyond-stage1-web');
-		const ws = new Workspace(testbed);
+		const ws = new Workspace(directory);
 		const web = new Artifacts(ws, { path, conditions: { platform: 'web' } });
 		const report = await web.build();
 		ws.destroy();
