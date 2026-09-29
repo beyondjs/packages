@@ -30,8 +30,12 @@ const directory = home.directory('services', discovery.key);
 const log = join(directory, 'service.log');
 
 let implementation;
+let preparing;
 let host;
 let ending = false;
+
+// How long an end that arrives during the preparation waits for it, so that what it starts is stopped too
+const PREPARATION = 10000;
 
 /**
  * Ends the service: the host first, which notifies its clients, then the bootstrap, then the record
@@ -39,6 +43,10 @@ let ending = false;
 async function end(code) {
 	if (ending) return;
 	ending = true;
+
+	// A launcher whose start deadline expired ends this supervisor wherever it is. A preparation in progress
+	// starts processes in groups of their own, which only its stop ends: it is let settle first, within a bound
+	await Promise.race([preparing?.catch(() => void 0), new Promise(resolve => setTimeout(resolve, PREPARATION).unref())]);
 
 	if (host && host.exitCode === null) {
 		const exited = new Promise(resolve => host.once('exit', resolve));
@@ -84,7 +92,10 @@ process.on('disconnect', () => {});
 
 try {
 	implementation = await Implementation.provider(installation);
-	const launch = await implementation.prepare({ directory, log });
+	if (ending) throw new Error('The service was stopped before it was prepared');
+	preparing = implementation.prepare({ directory, log });
+	const launch = await preparing;
+	if (ending) throw new Error('The service was stopped while it was being prepared');
 
 	const output = openSync(log, 'a');
 	const settings = {

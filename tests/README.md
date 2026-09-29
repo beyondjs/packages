@@ -51,7 +51,7 @@ Behavior of an installed toolchain is accepted by the command line's acceptance,
 
 | Suite | Validates | Command |
 | --- | --- | --- |
-| `service/test` | The development service's context, connection, extensions and implementation selection | `node --test "service/test/*.test.mjs"` ([service guide](../docs/service.md)) |
+| `service/test` | The development service's context, connection, extensions and implementation selection, and its bounded waits (start, workspace reads and reloads, selection and state, attachment and heartbeat) against the stand-ins of [`service/test/support`](../service/test/support/README.md) | `node --test "service/test/*.test.mjs"` ([service guide](../docs/service.md)) |
 | `bootstrap/test` | The transitional Engine bootstrap: process groups and ports | `(cd bootstrap && npm test)` |
 | `contracts/development/test` | The development contract's schema against its fixtures in `contracts/development/fixtures` | `node --test contracts/development/test/fixtures.test.mjs` ([development contract](../docs/development-contract.md)); it imports `ajv`, which this repository does not declare |
 

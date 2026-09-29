@@ -118,7 +118,7 @@ export class Discovery {
 				abandoned = Date.now() - (statSync(lock, { throwIfNoEntry: false })?.mtimeMs ?? 0) > 5000;
 			}
 			if (abandoned) rmSync(lock, { recursive: true, force: true });
-			else if (Date.now() > deadline) throw new Error(`Timed out waiting for another command to start the service (${lock})`);
+			else if (Date.now() > deadline) throw new Error(`Timed out after ${timeout}ms waiting for another command to start the service (${lock})`);
 			else await sleep(100);
 		}
 

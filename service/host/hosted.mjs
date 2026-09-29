@@ -1,6 +1,7 @@
 import { Workspace } from '@beyond-js/packages/workspace';
 import { Delivery } from '@beyond-js/packages/artifacts';
 import { Sources } from '@beyond-js/packages/http/routes';
+import { Generations } from './generations.mjs';
 import { Manifests } from './manifests.mjs';
 
 /**
@@ -9,58 +10,61 @@ import { Manifests } from './manifests.mjs';
  * Routes and descriptions hold this object, not a Packages workspace, because the workspace is replaced when
  * a manifest changes: a package or a module that was declared after the service started exists from the
  * next request on, without restarting the service. Sources are different: Packages watches them, and an
- * edited source is rebuilt by the workspace that is already loaded.
+ * edited source is rebuilt by the workspace that is already loaded. Reading a workspace is bounded, at the
+ * start and at a reload (see `Generations`).
  */
 export class Hosted {
 	#settings;
-	#log;
 	#manifests;
-	#workspace;
-	#delivery;
+	#generations;
 	#sources = new Sources(this);
-	#reloads = 0;
 
 	/**
 	 * How many times the workspace was reloaded, which is part of what a client sees as its revision
 	 */
 	get reloads() {
-		return this.#reloads;
+		return this.#generations.reloads;
 	}
 
 	/**
 	 * @param {{root: string, standalone: boolean}} settings
 	 * @param {(message: string) => void} log
+	 * @param {{deadline: number}} options How long a workspace is given to be read, at the start and at a
+	 * reload (`BEYOND_WORKSPACE_TIMEOUT`)
 	 */
-	constructor(settings, log) {
+	constructor(settings, log, { deadline }) {
 		this.#settings = settings;
-		this.#log = log;
 		this.#manifests = new Manifests(settings.root);
-		this.#load();
+		this.#generations = new Generations(() => this.#load(), { deadline, log });
 	}
 
 	#load() {
 		const { root, standalone, supplied = [] } = this.#settings;
 		const options = { watcher: true, packages: standalone ? ['.'] : undefined, supplied: supplied.map(({ path }) => path) };
-		this.#workspace = new Workspace(root, options);
-		this.#delivery = new Delivery(this.#workspace);
+		return new Loaded(new Workspace(root, options));
 	}
 
-	get ready() {
-		return this.#workspace.ready;
+	get #delivery() {
+		return this.#generations.current.delivery;
 	}
 
 	/**
-	 * Reloads the workspace when its manifests changed. It is called before resolving or describing.
+	 * Reads the workspace, within the deadline
+	 *
+	 * @throws {Error} `WORKSPACE_NOT_READY` when it is not read in time
+	 */
+	start() {
+		return this.#generations.start();
+	}
+
+	/**
+	 * Reloads the workspace when its manifests changed. It is called before resolving or describing, and
+	 * answers `UNAVAILABLE` when the reload is not ready within the deadline; the previous workspace is
+	 * served meanwhile, and the next call tries again.
 	 */
 	async refresh() {
-		if (!this.#manifests.changed) return;
-
-		this.#log('a manifest changed: reloading the workspace');
-		const previous = this.#workspace;
-		this.#load();
-		this.#reloads++;
-		await this.#workspace.ready;
-		previous.destroy();
+		this.#manifests.changed && this.#generations.invalidate();
+		await this.#generations.refresh();
 	}
 
 	// The members of a Delivery that the routes and the descriptions of this service use
@@ -121,6 +125,31 @@ export class Hosted {
 	 */
 	supplies(name, version) {
 		return this.#delivery.supplies(name, version);
+	}
+
+	destroy() {
+		this.#generations.destroy();
+	}
+}
+
+/**
+ * One generation of the hosted workspace: a Packages workspace and the delivery of its artifacts
+ */
+class Loaded {
+	#workspace;
+	#delivery;
+
+	get delivery() {
+		return this.#delivery;
+	}
+
+	get ready() {
+		return this.#workspace.ready;
+	}
+
+	constructor(workspace) {
+		this.#workspace = workspace;
+		this.#delivery = new Delivery(workspace);
 	}
 
 	destroy() {

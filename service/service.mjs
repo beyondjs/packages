@@ -1,24 +1,18 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Connection } from './connection.mjs';
+import { Deadline } from './deadline.mjs';
 import { Discovery } from './discovery.mjs';
+import { ServiceError } from './errors.mjs';
 import { Home } from './home.mjs';
 import { Installation } from './installation.mjs';
+import { Startup } from './startup.mjs';
+
+export { ServiceError };
 
 const SUPERVISOR = fileURLToPath(new URL('./supervisor/main.mjs', import.meta.url));
-
-/**
- * A service that could not be started, with where its output was logged
- */
-export class ServiceError extends Error {
-	constructor(message, log, code = 'SERVICE_START_FAILED') {
-		super(message);
-		this.name = 'ServiceError';
-		this.code = code;
-		this.log = log;
-	}
-}
 
 /**
  * The development service of one workspace, as a command uses it: reuse the one that runs, or start it.
@@ -33,6 +27,16 @@ export class ServiceError extends Error {
  * for the lock finds the service of whoever held it.
  */
 export class Service {
+	/**
+	 * The default deadline of a start, in milliseconds (`BEYOND_START_TIMEOUT`). It covers the whole start on
+	 * a loaded host: the preparation of the bootstrap (90 s at most), the watchers child
+	 * (`BEYOND_WATCHERS_TIMEOUT`) and the first read of the workspace (`BEYOND_WORKSPACE_TIMEOUT`, 120 s),
+	 * each of which reports its own failure first. A deployment that raises those raises this one too.
+	 */
+	static START = 300000;
+
+	static #deadline = new Deadline('BEYOND_START_TIMEOUT', Service.START);
+
 	#context;
 	#installation = new Installation();
 	#home;
@@ -90,7 +94,12 @@ export class Service {
 	 * workspace, to the service that a command starts.
 	 * @returns {Promise<{connection: Connection, started: boolean, token?: string}>}
 	 */
-	acquire({ lifetime, port, bind, extensions = Service.extensions(process.env) }) {
+	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env) }) {
+		// Whoever waits for the lock waits for as long as the holder's start can last, stop and description
+		// included, so that a slow start is not reported to it as a failed one
+		const env = process.env;
+		const timeout = Service.#deadline.read(env) + Startup.GRACE + 2 * Connection.deadline(env);
+
 		return this.#discovery.exclusive(async () => {
 			const found = await this.find();
 			if (found) return { connection: found, started: false };
@@ -99,7 +108,7 @@ export class Service {
 			const record = await this.#start({ lifetime, port, bind, extensions, token });
 			const connection = await this.#described(record);
 			return { connection, started: true, token };
-		});
+		}, { timeout });
 	}
 
 	/**
@@ -132,11 +141,17 @@ export class Service {
 	}
 
 	/**
-	 * Starts the supervisor detached from this process and waits for the outcome of the start
+	 * Starts the supervisor detached from this process and waits for the outcome of the start, within the
+	 * deadline of `BEYOND_START_TIMEOUT`. A supervisor that is not ready by then is stopped.
 	 */
 	#start({ lifetime, port, bind, extensions, token }) {
+		const deadline = Service.#deadline.read(process.env);
 		const { root, standalone } = this.#context;
 		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path };
+
+		// Where the supervisor logs, which it names itself once it can: a start that fails before, or never
+		// ends, is reported with it as well
+		const log = join(this.#home.directory('services', this.#discovery.key), 'service.log');
 
 		const child = spawn(process.execPath, [SUPERVISOR], {
 			detached: true,
@@ -144,19 +159,6 @@ export class Service {
 			env: { ...process.env, NODE_OPTIONS: '', BEYOND_SERVICE_OPTIONS: JSON.stringify(options) }
 		});
 
-		return new Promise((resolve, reject) => {
-			const settle = outcome => {
-				child.removeAllListeners();
-				child.connected && child.disconnect();
-				child.unref();
-				outcome();
-			};
-
-			child.on('message', ({ ready, failed, log }) =>
-				settle(() => (ready ? resolve(ready) : reject(new ServiceError(failed, log))))
-			);
-			child.once('error', error => settle(() => reject(new ServiceError(error.message))));
-			child.once('exit', code => settle(() => reject(new ServiceError(`The service supervisor exited (${code})`))));
-		});
+		return new Startup(child, { deadline, log }).outcome();
 	}
 }

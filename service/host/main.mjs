@@ -15,6 +15,7 @@ import express from 'express';
 import { Routes } from '@beyond-js/packages/http/routes';
 import { WatchersService } from '@beyond-js/packages/watchers';
 import { Session } from '@beyond-js/artifact-api';
+import { Deadline } from '../deadline.mjs';
 import { Attachments } from './attachments.mjs';
 import { Description } from './description.mjs';
 import { Extensions } from './extensions.mjs';
@@ -82,18 +83,20 @@ try {
 	// The watchers service is a child of this process, started as the preparation of the implementation says.
 	// How long its readiness is waited for is deployment configuration: on a loaded host the child loads its
 	// implementation later than the default deadline, and a slow start is not a failed one
-	const deadline = process.env.BEYOND_WATCHERS_TIMEOUT;
-	if (deadline !== undefined && deadline !== '' && !/^[1-9]\d*$/.test(deadline)) throw new Error('BEYOND_WATCHERS_TIMEOUT must be a whole number of milliseconds');
+	const deadline = new Deadline('BEYOND_WATCHERS_TIMEOUT').read(process.env);
 	watchers = new WatchersService('watchers', {
 		env: { ...settings.watchers.env, BEYOND_HOST_OPTIONS: '' },
 		cwd: settings.watchers.cwd,
-		...(deadline ? { timeout: Number(deadline) } : {})
+		...(deadline ? { timeout: deadline } : {})
 	});
 	await watchers.start();
 
-	// What the routes deliver: the Packages workspace of the root, reloaded when its manifests change
-	workspace = new Hosted(settings, log);
-	await workspace.ready;
+	// What the routes deliver: the Packages workspace of the root, reloaded when its manifests change. Reading
+	// it is bounded, at the start and at every reload: a workspace that never becomes ready fails the start
+	// instead of holding it, and a reload that never does is answered as unavailable
+	const reading = new Deadline('BEYOND_WORKSPACE_TIMEOUT', 120000).read(process.env);
+	workspace = new Hosted(settings, log, { deadline: reading });
+	await workspace.start();
 
 	const delivery = workspace;
 	const description = new Description(settings, delivery);
