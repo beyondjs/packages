@@ -112,3 +112,33 @@ await service.acquire({ lifetime: 'owner', bind: '0.0.0.0', extensions: ['@beyon
   | `BEYOND_SESSION_TIMEOUT` | 5000 | Also the first answer of `connection.attach()`, which the service writes as soon as the stream opens | `TimeoutError`, code `SERVICE_NOT_ANSWERING`, path `/attach` |
 
   A deployment that raises `BEYOND_WATCHERS_TIMEOUT` or `BEYOND_WORKSPACE_TIMEOUT` keeps `BEYOND_START_TIMEOUT` above the sum of the start's steps, and `BEYOND_REQUEST_TIMEOUT` above `BEYOND_WORKSPACE_TIMEOUT`.
+
+These options describe a service that the call starts and are ignored when a running one is reused.
+
+## Engine-independent distribution: what exists and what remains
+
+| | |
+| --- | --- |
+| Exists | Engine's distribution build for npm (`beyond build --pkg <name> --distribution npm`), the mechanism that produced the published Beyond utilities with their per-module outputs and `exports` maps. The `Implementation` seam and the compiled path of this service, which starts the host as a plain Node process when the manifest exports the compiled modules. |
+| Executed | The npm build was run once against the current source of Packages, outside the checkout, on 2026-09-18 with Engine 1.4.1 and Node 22.21.1. It began emitting per-module outputs (`.mjs`, `.cjs.js`, `.d.ts`), reported invalid declarations for 5 of the first 10 modules, starting with the legacy modules under `modules/_older-to-be-refactored-or-delete`, and then a worker ended with `JavaScript heap out of memory` and the build did not finish. No distribution was produced. The selection between the two forms is unit-tested; the compiled path of the service has never run, because there is nothing compiled to run it against. |
+| Remains | Make the build complete: exclude or repair the modules whose declarations fail and resolve the memory exhaustion. Decide the distribution's manifest (compiled `exports` beside `./service`, files, runtime dependencies) and produce it. Give the compiled distribution a watchers service that needs no compilation, which the published `@beyond-js/watchers` 1.0.7 does not contain. Then accept it on its own terms: install the compiled archive into an empty directory **without** `beyond` and `@beyond-js/packages-bootstrap`, and run the command line's acceptance suite against it. Self-compilation of Packages by Packages and registry publication are further, separate steps. |
+
+Installing today's archives proves relocation and an automated bootstrap. It is not evidence of a compiled release.
+
+## Known limits
+
+- Source read/write, revisions, events and reconnection belong to the [development contract](development-contract.md) and are not implemented by this service; it is the artifact, selection, state and lifecycle slice. A host adds them by naming the public module `@beyond-js/packages/development` in `extensions`.
+- The service itself pushes nothing to consumers. With the development extension it announces builds on `/events`, and the updates of composed modules are served by the provisional `/u/` route of the HTTP routes; a consumer that registers the service in the development runtime applies them while it runs, which [the unified-runtime validation](../tests/unified-runtime/README.md) executes for Node consumers. Without that runtime, a consumer started after an edit loads rebuilt code; that is not HMR. The session describes Node modules only. The builds of the development extension name the platform of each artifact, and its preview document registers the service in a development runtime that the workspace contains, which [the preview validation](../tests/preview/README.md) executes in a browser; a workspace without that runtime, which is every project that uses the published Kernel, is rebuilt on save and shown on reload.
+- One defect of an installed utility is contained in [processors.mjs](../service/host/processors.mjs): the slow-processor warning of `@beyond-js/dynamic-processor` 1.0.8 throws. User impact without the containment: the service would end whenever a processor took more than five seconds. The utility's source is repaired; the containment stays until a published version is depended on.
+- Two writes of one source within 50 ms depend on the watchers service that runs. chokidar reports one change of a path per 50 ms and drops the others, and `GET /state` reports a failure within milliseconds of the write that caused it, so a correction saved as soon as the failure is seen lands in that window. The sources of `@beyond-js/watchers` that the bootstrap serves and carries examine every announced file again once the window is over and announce the change chokidar dropped, so the correction is built about 75 ms after the failure ([the writes validation](../tests/development/README.md)). A service that runs the published `@beyond-js/watchers` 1.0.7 (`BEYOND_LOCAL_PACKAGES=none`) does not: the correction is never built, and the module keeps the diagnostic of the broken source until an unrelated later edit of the same file. A write that changes neither the modification time, the size nor the inode of a file, which filesystems with timestamps of one or two seconds allow, is not seen either way.
+- The host must not be given an IPC channel: the implementation's IPC utility takes a process that has one for a child of its own router.
+- Validated on macOS; process groups are POSIX, and Windows was not exercised.
+
+## Development
+
+```sh
+node --test "service/test/*.test.mjs"      # context, implementation selection, bounded waits (service/test/support)
+(cd bootstrap && npm test)                 # process groups and ports
+```
+
+In a checkout, the service finds the bootstrap through `node_modules/@beyond-js/packages-bootstrap`, linked to `bootstrap/`. Behavior is accepted through the command line's acceptance suite, against an installation and never against a checkout.
