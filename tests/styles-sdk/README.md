@@ -9,7 +9,7 @@ BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
   node --import "$BEE_NODE_DIR/register.mjs" tests/styles-sdk/index.mjs
 ```
 
-Expected: `14/14 steps passed`.
+Expected: `15/15 steps passed`.
 
 | Step | What it establishes |
 | --- | --- |
@@ -23,6 +23,7 @@ Expected: `14/14 steps passed`.
 | conditionals | The web and node entries of one public module differ, and each excludes the other side |
 | types | Public declarations keep public type imports, hide internals, and a semantic error names its file and position |
 | kernel families | A source written against `@beyond-js/kernel/core` is assembled against the selected runtime |
+| production | The `web/production` conditional is the same composition (the same internal modules with the same hashes and dependencies), minified, with a minified stylesheet, no inline map and no update patch |
 | watch, tailwind | Adding a class to a declared source adds its utility; removing it removes the utility |
 | watch, dependencies | A partial and a theme outside the module invalidate the modules that read them, and only those |
 | watch, failure and recovery | An invalid stylesheet reports its position and publishes nothing; its correction restores the output |
