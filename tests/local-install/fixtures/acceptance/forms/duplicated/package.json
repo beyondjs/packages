@@ -1,0 +1,6 @@
+{
+	"name": "forms-duplicated",
+	"version": "0.0.0",
+	"private": true,
+	"workspaces": ["a", "b"]
+}

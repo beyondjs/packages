@@ -1,0 +1,13 @@
+{
+	"name": "lt-workspace",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Local installation acceptance: an npm workspace whose second @lt/message lives outside its root",
+	"workspaces": ["apps/*", "packages/*", "!packages/drafts"],
+	"devDependencies": {
+		"scheduler": "^0.26.0"
+	},
+	"beyond": {
+		"workspaces": [{ "path": "../repositories/message-v2", "version": "2.0.0" }]
+	}
+}

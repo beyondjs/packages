@@ -3,6 +3,7 @@ import type { Node } from '../../../node';
 import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 import { SemverNodes } from './semver';
 import { FixedNodes } from './fixed';
+import { WorkspaceNodes } from './workspace';
 
 /**
  * The occurrences that require one package, by how their version is determined
@@ -18,9 +19,18 @@ export /*bundle*/ class PackageNodes {
 		return this.#fixed;
 	}
 
+	#workspace: WorkspaceNodes;
+	/**
+	 * The occurrences of a name the workspace provides, resolved by its members
+	 */
+	get workspace() {
+		return this.#workspace;
+	}
+
 	constructor(pkg: DependencyPackage) {
 		this.#semver = new SemverNodes(pkg);
 		this.#fixed = new FixedNodes(pkg);
+		this.#workspace = new WorkspaceNodes(pkg);
 	}
 
 	async register(node: Node, update: boolean) {
@@ -30,6 +40,8 @@ export /*bundle*/ class PackageNodes {
 		if (is === DependencySourceIsType.Semver) await this.#semver.register(node, update);
 		else if (is === DependencySourceIsType.Git || is === DependencySourceIsType.Url) {
 			await this.#fixed.register(node, update);
+		} else if (is === DependencySourceIsType.Workspace) {
+			this.#workspace.register(node);
 		} else {
 			const code = 'SOURCE_UNSUPPORTED';
 			node.version.update({ error: { code, message: `Dependency sources of type "${is}" are not supported` } });
@@ -39,6 +51,7 @@ export /*bundle*/ class PackageNodes {
 	unregister(node: Node) {
 		const { is } = node.source.data;
 		if (is === DependencySourceIsType.Semver) this.#semver.unregister(node);
+		else if (is === DependencySourceIsType.Workspace) this.#workspace.unregister(node);
 		else this.#fixed.unregister(node);
 	}
 }

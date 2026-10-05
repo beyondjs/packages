@@ -1,5 +1,6 @@
 import * as ts from 'typescript';
-import { join } from 'path';
+import { isAbsolute, join } from 'path';
+import type { Graph } from './graph';
 
 /**
  * The extensions of framework components, whose declarations are synthesized: a component is a default
@@ -15,7 +16,8 @@ const COMPONENTS = ['.vue', '.svelte'];
  * imported by a relative path. Everything else is read as the TypeScript host reads it. A bare import of
  * a public module of the workspace resolves to nothing on disk: the ambient declaration of that module,
  * included in the program, answers it. Other bare imports are resolved from the module, then from the
- * fallback directory of the installation.
+ * fallback directory of the installation. With the installed graph of the workspace, every bare import and
+ * type reference is resolved through the edges of the node that holds the importing file, and nothing else.
  */
 export class Host {
 	static VIRTUAL = '/beyond/types/';
@@ -25,6 +27,7 @@ export class Host {
 	#virtual: Map<string, string>;
 	#fallback: string;
 	#published: (specifier: string) => boolean;
+	#graph: Graph | undefined;
 
 	get compiler(): ts.CompilerHost {
 		return this.#host;
@@ -33,12 +36,15 @@ export class Host {
 	/**
 	 * @param virtual The in-memory files, by absolute virtual path
 	 * @param published Whether a bare specifier is a public module of the workspace
+	 * @param graph The installed graph of the workspace, which replaces every other resolution of a bare
+	 * specifier or a type reference
 	 */
-	constructor(options: ts.CompilerOptions, directory: string, fallback: string, virtual: Map<string, string>, published: (specifier: string) => boolean) {
+	constructor(options: ts.CompilerOptions, directory: string, fallback: string, virtual: Map<string, string>, published: (specifier: string) => boolean, graph?: Graph) {
 		this.#options = options;
 		this.#virtual = virtual;
 		this.#fallback = fallback;
 		this.#published = published;
+		this.#graph = graph;
 
 		const host = ts.createCompilerHost(options, true);
 		const original = { fileExists: host.fileExists, readFile: host.readFile, getSourceFile: host.getSourceFile };
@@ -58,6 +64,10 @@ export class Host {
 		host.writeFile = () => void 0;
 		host.resolveModuleNameLiterals = (literals, containing, redirected, options) =>
 			literals.map(literal => this.#resolve(literal.text, containing, options));
+		if (graph) {
+			host.resolveTypeReferenceDirectiveReferences = (references, containing, redirected, options) =>
+				references.map(reference => graph.reference(typeof reference === 'string' ? reference : reference.fileName, containing, options));
+		}
 
 		this.#host = host;
 	}
@@ -84,11 +94,16 @@ export class Host {
 			return { resolvedModule: { resolvedFileName: file, extension: ts.Extension.Dts, isExternalLibraryImport: false } };
 		}
 
+		// Through the installed graph, the edges of the node that holds the file decide every bare specifier,
+		// whichever file imports it: a member is declared ambiently, an external package is read from its node
+		const bare = !specifier.startsWith('.') && !isAbsolute(specifier);
+		if (bare && this.#graph) return this.#graph.module(specifier, containing, options);
+
 		// A public module of the workspace is declared ambiently by the program; nothing on disk answers it
-		if (!specifier.startsWith('.') && this.#published(specifier)) return none;
+		if (bare && this.#published(specifier)) return none;
 
 		const resolved = ts.resolveModuleName(specifier, containing, options, this.#host);
-		if (resolved.resolvedModule || specifier.startsWith('.')) return resolved;
+		if (resolved.resolvedModule || !bare) return resolved;
 
 		// Not installed for the package: the installation that runs Packages may supply it
 		return ts.resolveModuleName(specifier, join(this.#fallback, 'noop.ts'), options, this.#host);

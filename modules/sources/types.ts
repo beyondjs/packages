@@ -96,6 +96,8 @@ export /*bundle*/ interface ISourceResult {
 	reused: boolean;
 	// True when the graph published no integrity (a recorded exception) and it was computed at fetch
 	established?: boolean;
+	// Where the store keeps the files of the source, when the store reports one (`FilesystemStore` does)
+	location?: string;
 }
 
 export /*bundle*/ interface ISourceDiagnostic {

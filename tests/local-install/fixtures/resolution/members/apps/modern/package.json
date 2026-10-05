@@ -1,0 +1,9 @@
+{
+	"name": "modern",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "^2.0.0",
+		"react": "^19.1.1"
+	}
+}

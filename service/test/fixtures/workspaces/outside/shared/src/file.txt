@@ -1,0 +1,1 @@
+A file inside a member that lives outside its workspace root, with no configuration of its own above it.

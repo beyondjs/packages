@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/message",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./theme": "./theme.css"
+	},
+	"beyond": { "bundler": "ts", "assets": ["notice.txt"] },
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" }
+}

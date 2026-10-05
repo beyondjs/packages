@@ -1,0 +1,8 @@
+{
+	"name": "missing",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/missing": "workspace:^1.0.0"
+	}
+}

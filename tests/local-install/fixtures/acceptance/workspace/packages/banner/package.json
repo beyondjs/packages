@@ -1,0 +1,20 @@
+{
+	"name": "@lt/banner",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Uses @lt/message 2 and declares an npm alias of scheduler",
+	"exports": {
+		"./banner": "./banner/index.ts"
+	},
+	"dependencies": {
+		"@lt/message": "^2.0.0",
+		"legacy-scheduler": "npm:scheduler@^0.23.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

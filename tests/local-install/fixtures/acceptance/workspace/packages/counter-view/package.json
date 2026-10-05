@@ -1,0 +1,19 @@
+{
+	"name": "@lt/counter-view",
+	"version": "1.0.0",
+	"private": true,
+	"description": "A view with React as a peer: each application binds its own React",
+	"exports": {
+		"./view": "./view/index.ts"
+	},
+	"peerDependencies": {
+		"react": ">=18.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

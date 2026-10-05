@@ -31,6 +31,12 @@ export class Installation {
 	 */
 	static SUPPLIED = ['@beyond-js/local-2026', '@beyond-js/widgets', '@beyond-js/react-19-widgets', '@beyond-js/vue-widgets', '@beyond-js/svelte-widgets'];
 
+	/**
+	 * The runtime of the toolchain itself, which its artifacts import whatever the workspace is: the Kernel. The
+	 * other packages of the session's runtime are there because a supplied package needs them.
+	 */
+	static RUNTIME = ['@beyond-js/kernel'];
+
 	#supplied;
 
 	/**
@@ -62,7 +68,7 @@ export class Installation {
 	 */
 	get runtime() {
 		const supplied = new Set(this.supplied.map(({ name }) => name));
-		const packages = new Set(['@beyond-js/kernel']);
+		const packages = new Set(Installation.RUNTIME);
 		this.supplied.forEach(({ dependencies }) => dependencies.forEach(name => !supplied.has(name) && packages.add(name)));
 		return { packages: [...packages], base: pathToFileURL(join(this.#packages.path, 'package.json')).href };
 	}

@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/app-pinned",
+	"version": "1.0.0",
+	"exports": { "./main": "./main/index.ts" },
+	"dependencies": {
+		"@fixture/message": "^1.0.0"
+	},
+	"beyond": { "bundler": "ts" },
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" }
+}

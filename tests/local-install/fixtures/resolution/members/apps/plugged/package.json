@@ -1,0 +1,10 @@
+{
+	"name": "plugged",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "^1.0.0",
+		"widgets-plugin": "^1.0.0",
+		"react": "^19.1.1"
+	}
+}

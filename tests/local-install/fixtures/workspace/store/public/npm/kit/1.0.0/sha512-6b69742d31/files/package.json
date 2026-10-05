@@ -1,0 +1,7 @@
+{
+	"name": "kit",
+	"version": "1.0.0",
+	"type": "module",
+	"peerDependencies": { "greeting": "*" },
+	"exports": { ".": { "types": "./index.d.ts", "default": "./index.js" } }
+}

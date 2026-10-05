@@ -1,0 +1,18 @@
+{
+	"name": "@serving/app-e",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"dependencies": {
+		"@serving/ui-lib": "1.0.0",
+		"react": "19.1.0"
+	},
+	"beyond": { "modules": ".", "bundler": "esbuild" },
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": { "bundle": { "compiler": "esbuild" } }
+		}
+	}
+}

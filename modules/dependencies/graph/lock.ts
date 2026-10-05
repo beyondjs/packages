@@ -2,8 +2,10 @@
  * The releases pinned by a previous resolution. While a pinned release still satisfies what is required,
  * it is selected again instead of a newer one, so the same lock and inputs always give the same graph.
  *
- * Accepted forms: another `Lock`, a list of `{name, version}`, a `beyond-graph/1` document (its `nodes`)
- * and the content of a project lock file (`{'name@version': {name, version: {resolved}}}`).
+ * Accepted forms: another `Lock`, a list of `{name, version}`, a document with `nodes` (`beyond-graph/1`,
+ * `beyond-workspace-graph/1`, `beyond-lock/2`) and the content of a legacy project lock file
+ * (`{'name@version': {name, version: {resolved}}}`). The members of a workspace pin nothing: a workspace node is
+ * the member itself, never a release a registry would be asked for.
  */
 export /*bundle*/ class Lock {
 	#versions: Map<string, Set<string>> = new Map();
@@ -25,6 +27,7 @@ export /*bundle*/ class Lock {
 
 		for (const entry of entries) {
 			if (!entry || typeof entry !== 'object' || typeof entry.name !== 'string') continue;
+			if (entry.origin?.provider === 'workspace') continue;
 			const version = typeof entry.version === 'string' ? entry.version : entry.version?.resolved;
 			if (typeof version === 'string') this.pin(entry.name, version);
 		}

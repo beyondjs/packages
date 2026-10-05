@@ -1,0 +1,8 @@
+{
+	"name": "declares-workspace",
+	"version": "1.0.0",
+	"main": "index.js",
+	"dependencies": {
+		"@lt/message": "workspace:^1.0.0"
+	}
+}

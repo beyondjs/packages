@@ -27,7 +27,8 @@ export /*bundle*/ interface IArtifactDependency {
 	 * - `workspace`: a public module of a package of this workspace, provided by its own artifact
 	 * - `runtime`: the Beyond runtime
 	 * - `builtin`: a Node builtin module
-	 * - `external`: an installed package, resolved by the environment that executes the artifact
+	 * - `external`: an installed package, resolved by the environment that executes the artifact, or with an
+	 *   execution the node of the installed graph that the dependent's edge reaches
 	 */
 	source: 'workspace' | 'runtime' | 'builtin' | 'external';
 
@@ -41,6 +42,28 @@ export /*bundle*/ interface IArtifactDependency {
 	 * `workspace` and the packages differ. A public module of the same package has no declared range.
 	 */
 	range?: string;
+
+	/**
+	 * When a root `overrides` entry replaced the declared range of a `workspace` source: the selection of the
+	 * override, which the version of the required package satisfies instead of the declared range
+	 */
+	override?: string;
+
+	/**
+	 * With the execution projection of an installed graph: the key of the node the dependent's edge reaches,
+	 * such as `workspace:app` or `npm:react@19.1.1`
+	 */
+	node?: string;
+
+	/**
+	 * With an execution, for an `external` source: the exact version of that node
+	 */
+	version?: string;
+
+	/**
+	 * With an execution, for an `external` source: the directory of the sources of that node
+	 */
+	location?: string;
 }
 
 /**

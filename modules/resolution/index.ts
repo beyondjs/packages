@@ -1,9 +1,12 @@
-import type { IPackageProviders } from '@beyond-js/packages/providers/types';
+import type { IPackageProviders, IMetadataStore } from '@beyond-js/packages/providers/types';
 import type { IPinParams, IGraphDocument } from './types';
+import type { IWorkspaceParams, IWorkspaceGraph } from './workspace/types';
 import { DependenciesGraph } from '@beyond-js/packages/dependencies/graph';
-import { PackageProviders, Metadata } from '@beyond-js/packages/providers';
+import { type IProvidersOptions, PackageProviders, Metadata } from '@beyond-js/packages/providers';
 import { Roots } from './roots';
 import { Document } from './document';
+import { WorkspaceRoot } from './workspace/root';
+import { WorkspaceDocument } from './workspace/document';
 
 /**
  * First stage of a published build: pins the package/version graph of an application.
@@ -36,10 +39,37 @@ export /*bundle*/ class Resolution {
 	}
 
 	/**
-	 * Whether a graph can be fetched and built: none of its diagnostics is an error. The document has no
-	 * flag of its own, because its members are fixed by the `beyond-graph/1` schema.
+	 * Resolves the graph of a workspace into a `beyond-workspace-graph/1` document: its importers (every member,
+	 * and the root package when it declares dependencies without being a member), what each one requires and
+	 * every release they reach.
+	 *
+	 * A name a member provides is owned by the workspace: a version or a range of it selects the highest member
+	 * that satisfies it, and no package document, manifest or archive of that name is ever requested; an `npm:`
+	 * alias or an override is how a dependent reaches its registry copy instead. The importers follow their
+	 * development dependencies (unless `development` is false) and resolve their peers as their own
+	 * dependencies; below them the policies of `pin` apply. The same members, root, lock and provider metadata
+	 * give the same document and digest, whatever order the inputs were given in.
+	 *
+	 * Failures are returned in `diagnostics` (see `Resolution.valid`); the call only rejects on a programming
+	 * error, such as members that are not a list or two members with one id.
 	 */
-	static valid(document: IGraphDocument): boolean {
+	static async workspace(params: IWorkspaceParams): Promise<IWorkspaceGraph> {
+		if (!params || typeof params !== 'object') throw new Error('Workspace resolution parameters are required');
+		const { lock, passes, logger } = params;
+		const development = params.development !== false;
+
+		const root = new WorkspaceRoot(params, Resolution.#metadata(params));
+		const graph = new DependenciesGraph(root, { lock, development, passes, logger });
+		await graph.process({ update: params.update === true });
+
+		return new WorkspaceDocument(graph, root).write();
+	}
+
+	/**
+	 * Whether a graph can be fetched and built: none of its diagnostics is an error. The document has no
+	 * flag of its own, because its members are fixed by its schema.
+	 */
+	static valid(document: IGraphDocument | IWorkspaceGraph): boolean {
 		return !!document?.diagnostics && !document.diagnostics.some(({ severity }) => severity === 'error');
 	}
 
@@ -48,7 +78,12 @@ export /*bundle*/ class Resolution {
 	 * its rc files and environment are read only when the options ask for them, so the credentials of
 	 * whoever runs the service never reach the graph of a tenant.
 	 */
-	static #metadata({ providers, tenant, store }: IPinParams): IPackageProviders {
+	static #metadata(params: {
+		providers?: IProvidersOptions | IPackageProviders;
+		tenant?: string;
+		store?: IMetadataStore;
+	}): IPackageProviders {
+		const { providers, tenant, store } = params;
 		const given: any = providers;
 		if (given && typeof given.versions === 'function' && typeof given.manifest === 'function') return given;
 		if (given instanceof PackageProviders) return new Metadata(given, { tenant, store });

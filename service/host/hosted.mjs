@@ -1,22 +1,33 @@
-import { Workspace } from '@beyond-js/packages/workspace';
-import { Delivery } from '@beyond-js/packages/artifacts';
 import { Sources } from '@beyond-js/packages/http/routes';
+import { Execution } from '@beyond-js/packages/execution';
+import { Declaration } from '../workspace/declaration.mjs';
+import { Generation } from './generation.mjs';
 import { Generations } from './generations.mjs';
 import { Manifests } from './manifests.mjs';
 
 /**
- * The workspace this service hosts, kept current with its manifests.
+ * The workspace this service hosts, kept current with its manifests and with its installation.
  *
  * Routes and descriptions hold this object, not a Packages workspace, because the workspace is replaced when
  * a manifest changes: a package or a module that was declared after the service started exists from the
  * next request on, without restarting the service. Sources are different: Packages watches them, and an
  * edited source is rebuilt by the workspace that is already loaded. Reading a workspace is bounded, at the
  * start and at a reload (see `Generations`).
+ *
+ * Each generation is created from the declaration of the workspace (its members, wherever they are) and from
+ * the projection of its installed graph (see `Generation`), so a change of the lock, of the projection or of a
+ * member outside the root reloads it as a manifest of the root does.
  */
 export class Hosted {
-	#settings;
+	/**
+	 * How long a workspace is given to be read when the caller names no bound, in milliseconds
+	 * (`BEYOND_WORKSPACE_TIMEOUT` names it for the service)
+	 */
+	static DEADLINE = 120000;
+
 	#manifests;
 	#generations;
+	#started;
 	#sources = new Sources(this);
 
 	/**
@@ -27,25 +38,34 @@ export class Hosted {
 	}
 
 	/**
-	 * @param {{root: string, standalone: boolean}} settings
-	 * @param {(message: string) => void} log
-	 * @param {{deadline: number}} options How long a workspace is given to be read, at the start and at a
+	 * @param {{root: string, supplied?: {name: string, path: string}[], runtime?: object}} settings The settings
+	 * of the host
+	 * @param {(message: string) => void} [log]
+	 * @param {{deadline?: number}} [options] How long a workspace is given to be read, at the start and at a
 	 * reload (`BEYOND_WORKSPACE_TIMEOUT`)
 	 */
-	constructor(settings, log, { deadline }) {
-		this.#settings = settings;
-		this.#manifests = new Manifests(settings.root);
-		this.#generations = new Generations(() => this.#load(), { deadline, log });
+	constructor(settings, log = () => void 0, { deadline = Hosted.DEADLINE } = {}) {
+		const files = [Execution.LOCK, Execution.PATH];
+		this.#manifests = new Manifests(settings.root, () => Declaration.read(settings.root), { files });
+		this.#generations = new Generations(() => new Generation(settings), { deadline, log });
 	}
 
-	#load() {
-		const { root, standalone, supplied = [] } = this.#settings;
-		const options = { watcher: true, packages: standalone ? ['.'] : undefined, supplied: supplied.map(({ path }) => path) };
-		return new Loaded(new Workspace(root, options));
+	get #current() {
+		return this.#generations.current;
 	}
 
 	get #delivery() {
-		return this.#generations.current.delivery;
+		return this.#current.delivery;
+	}
+
+	/**
+	 * The first read of the workspace, started on first use and shared: it resolves once the workspace is
+	 * served, within the deadline
+	 *
+	 * @throws {Error} `WORKSPACE_NOT_READY` when it is not read in time
+	 */
+	get ready() {
+		return (this.#started ??= this.#generations.start());
 	}
 
 	/**
@@ -54,7 +74,7 @@ export class Hosted {
 	 * @throws {Error} `WORKSPACE_NOT_READY` when it is not read in time
 	 */
 	start() {
-		return this.#generations.start();
+		return this.ready;
 	}
 
 	/**
@@ -65,6 +85,55 @@ export class Hosted {
 	async refresh() {
 		this.#manifests.changed && this.#generations.invalidate();
 		await this.#generations.refresh();
+	}
+
+	/**
+	 * Reloads the workspace now, whatever its manifests say: an installation wrote the projection it is served
+	 * through. A reload in progress does not stand for this one (see `Generations.reload`). The manifests as they
+	 * are now become the reference, so the next request does not reload again.
+	 *
+	 * @throws {ContractError} `UNAVAILABLE` when the reload is not ready within the deadline
+	 */
+	async reload() {
+		this.#manifests.update();
+		await this.#generations.reload('the installation wrote the projection of the installed graph');
+	}
+
+	/**
+	 * The declaration of the workspace the served generation was created from
+	 */
+	get declared() {
+		return this.#current.declaration;
+	}
+
+	/**
+	 * The projection of the installed graph the served generation was created from: `{state, diagnostics,
+	 * execution?}`, the execution being what the workspace resolves through when it is ready, stale or incomplete
+	 */
+	get projection() {
+		return this.#current.projection;
+	}
+
+	/**
+	 * What the served generation is made of: its members, its execution and its supplied packages
+	 */
+	get composition() {
+		return this.#current.composition;
+	}
+
+	/**
+	 * The execution projection the served workspace resolves through, undefined when it is not installed. The
+	 * routes of the service and its extensions receive this object as their delivery, and read it here.
+	 */
+	get execution() {
+		return this.#delivery.execution;
+	}
+
+	/**
+	 * Where every package of the served generation comes from
+	 */
+	provenance() {
+		return this.#current.provenance();
 	}
 
 	// The members of a Delivery that the routes and the descriptions of this service use
@@ -129,30 +198,5 @@ export class Hosted {
 
 	destroy() {
 		this.#generations.destroy();
-	}
-}
-
-/**
- * One generation of the hosted workspace: a Packages workspace and the delivery of its artifacts
- */
-class Loaded {
-	#workspace;
-	#delivery;
-
-	get delivery() {
-		return this.#delivery;
-	}
-
-	get ready() {
-		return this.#workspace.ready;
-	}
-
-	constructor(workspace) {
-		this.#workspace = workspace;
-		this.#delivery = new Delivery(workspace);
-	}
-
-	destroy() {
-		this.#workspace.destroy();
 	}
 }

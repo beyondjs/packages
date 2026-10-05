@@ -1,0 +1,16 @@
+{
+	"name": "@lt/message",
+	"version": "2.0.0",
+	"private": true,
+	"description": "Version 2 of @lt/message, in its own repository outside the workspace root",
+	"exports": {
+		"./text": "./text/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

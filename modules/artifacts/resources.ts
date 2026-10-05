@@ -54,7 +54,7 @@ export /*bundle*/ class Resources {
 		const { name, version, subpath } = request;
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
 		const { selected, errors } = await this.#selection.resolve(`${name}@${version}${path}`);
-		if (!selected && errors[0]?.code === 'PACKAGE_NOT_FOUND' && this.#installed && conditions.platform !== 'node') {
+		if (!selected && this.#installed?.serves(errors[0]?.code, request, conditions)) {
 			const installed = await this.#installed.module({ name, version, subpath }, conditions);
 			if (installed.module?.styles) return { styles: installed.module.styles, key: 'installed' };
 			if (installed.module) return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${name}${subpath.slice(1)}" produces no stylesheet` } };
@@ -83,11 +83,22 @@ export /*bundle*/ class Resources {
 		const packages = [...this.#workspace.packages.values()];
 		await Promise.all(packages.map(one => one.ready));
 
-		const pkg = packages.find(one => one.valid && one.name === name);
-		if (!pkg) return { failure: { code: 'PACKAGE_NOT_FOUND', message: `Package "${name}" is not in the workspace` } };
-		if (pkg.version !== version) {
-			return { failure: { code: 'VERSION_MISMATCH', message: `"${name}@${version}" was requested, but the workspace package is ${pkg.vname}` } };
+		// Several versions of one name are instances: the request names the one it reads from
+		const instances = packages.filter(one => one.valid && one.name === name);
+		if (!instances.length) return { failure: { code: 'PACKAGE_NOT_FOUND', message: `Package "${name}" is not in the workspace` } };
+		const matching = instances.filter(one => one.version === version);
+		if (!matching.length) {
+			const held = instances.map(one => one.vname).join(', ');
+			const which = instances.length === 1 ? `the workspace package is ${held}` : `the workspace packages are ${held}`;
+			return { failure: { code: 'VERSION_MISMATCH', message: `"${name}@${version}" was requested, but ${which}` } };
 		}
+
+		// One name and version at two directories cannot be told apart, as the selection of a module refuses
+		if (matching.length > 1) {
+			const message = `Package "${name}@${version}" is declared by more than one workspace package: ${matching.map(one => one.path).join(', ')}`;
+			return { failure: { code: 'BUILD_FAILED', message, diagnostics: [{ code: 'PACKAGE_DUPLICATED', message }] } };
+		}
+		const [pkg] = matching;
 
 		await pkg.modules.ready;
 		const beyond = <{ assets?: unknown }>pkg.manifest.beyond;

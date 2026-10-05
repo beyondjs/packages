@@ -1,0 +1,24 @@
+{
+	"name": "@lt/app",
+	"version": "1.0.0",
+	"private": true,
+	"description": "React 19 application: @lt/message 1, @lt/banner (which uses @lt/message 2) and @lt/counter-view",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"dependencies": {
+		"@lt/banner": "^1.0.0",
+		"@lt/counter-view": "^1.0.0",
+		"@lt/message": "^1.0.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"use-store": "^1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

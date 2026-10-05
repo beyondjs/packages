@@ -1,0 +1,318 @@
+{
+	"protocol": "beyond-execution/1",
+	"root": "${ROOT}",
+	"lock": "sha256-fixture-lock",
+	"inputs": {
+		"declaration": "sha256-fixture-declaration",
+		"members": {
+			"app-v1": "sha256-fixture-app-v1",
+			"app-v2": "sha256-fixture-app-v2",
+			"message-v1": "sha256-fixture-message-v1",
+			"../outside/message-v2": "sha256-fixture-outside-message-v2",
+			"app-pinned": "sha256-fixture-app-pinned",
+			"app-v3": "sha256-fixture-app-v3",
+			"wrap": "sha256-fixture-wrap"
+		}
+	},
+	"store": "${STORE}",
+	"members": {
+		"app-v1": {
+			"name": "@fixture/app-v1",
+			"version": "1.0.0",
+			"node": "workspace:app-v1",
+			"location": "${ROOT}/app-v1"
+		},
+		"app-v2": {
+			"name": "@fixture/app-v2",
+			"version": "1.0.0",
+			"node": "workspace:app-v2",
+			"location": "${ROOT}/app-v2"
+		},
+		"message-v1": {
+			"name": "@fixture/message",
+			"version": "1.0.0",
+			"node": "workspace:message-v1",
+			"location": "${ROOT}/message-v1"
+		},
+		"../outside/message-v2": {
+			"name": "@fixture/message",
+			"version": "2.0.0",
+			"node": "workspace:../outside/message-v2",
+			"location": "${OUTSIDE}/message-v2"
+		},
+		"app-pinned": {
+			"name": "@fixture/app-pinned",
+			"version": "1.0.0",
+			"node": "workspace:app-pinned",
+			"location": "${ROOT}/app-pinned"
+		},
+		"app-v3": {
+			"name": "@fixture/app-v3",
+			"version": "1.0.0",
+			"node": "workspace:app-v3",
+			"location": "${ROOT}/app-v3"
+		},
+		"wrap": {
+			"name": "@fixture/wrap",
+			"version": "1.0.0",
+			"node": "workspace:wrap",
+			"location": "${ROOT}/wrap"
+		}
+	},
+	"nodes": {
+		"workspace:app-v1": {
+			"name": "@fixture/app-v1",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-v1",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-v1"
+		},
+		"workspace:app-v2": {
+			"name": "@fixture/app-v2",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-v2",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-v2"
+		},
+		"workspace:message-v1": {
+			"name": "@fixture/message",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "message-v1",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/message-v1"
+		},
+		"workspace:../outside/message-v2": {
+			"name": "@fixture/message",
+			"version": "2.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "../outside/message-v2",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${OUTSIDE}/message-v2"
+		},
+		"npm:greeting@1.0.0": {
+			"name": "greeting",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6772656574696e672d31",
+			"tarball": "https://registry.npmjs.org/greeting/-/greeting-1.0.0.tgz",
+			"location": "${STORE}/public/npm/greeting/1.0.0/sha512-6772656574696e672d31/files"
+		},
+		"npm:greeting@2.0.0": {
+			"name": "greeting",
+			"version": "2.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6772656574696e672d32",
+			"tarball": "https://registry.npmjs.org/greeting/-/greeting-2.0.0.tgz",
+			"location": "${STORE}/public/npm/greeting/2.0.0/sha512-6772656574696e672d32/files"
+		},
+		"npm:kit@1.0.0": {
+			"name": "kit",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6b69742d31",
+			"tarball": "https://registry.npmjs.org/kit/-/kit-1.0.0.tgz",
+			"location": "${STORE}/public/npm/kit/1.0.0/sha512-6b69742d31/files"
+		},
+		"npm:plain@1.0.0": {
+			"name": "plain",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-706c61696e2d31",
+			"tarball": "https://registry.npmjs.org/plain/-/plain-1.0.0.tgz",
+			"location": "${STORE}/public/npm/plain/1.0.0/sha512-706c61696e2d31/files"
+		},
+		"npm:@types/plain@1.0.0": {
+			"name": "@types/plain",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-74797065732d706c61696e2d31",
+			"tarball": "https://registry.npmjs.org/@types/plain/-/plain-1.0.0.tgz",
+			"location": "${STORE}/public/npm/%40types%2Fplain/1.0.0/sha512-74797065732d706c61696e2d31/files"
+		},
+		"workspace:app-pinned": {
+			"name": "@fixture/app-pinned",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-pinned",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-pinned"
+		},
+		"workspace:app-v3": {
+			"name": "@fixture/app-v3",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-v3",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-v3"
+		},
+		"workspace:wrap": {
+			"name": "@fixture/wrap",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "wrap",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/wrap"
+		},
+		"npm:@fixture/message@3.0.0": {
+			"name": "@fixture/message",
+			"version": "3.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6d6573736167652d33",
+			"tarball": "https://registry.npmjs.org/@fixture/message/-/message-3.0.0.tgz",
+			"location": "${STORE}/public/npm/%40fixture%2Fmessage/3.0.0/sha512-6d6573736167652d33/files"
+		}
+	},
+	"edges": [
+		{
+			"from": "workspace:app-v1",
+			"to": "workspace:message-v1",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:app-v1",
+			"to": "npm:greeting@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-v1",
+			"to": "npm:kit@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-v1",
+			"to": "npm:plain@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-v1",
+			"to": "npm:@types/plain@1.0.0",
+			"kind": "build",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-v2",
+			"to": "workspace:../outside/message-v2",
+			"kind": "dependency",
+			"range": "^2.0.0"
+		},
+		{
+			"from": "workspace:app-v2",
+			"to": "npm:greeting@2.0.0",
+			"kind": "dependency",
+			"range": "2.0.0"
+		},
+		{
+			"from": "workspace:app-v2",
+			"to": "npm:kit@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "npm:kit@1.0.0",
+			"to": "npm:greeting@1.0.0",
+			"kind": "peer",
+			"range": "*",
+			"context": "workspace:app-v1"
+		},
+		{
+			"from": "npm:kit@1.0.0",
+			"to": "npm:greeting@2.0.0",
+			"kind": "peer",
+			"range": "*",
+			"context": "workspace:app-v2"
+		},
+		{
+			"from": "workspace:app-pinned",
+			"to": "workspace:../outside/message-v2",
+			"kind": "dependency",
+			"range": "^1.0.0",
+			"override": "2.0.0"
+		},
+		{
+			"from": "workspace:app-v1",
+			"to": "workspace:../outside/message-v2",
+			"name": "message-two",
+			"kind": "dependency",
+			"range": "workspace:../outside/message-v2"
+		},
+		{
+			"from": "workspace:app-v2",
+			"to": "npm:@fixture/message@3.0.0",
+			"name": "message-three",
+			"kind": "dependency",
+			"range": "npm:@fixture/message@3.0.0"
+		},
+		{
+			"from": "workspace:app-v3",
+			"to": "workspace:wrap",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:wrap",
+			"to": "workspace:../outside/message-v2",
+			"kind": "dependency",
+			"range": "^2.0.0"
+		}
+	],
+	"written": "2026-10-05T12:00:00.000Z"
+}

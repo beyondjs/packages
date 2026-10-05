@@ -1,0 +1,38 @@
+{
+	"description": "Releases the in-process registry publishes. The @acme/widgets releases are decoys: a workspace that provides @acme/widgets must never ask for them",
+	"packages": [
+		{ "name": "react", "version": "18.3.1" },
+		{ "name": "react", "version": "19.1.1" },
+		{ "name": "react", "version": "19.2.0" },
+		{ "name": "scheduler", "version": "0.23.2" },
+		{ "name": "scheduler", "version": "0.26.0" },
+		{
+			"name": "react-dom",
+			"version": "18.3.1",
+			"dependencies": { "scheduler": "^0.23.0" },
+			"peerDependencies": { "react": "^18.3.1" }
+		},
+		{
+			"name": "react-dom",
+			"version": "19.1.1",
+			"dependencies": { "scheduler": "^0.26.0" },
+			"peerDependencies": { "react": "^19.1.1" }
+		},
+		{ "name": "@acme/core", "version": "1.0.0" },
+		{ "name": "@acme/core", "version": "1.0.5" },
+		{ "name": "@acme/widgets", "version": "1.1.4" },
+		{ "name": "@acme/widgets", "version": "1.9.9" },
+		{ "name": "@acme/widgets", "version": "2.9.9" },
+		{ "name": "@acme/widgets", "version": "3.0.0" },
+		{ "name": "dev-tool", "version": "1.0.0", "devDependencies": { "dev-helper": "^1.0.0" } },
+		{ "name": "dev-helper", "version": "1.0.0" },
+		{ "name": "test-runner", "version": "2.0.0" },
+		{ "name": "widgets-plugin", "version": "1.0.0", "peerDependencies": { "@acme/widgets": "^1.0.0" } },
+		{
+			"name": "leaky",
+			"version": "1.0.0",
+			"dependencies": { "@acme/widgets": "workspace:*", "anything": "workspace:packages/widgets" },
+			"peerDependencies": { "react": "workspace:^19.0.0" }
+		}
+	]
+}

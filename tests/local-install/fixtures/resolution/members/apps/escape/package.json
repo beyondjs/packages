@@ -1,0 +1,10 @@
+{
+	"name": "escape",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "^1.0.0",
+		"widgets-registry": "npm:@acme/widgets@^1.5.0",
+		"react": "^19.1.1"
+	}
+}

@@ -39,6 +39,13 @@ export /*bundle*/ interface IBuildable {
 	 */
 	registry?(base: string): Promise<string | undefined>;
 
+	/**
+	 * The execution projection the host serves the workspace from, when it was installed (`beyond install`). The
+	 * preview then follows the edges of the installed graph instead of looking for installations, and loads every
+	 * node of the graph from this environment. A host without one leaves it undefined.
+	 */
+	readonly execution?: IServedExecution;
+
 	published(): Promise<IPublishedModule[]>;
 	module(request: object, conditions: object): Promise<{
 		delivered?: { hash: string; styles?: string; stylesheets?: string[]; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
@@ -49,6 +56,32 @@ export /*bundle*/ interface IBuildable {
 	 * The public declaration of a module, when the host produces declarations
 	 */
 	declaration?(request: object): Promise<{ declaration?: { vspecifier: string; hash: string; code: string }; failure?: IBuildFailure }>;
+}
+
+/**
+ * A node of an installed graph as the host's execution projection describes it: the release, the provider it
+ * came from (`workspace` for a member) and where its sources are on this machine
+ */
+export /*bundle*/ interface IServedNode {
+	name: string;
+	version: string;
+	origin?: { provider: string };
+	location: string;
+	member?: string;
+}
+
+/**
+ * What the preview reads of the execution projection of an installed workspace: where each member is, and which
+ * instance an importer binds a package name to (`resolve`, with the instance in whose context a peer is wanted)
+ */
+export /*bundle*/ interface IServedExecution {
+	readonly nodes: Map<string, IServedNode>;
+	instance(path: string): string | undefined;
+	node(key: string): IServedNode | undefined;
+	find(name: string, version?: string): string[];
+	edges(from: string): { from: string; to: string | null; name?: string; context?: string }[];
+	resolve(from: string, name: string, context?: string): { key?: string; node?: IServedNode; error?: { code: string; message: string } };
+	readonly members: Map<string, { id: string; name: string; version: string; node: string; location: string }>;
 }
 
 /**
@@ -67,6 +100,11 @@ export /*bundle*/ interface IPublishedModule {
 	 * Whether the module belongs to a package the toolchain supplies, which is never the entry of a preview
 	 */
 	supplied?: boolean;
+
+	/**
+	 * The node of its package in the installed graph, when the workspace is served from an execution projection
+	 */
+	node?: string;
 }
 
 /**

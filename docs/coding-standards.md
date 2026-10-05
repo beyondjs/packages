@@ -85,7 +85,7 @@ None. A file that exceeds the limit is split along its responsibilities as part 
 
 ### Tolerated band: 301 to 400 lines
 
-None.
+None on 2026-09-18. Measured again on 2026-10-05: `modules/sdk/conditional/esm/index.ts` (348 lines) and `modules/sdk/conditional/esm/assembler.ts` (341), and `tests/local-install/acceptance.test.mjs` (381); no source file exceeds 400.
 
 The three files that exceeded the target when the standard was adopted were split the same day, along the responsibilities they had accumulated: the artifacts writer now delegates dependency resolution and the import map to [dependencies](../modules/artifacts/dependencies.ts) and [importmap](../modules/artifacts/importmap.ts), and keeps its public types in [types](../modules/artifacts/types.ts); the modules collection delegates how a package declares its public modules to [declarations](../modules/package/main/modules/declarations.ts); and the stage-1 validation separates [its harness](../tests/stage-1/harness.mjs) from the checks of [what is built](../tests/stage-1/build.mjs) and of [what happens when sources change](../tests/stage-1/updates.mjs).
 

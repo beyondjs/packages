@@ -31,8 +31,9 @@ export /*bundle*/ interface ISelected {
  * Resolves selectors against the packages of a workspace.
  *
  * It is the one place where a command or a client request becomes a public module, so every caller gets
- * the same answers: a name held by two packages is rejected with both locations, an exact version must
- * match, a local selector needs a package that contains the directory it is resolved from, and nothing
+ * the same answers: one name and version at two directories is rejected with both locations, a name held
+ * in several versions needs the selector to name the version of the instance it selects, an exact version
+ * must match, a local selector needs a package that contains the directory it is resolved from, and nothing
  * is guessed from source files or from a coincidentally unique module name.
  */
 export /*bundle*/ class Selection {
@@ -53,21 +54,22 @@ export /*bundle*/ class Selection {
 	}
 
 	/**
-	 * The names declared by more than one package of the workspace. One package of each name is the
-	 * supported boundary: a second one would silently take or lose every public specifier of that name.
+	 * The name and version pairs declared by more than one package of the workspace. Several versions of a
+	 * name are instances, which a versioned selector or the installed graph tells apart; one version at two
+	 * directories cannot be told apart, and either would silently take or lose its public specifiers.
 	 */
 	async duplicates(): Promise<IDiagnostic[]> {
 		const locations = new Map<string, string[]>();
 		(await this.#packages()).forEach(([location, pkg]) => {
 			if (!pkg.valid || !pkg.name) return;
-			locations.set(pkg.name, (locations.get(pkg.name) ?? []).concat(location));
+			locations.set(pkg.vname, (locations.get(pkg.vname) ?? []).concat(location));
 		});
 
 		return [...locations]
 			.filter(([, found]) => found.length > 1)
-			.map(([name, found]) => ({
+			.map(([vname, found]) => ({
 				code: 'PACKAGE_DUPLICATED',
-				message: `Package "${name}" is declared by more than one workspace package: ${found.join(', ')}`
+				message: `Package "${vname}" is declared by more than one workspace package: ${found.join(', ')}`
 			}));
 	}
 
@@ -101,8 +103,8 @@ export /*bundle*/ class Selection {
 		const duplicates = await this.duplicates();
 		if (duplicates.length) return { errors: duplicates };
 
-		const packages = (await this.#packages()).map(([, pkg]) => pkg).filter(pkg => pkg.valid);
-		const names = packages.map(pkg => pkg.name).join(', ') || 'none';
+		const packages = (await this.#packages()).filter(([, pkg]) => pkg.valid);
+		const names = [...new Set(packages.map(([, pkg]) => pkg.name))].join(', ') || 'none';
 
 		let pkg: Package;
 		if (selector.local) {
@@ -115,13 +117,12 @@ export /*bundle*/ class Selection {
 				return fail('SELECTOR_PACKAGE_REQUIRED', message);
 			}
 		} else {
-			pkg = packages.find(({ name }) => name === selector.name);
-			if (!pkg) return fail('PACKAGE_NOT_FOUND', `Package "${selector.name}" is not in the workspace (packages: ${names})`);
-		}
+			const instances = packages.filter(([, one]) => one.name === selector.name);
+			if (!instances.length) return fail('PACKAGE_NOT_FOUND', `Package "${selector.name}" is not in the workspace (packages: ${names})`);
 
-		if (selector.version && selector.version !== pkg.version) {
-			const message = `"${input}" requires ${pkg.name}@${selector.version}, but the workspace package is ${pkg.vname}`;
-			return fail('VERSION_MISMATCH', message);
+			const chosen = this.#instance(selector, instances);
+			if (chosen.error) return { errors: [chosen.error] };
+			pkg = chosen.package;
 		}
 
 		await pkg.modules.ready;
@@ -131,6 +132,33 @@ export /*bundle*/ class Selection {
 
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
 		return { selected: { package: pkg, subpath, specifier: pkg.name + path, vspecifier: pkg.vname + path, output }, errors: [] };
+	}
+
+	/**
+	 * The instance of a package name that a selector selects: the one of its version, or the only one. An
+	 * unversioned selector of a name held in several versions is ambiguous, and nothing is guessed.
+	 *
+	 * @param instances The packages of the workspace that hold the name, with their keys
+	 */
+	#instance(selector: Selector, instances: [string, Package][]): { package?: Package; error?: IDiagnostic } {
+		const { input, name, version } = selector;
+		const path = selector.subpath === '.' ? '' : `/${selector.subpath.slice(2)}`;
+
+		if (version) {
+			const found = instances.find(([, one]) => one.version === version);
+			if (found) return { package: found[1] };
+
+			const held = instances.map(([, one]) => one.vname).join(', ');
+			const which = instances.length === 1 ? `the workspace package is ${held}` : `the workspace packages are ${held}`;
+			return { error: { code: 'VERSION_MISMATCH', message: `"${input}" requires ${name}@${version}, but ${which}` } };
+		}
+		if (instances.length === 1) return { package: instances[0][1] };
+
+		const versions = instances.map(([key, one]) => `${one.version} (${key})`).join(', ');
+		const message =
+			`"${input}" names "${name}", which the workspace provides in more than one version: ${versions}. ` +
+			`Name the version of the one to select, such as ${name}@${instances[0][1].version}${path}`;
+		return { error: { code: 'PACKAGE_AMBIGUOUS', message } };
 	}
 
 	/**

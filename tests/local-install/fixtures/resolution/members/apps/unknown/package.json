@@ -1,0 +1,8 @@
+{
+	"name": "unknown",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "workspace:packages/nowhere"
+	}
+}

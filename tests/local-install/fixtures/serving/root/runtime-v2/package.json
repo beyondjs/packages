@@ -1,0 +1,22 @@
+{
+	"name": "@serving/runtime",
+	"version": "2.0.0",
+	"exports": {
+		"./bundle": "./bundle/index.js",
+		"./main": "./main/index.js"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

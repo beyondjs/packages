@@ -1,0 +1,8 @@
+{
+	"name": "unsatisfied",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "^3.0.0"
+	}
+}

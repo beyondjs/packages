@@ -1,0 +1,8 @@
+{
+	"name": "solo",
+	"version": "1.0.0",
+	"description": "A package on its own",
+	"dependencies": {
+		"left": "^1.0.0"
+	}
+}

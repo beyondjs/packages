@@ -1,0 +1,8 @@
+{
+	"name": "extension-root",
+	"private": true,
+	"workspaces": ["app"],
+	"beyond": {
+		"workspaces": ["libs/*", { "path": "../message-v2", "version": "2.0.0" }]
+	}
+}

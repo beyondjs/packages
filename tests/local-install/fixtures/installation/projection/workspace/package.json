@@ -1,0 +1,8 @@
+{
+	"name": "@fixture/projection",
+	"private": true,
+	"workspaces": ["app", "legacy", "widgets-v1"],
+	"beyond": {
+		"workspaces": [{ "path": "../outside/widgets-v2", "version": "2.0.0" }]
+	}
+}

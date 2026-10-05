@@ -1,0 +1,21 @@
+{
+	"name": "@serving/app-a",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js",
+		"./loose": "./loose/index.js"
+	},
+	"dependencies": {
+		"@serving/message": "^1.0.0",
+		"loose": "1.0.0",
+		"react": "18.3.1",
+		"shared": "1.0.0"
+	},
+	"beyond": { "modules": ".", "bundler": "esbuild" },
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": { "bundle": { "compiler": "esbuild" } }
+		}
+	}
+}

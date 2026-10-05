@@ -1,0 +1,25 @@
+{
+	"name": "@serving/app-w",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"dependencies": {
+		"broken": "1.0.0",
+		"gone": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

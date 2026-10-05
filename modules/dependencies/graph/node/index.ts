@@ -3,11 +3,13 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Registry } from '../registry';
 import type { IGraphLogger } from '../policy';
 import { type DependencyKind, DependenciesSpec } from '@beyond-js/packages/dependencies/spec';
-import { DependencySource, DependencySourceIsType } from '@beyond-js/packages/dependency-source';
+import type { DependencySource } from '@beyond-js/packages/dependency-source';
 import { NodeDependencies } from './dependencies';
 import { Version } from './version';
 import { Peer } from './peer';
-import { type INodeRelease, Release } from './release';
+import { NodeSource } from './source';
+import { Claim } from './claim';
+import type { INodeRelease } from './release';
 import type { INodeConstructorParams } from './params';
 
 /**
@@ -33,7 +35,8 @@ export /*bundle*/ class Node {
 
 	#id: string;
 	/**
-	 * Identity of the occurrence: the declared names that lead to it from the root
+	 * Identity of the occurrence: the declared names that lead to it from the root. An importer of a workspace is
+	 * identified by its node key instead (`workspace:<id>`), because several members may provide one name
 	 */
 	get id() {
 		return this.#id;
@@ -72,7 +75,8 @@ export /*bundle*/ class Node {
 
 	#source: DependencySource;
 	/**
-	 * The source the occurrence resolves: the target of an alias, the declared source otherwise
+	 * The source the occurrence resolves: the target of an alias, the workspace for a name a member provides, the
+	 * declared source otherwise (see `NodeSource`)
 	 */
 	get source() {
 		return this.#source;
@@ -110,10 +114,18 @@ export /*bundle*/ class Node {
 	}
 
 	/**
-	 * True for a peer requirement below the root: it is not installed, it is provided by a dependent
+	 * True for an importer of a workspace (a member, or the root package): the top of its own dependencies. Its
+	 * development dependencies are followed on request and its peers are resolved as its own dependencies
+	 */
+	get importer(): boolean {
+		return !!this.#parent && !this.#parent.parent && !!this.#project.members;
+	}
+
+	/**
+	 * True for a peer requirement below the top: it is not installed, it is provided by a dependent
 	 */
 	get soft() {
-		return this.#kind === 'peer' && !!this.#parent?.parent;
+		return this.#kind === 'peer' && !!this.#parent?.parent && !this.#parent.importer;
 	}
 
 	#peer?: Peer;
@@ -131,17 +143,16 @@ export /*bundle*/ class Node {
 		return this.#peer?.context;
 	}
 
-	#link?: Node;
+	#claim: Claim;
 	/**
 	 * The occurrence that expands the release, when it is not this one
 	 */
 	get link() {
-		return this.#link;
+		return this.#claim.link;
 	}
 
-	#release?: INodeRelease;
 	get release(): INodeRelease | undefined {
-		return this.#link ? this.#link.release : this.#release;
+		return this.#claim.release;
 	}
 
 	#processing = false;
@@ -177,16 +188,16 @@ export /*bundle*/ class Node {
 		this.#optional = dependency.optional === true;
 		this.#declared = dependency.declared !== version ? dependency.declared : void 0;
 		this.#parent = parent;
-		this.#id = parent ? `${parent.id}>${pkg}` : '#';
+		this.#id = parent ? `${parent.id}>${dependency.key || pkg}` : '#';
 		this.#dependencies = new NodeDependencies(this);
+		this.#claim = new Claim(this);
 
-		try {
-			const source = new DependencySource(pkg, version);
-			this.#source = source.target;
-			if (source.data.is === DependencySourceIsType.Error) this.#invalid = source.data.error;
-		} catch (exc) {
-			this.#invalid = { code: 'INVALID_SPECIFIER', message: `Dependency "${pkg}" is not correctly specified` };
-		}
+		// What is local to the workspace may declare a `workspace:` specifier: the root of the graph, an importer
+		// (whose release is its member) and an override of the root
+		const local = !parent?.parent || !!parent.release?.member || this.#declared !== void 0;
+		const source = new NodeSource(project, pkg, version, local);
+		this.#source = source.value;
+		this.#invalid = source.error;
 	}
 
 	invalidate() {
@@ -202,19 +213,17 @@ export /*bundle*/ class Node {
 	async register(update: boolean) {
 		if (this.#invalid) return;
 
-		if (!this.soft) return await this.#registry.nodes.register(this, update);
+		if (!this.soft) {
+			await this.#registry.nodes.register(this, update);
+
+			// An importer claims its member before anything is expanded: every other occurrence of it links here
+			const { error, resolved } = this.#version;
+			if (this.importer && !error && resolved) await this.#claim.take();
+			return;
+		}
 
 		this.#peer = new Peer(this, this.#optional);
-		this.#peer.bind();
-		const { provider } = this.#peer;
-		if (!provider) return;
-
-		// Only a provider of the same package can be constrained by the required range
-		const same = provider.source?.id === this.#source.id;
-		if (same && this.#source.data.is === DependencySourceIsType.Semver) {
-			await this.#registry.nodes.register(this, update);
-		}
-		!this.#version.error && this.#version.update({ version: provider.version.resolved });
+		await this.#peer.register(update);
 	}
 
 	/**
@@ -235,18 +244,9 @@ export /*bundle*/ class Node {
 			return { code, message: `No version was selected for "${this.#package}@${version.specified}"` };
 		}
 
-		const { packages } = this.#project;
-		const source = this.#source;
-		const owner = this.#registry.releases.claim(`${source.id}@${version.resolved}`, this);
-		if (owner !== this) this.#link = owner;
-
 		// The occurrence that claims the release describes it; the others read it through their link
-		if (!this.#link) {
-			const release = new Release();
-			const error = await release.load(packages, source, version.resolved);
-			if (error) return error;
-			this.#release = release;
-		}
+		const error = await this.#claim.take();
+		if (error) return error;
 
 		const manifest = this.release?.manifest;
 		if (!manifest) return;
@@ -265,7 +265,7 @@ export /*bundle*/ class Node {
 		}
 		this.#processing = true;
 		this.#error = void 0;
-		this.#link = void 0;
+		this.#claim.reset();
 
 		try {
 			this.#error = await this.#expand(update);

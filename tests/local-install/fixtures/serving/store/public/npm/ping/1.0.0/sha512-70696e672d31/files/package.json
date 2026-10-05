@@ -1,0 +1,1 @@
+{ "name": "ping", "version": "1.0.0", "type": "module", "exports": { ".": "./index.js" }, "dependencies": { "pong": "1.0.0" } }

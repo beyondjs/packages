@@ -1,0 +1,1 @@
+A file inside a member that lives in another repository, whose own beyond.json declares it.

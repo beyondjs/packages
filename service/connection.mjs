@@ -1,37 +1,10 @@
 import { request } from 'node:http';
-import { ContractError, Session } from '@beyond-js/artifact-api';
+import { ContractError } from '@beyond-js/artifact-api';
 import { Deadline } from './deadline.mjs';
+import { Description } from './description.mjs';
+import { AbortError, AccessError, TimeoutError, Transport } from './errors.mjs';
 
-/**
- * A service that is running and does not admit this client
- */
-export class AccessError extends Error {
-	constructor(message) {
-		super(message);
-		this.name = 'AccessError';
-		this.code = 'SERVICE_ACCESS_REFUSED';
-	}
-}
-
-/**
- * A service that is there but did not answer within the deadline. A slow answer is not a wrong one: the
- * record of a service that is alive must not be discarded, and a second service must not be started.
- */
-export class TimeoutError extends Error {
-	/**
-	 * @param {string} origin
-	 * @param {number} deadline Milliseconds
-	 * @param {{path?: string, variable?: string}} [request] The request that was not answered, and the
-	 * variable that bounds it; without them, the first description of the service
-	 */
-	constructor(origin, deadline, { path, variable = 'BEYOND_SESSION_TIMEOUT' } = {}) {
-		const what = path ? `answer GET ${path}` : 'describe itself';
-		super(`The development service at ${origin} did not ${what} within ${deadline}ms. Raise ${variable} if the host is slow`);
-		this.name = 'TimeoutError';
-		this.code = 'SERVICE_NOT_ANSWERING';
-		this.path = path;
-	}
-}
+export { AbortError, AccessError, TimeoutError };
 
 /**
  * A validated connection to a running development service.
@@ -53,13 +26,24 @@ export class Connection {
 	static REQUEST = 300000;
 
 	/**
+	 * The default deadline of an installation, in milliseconds, response body included. Bounds nest: it is longer
+	 * than the worst case of the service for one request, which is the wait for the installations before it
+	 * (`BEYOND_INSTALL_QUEUE_TIMEOUT`, 120 s), the installation itself (`BEYOND_INSTALL_DEADLINE`, 540 s) and the
+	 * reload of the workspace after it (`BEYOND_WORKSPACE_TIMEOUT`, 120 s), so the service's own answer, a refusal
+	 * whose outcome is known included, arrives before this one ends the wait. A deployment that raises those
+	 * raises this one too.
+	 */
+	static INSTALL = 900000;
+
+	/**
 	 * How many heartbeats of silence mean that an attached service stopped answering
 	 */
 	static SILENCE = 2.5;
 
 	static #deadlines = {
 		session: new Deadline('BEYOND_SESSION_TIMEOUT', Connection.TIMEOUT),
-		request: new Deadline('BEYOND_REQUEST_TIMEOUT', Connection.REQUEST)
+		request: new Deadline('BEYOND_REQUEST_TIMEOUT', Connection.REQUEST),
+		install: new Deadline('BEYOND_INSTALL_TIMEOUT', Connection.INSTALL)
 	};
 
 	#origin;
@@ -87,30 +71,27 @@ export class Connection {
 	 * @param {{origin: string, pid?: number}} record Where a service is said to be
 	 * @param {{root: string, toolchain: string}} expected What the service must be serving
 	 * @param {Record<string, string>} [headers] The access context of a service whose host guards its routes
-	 * @returns {Promise<Connection | undefined>} undefined when no compatible service answers there
+	 * @returns {Promise<Connection | undefined>} undefined when no compatible service answers there: nothing
+	 * accepts the connection, or what answers is not that service
 	 * @throws {AccessError} When something answers there and refuses this client. That is not a stale
 	 * record: a guarded service that is alive must not be discarded, or replaced, by a client without access.
 	 * @throws {TimeoutError} When a service is there and does not answer within the deadline, which is not
 	 * a stale record either.
+	 * @throws {ContractError} `UNAVAILABLE` when a service is there and answers that it cannot describe itself
+	 * now (a 5xx or 429): an unavailable service is not a stale record, and is never replaced by a second one.
 	 */
 	static async validate(record, expected, headers = {}) {
-		const deadline = Connection.deadline(process.env);
-		let refused;
+		const session = await Description.read(record, expected, { headers, deadline: Connection.deadline(process.env) });
+		return session && new Connection(record.origin, session, headers);
+	}
+
+	/**
+	 * A JSON document, or undefined for a body that is not one
+	 */
+	static #parsed(text) {
 		try {
-			const response = await fetch(`${record.origin}${Session.PATH}`, { headers, signal: AbortSignal.timeout(deadline) });
-			if ([401, 403].includes(response.status)) refused = response.status;
-			if (!response.ok) return Connection.#refusal(refused, record);
-
-			const session = new Session(await response.json());
-			const same = session.workspace.root === expected.root && session.service.toolchain === expected.toolchain;
-			if (!same || (record.pid && session.service.pid !== record.pid)) return;
-			return new Connection(record.origin, session, headers);
-		} catch (error) {
-			if (error instanceof AccessError) throw error;
-
-			// Nothing answering is a stale record; answering too late is a live service, and saying so is
-			// what keeps a loaded host from losing the service it already has
-			if (Connection.#expired(error)) throw new TimeoutError(record.origin, deadline);
+			return text ? JSON.parse(text) : void 0;
+		} catch {
 			return;
 		}
 	}
@@ -135,32 +116,90 @@ export class Connection {
 		return Connection.#deadlines.request.read(environment);
 	}
 
-	static #expired(error) {
-		return error?.name === 'TimeoutError' || error?.name === 'AbortError' || error?.code === 'ABORT_ERR';
-	}
-
-	static #refusal(status, record) {
-		if (!status) return;
-		throw new AccessError(`The development service at ${record.origin} refused access (HTTP ${status})`);
+	/**
+	 * How long an installation is waited for, body included (`BEYOND_INSTALL_TIMEOUT`)
+	 *
+	 * @param {Record<string, string | undefined>} environment
+	 */
+	static allowance(environment) {
+		return Connection.#deadlines.install.read(environment);
 	}
 
 	/**
-	 * A description the service computes. The signal bounds the response body as well as its headers: a
-	 * service that sends its status and then stalls is as stuck as one that never answers.
+	 * A JSON answer of the service. The signal bounds the response body as well as its headers: a service that
+	 * sends its status and then stalls is as stuck as one that never answers. A request that sends a body changes
+	 * something, so one that got no answer, because its bound expired or its connection ended on its way, reports
+	 * an unknown outcome with how to find it out; only a connection that nothing accepted is known not to have
+	 * reached the service. An error answer that is not a document of the service is the error of its status.
+	 *
+	 * The caller may stop waiting with its own signal, combined with the bound: the connection is then closed and
+	 * the stop is reported as the caller's (`AbortError`), never as a service that did not answer.
+	 *
+	 * @param {string} path
+	 * @param {{body?: object, bound?: Deadline, check?: string, signal?: AbortSignal}} [request] The JSON body of a
+	 * `POST`, the bound of the wait (`BEYOND_REQUEST_TIMEOUT` by default), how to learn the outcome of a change, and
+	 * the caller's signal
 	 */
-	async #json(path) {
-		const deadline = Connection.limit(process.env);
-		let response, body;
+	async #json(path, { body, bound = Connection.#deadlines.request, check, signal } = {}) {
+		const deadline = bound.read(process.env);
+		const method = body === undefined ? 'GET' : 'POST';
+		const headers = body === undefined ? this.#headers : { ...this.#headers, 'content-type': 'application/json' };
+		const payload = body === undefined ? void 0 : JSON.stringify(body);
+		const request = { path: path.split('?')[0], method, variable: bound.name, check };
+		if (signal?.aborted) throw new AbortError(this.#origin, { ...request, sent: false, reason: signal.reason });
+
+		const expiry = AbortSignal.timeout(deadline);
+		let response, text;
 		try {
-			response = await fetch(`${this.#origin}${path}`, { headers: this.#headers, signal: AbortSignal.timeout(deadline) });
-			body = await response.json();
+			response = await fetch(`${this.#origin}${path}`, { method, headers, body: payload, signal: signal ? AbortSignal.any([signal, expiry]) : expiry });
+			text = await response.text();
 		} catch (error) {
-			if (!Connection.#expired(error)) throw error;
-			const variable = Connection.#deadlines.request.name;
-			throw new TimeoutError(this.#origin, deadline, { path: path.split('?')[0], variable });
+			if (signal?.aborted) throw new AbortError(this.#origin, { ...request, reason: signal.reason });
+			if (Transport.expired(error)) throw new TimeoutError(this.#origin, deadline, request);
+			if (body === undefined || Transport.refused(error)) throw error;
+			throw Object.assign(new TimeoutError(this.#origin, deadline, { ...request, dropped: Transport.reason(error) }), { cause: error });
 		}
-		if (!response.ok) throw ContractError.from(response.status, body) ?? new Error(`${path}: HTTP ${response.status}`);
-		return body;
+
+		const answer = Connection.#parsed(text);
+		if (!response.ok) throw ContractError.from(response.status, answer) ?? ContractError.of({ status: response.status });
+		if (answer === undefined) throw new ContractError('INTERNAL', `${method} ${path.split('?')[0]} was answered with a document that is not JSON`);
+		return answer;
+	}
+
+	/**
+	 * The installation state of the workspace: the projection of its installed graph (`ready`, `missing`,
+	 * `stale`, `incomplete` or `incompatible`, with diagnostics), its declaration, its lock and its projection.
+	 * It reads files and builds nothing, within `BEYOND_REQUEST_TIMEOUT`.
+	 *
+	 * @returns {Promise<object>}
+	 */
+	installation() {
+		return this.#json('/installation');
+	}
+
+	/**
+	 * Installs the workspace: resolves its graph, fetches what the store lacks, writes the lock and the
+	 * projection, and has the service serve the installed graph. Installations of one service run one at a
+	 * time. An installation that is not valid is still an answer: the report says what failed.
+	 *
+	 * @param {{update?: boolean, offline?: boolean, signal?: AbortSignal}} [options] Resolve again ignoring the
+	 * lock; refuse every request to a registry; and the caller's signal to stop waiting, which closes the
+	 * connection and leaves the installation to the service
+	 * @returns {Promise<object>} The installation report (`beyond-installation/1`), valid or not
+	 * @throws {ContractError} `DECLARATION_INVALID` (422) when the workspace declaration has errors, with its
+	 * diagnostics; `OPTION_INVALID` (400) for options that are not booleans
+	 * @throws {TimeoutError} `SERVICE_NOT_ANSWERING` with `outcome: 'unknown'` when no answer arrived, within
+	 * `BEYOND_INSTALL_TIMEOUT` or because the connection ended on its way: whether the installation was carried
+	 * out is then unknown
+	 * @throws {ContractError} `UNAVAILABLE` (503) when installations ahead of this one did not end within the
+	 * service's `BEYOND_INSTALL_QUEUE_TIMEOUT`: this one was not started
+	 * @throws {AbortError} `REQUEST_ABORTED` when the caller's signal stopped the wait: `outcome: 'unknown'` once
+	 * the request was sent, `'none'` when it was stopped before
+	 */
+	install({ update, offline, signal } = {}) {
+		const body = { ...(update === undefined ? {} : { update }), ...(offline === undefined ? {} : { offline }) };
+		const check = 'ask the service for the installation state (GET /installation) before installing again';
+		return this.#json('/installation', { body, bound: Connection.#deadlines.install, check, signal });
 	}
 
 	/**

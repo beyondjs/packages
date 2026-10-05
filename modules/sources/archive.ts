@@ -119,7 +119,12 @@ export class Archive {
 			new Refusal('EXTRACTED_TOO_LARGE', `The archive extracts to more than ${limits.extracted} bytes`);
 		if (outcome.extracted + (header.size || 0) > limits.extracted) throw oversize();
 
-		const written = await stage.write(path, stream);
+		// A system error writing the file is the store's, not the transfer's, and keeps its cause; a failure of the
+		// entry's stream is the archive's
+		const written = await stage.write(path, stream).catch(error => {
+			if (typeof error?.syscall !== 'string') throw error;
+			throw new Refusal('SOURCE_STORE_UNAVAILABLE', `The source store could not write "${path}" (${error.code})`);
+		});
 		outcome.extracted += written;
 		if (outcome.extracted > limits.extracted) throw oversize();
 		outcome.files[path] = written;

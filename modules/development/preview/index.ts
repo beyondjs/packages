@@ -3,8 +3,12 @@ import type { Selection } from '../selection';
 import { DevelopmentError } from '../error';
 import { Addresses } from './addresses';
 import { Externals } from './externals';
-import { Graph, type IPreviewDiagnostic, type IPreviewModule, type IPreviewUpdatable } from './graph';
+import { Graph } from './graph';
+import type { IPreviewDiagnostic, IPreviewModule, IPreviewUpdatable } from './types';
 import { Document } from './document';
+import { DiskLocator } from './disk';
+import { Instances } from './instances';
+import { ProjectionLocator } from './projection';
 
 export /*bundle*/ interface IPreviewDescription {
 	protocol: 'beyond-dev-files/1';
@@ -36,6 +40,11 @@ const WEB = { platform: 'web', environment: 'development' };
 /**
  * The preview of the application of the served workspace: which public module is its entry, where each
  * module of its graph is loaded from, and the entry document that says so to a browser.
+ *
+ * A workspace that the host serves from its execution projection (`beyond install`) is previewed by the edges of
+ * its installed graph: every node of the graph is loaded from this environment, and a page whose graph would give
+ * one package instance two releases of a peer, which one import map cannot hold, is refused with
+ * `PEER_CONTEXT_AMBIGUOUS` rather than given either of them.
  */
 export /*bundle*/ class Preview {
 	/**
@@ -51,7 +60,7 @@ export /*bundle*/ class Preview {
 	#externals: Externals;
 
 	/**
-	 * The entry that was last chosen without being named
+	 * The versioned identity of the entry that was last chosen without being named
 	 */
 	#chosen: string;
 
@@ -95,23 +104,32 @@ export /*bundle*/ class Preview {
 
 	async #entry(requested: string | undefined, published: IPublishedModule[]): Promise<IPublishedModule> {
 		if (requested) {
-			const found = published.find(module => Graph.specifier(module) === requested || module.vspecifier === requested);
-			if (found) return found;
-			throw new DevelopmentError('PREVIEW_ENTRY_NOT_FOUND', `The workspace declares no public module "${requested}"`, 404);
+			const versioned = published.find(module => module.vspecifier === requested);
+			if (versioned) return versioned;
+			const found = published.filter(module => Graph.specifier(module) === requested);
+			if (found.length === 1) return found[0];
+			if (!found.length) throw new DevelopmentError('PREVIEW_ENTRY_NOT_FOUND', `The workspace declares no public module "${requested}"`, 404);
+
+			// Several local versions of one package publish the specifier: the entry is named by its version
+			const candidates = found.map(({ vspecifier }) => vspecifier);
+			const message = `Several versions of "${requested}" are in the workspace: name the entry with its version (${candidates.join(', ')})`;
+			throw new DevelopmentError('PREVIEW_ENTRY_REQUIRED', message, 409, { candidates, diagnostics: [] });
 		}
 
 		const { roots, failures } = await this.#candidates(published);
 		if (roots.length === 1) {
-			this.#chosen = Graph.specifier(roots[0]);
+			this.#chosen = roots[0].vspecifier;
 			return roots[0];
 		}
 
 		// A module that stopped building no longer says what it imports, so the modules it imported look like
 		// entries too: the entry that was unambiguous before the error is still the entry
-		const previous = failures.length ? roots.find(module => Graph.specifier(module) === this.#chosen) : void 0;
+		const previous = failures.length ? roots.find(module => module.vspecifier === this.#chosen) : void 0;
 		if (previous) return previous;
 
-		const names = roots.map(Graph.specifier);
+		// Versions that share a specifier are named by version, which is how `entry` selects one of them
+		const shared = (module: IPublishedModule) => published.filter(one => Graph.specifier(one) === Graph.specifier(module)).length > 1;
+		const names = roots.map(module => (shared(module) ? module.vspecifier : Graph.specifier(module)));
 		const message = names.length
 			? `Several public modules can be the entry of the preview: name one with "entry" (${names.join(', ')})`
 			: 'No public module of the workspace is built for browsers, so there is nothing to preview';
@@ -129,7 +147,7 @@ export /*bundle*/ class Preview {
 
 		// The selection is read once, so every module of one description is routed by the same selection
 		const selection = await this.#selection.read();
-		const graph = new Graph(this.#delivery, module => this.#selection.covers(selection, module), this.#addresses, this.#externals);
+		const graph = this.#graph(module => this.#selection.covers(selection, module), entry);
 		await graph.walk([entry], published);
 
 		// The coordinator of a runtime that the workspace contains is loaded by the document, not by the application
@@ -137,6 +155,12 @@ export /*bundle*/ class Preview {
 		await graph.walk(coordinators, published);
 		const coordinator = coordinators.length ? Graph.specifier(coordinators[0]) : await this.#delivered(graph, entry);
 		graph.scope([entry, ...coordinators]);
+
+		const ambiguous = graph.diagnostics.filter(({ code }) => code === 'PEER_CONTEXT_AMBIGUOUS');
+		if (ambiguous.length) {
+			const message = `The installed graph of "${Graph.specifier(entry)}" cannot be loaded in one page: ${ambiguous[0].message}`;
+			throw new DevelopmentError('PEER_CONTEXT_AMBIGUOUS', message, 409, { diagnostics: ambiguous });
+		}
 
 		// The runtime of a page is given the part of the session it needs, so a visitor, whose grant does
 		// not read the session of the service, is never asked for it: what the modules in development are
@@ -149,17 +173,32 @@ export /*bundle*/ class Preview {
 		const { modules, diagnostics, importmap } = graph;
 
 		const { cdn } = this.#addresses;
+		const unset = Instances.of(this.#delivery)
+			? `${Addresses.VARIABLE} is not set, and no module of the installed graph needs it: this environment serves every one`
+			: `${Addresses.VARIABLE} is not set: modules that are not in development have no address`;
 		return {
 			protocol: 'beyond-dev-files/1',
 			entry: { specifier: Graph.specifier(entry), vspecifier: entry.vspecifier },
 			options: this.#addresses.options,
-			cdn: cdn ? { origin: cdn } : { reason: `${Addresses.VARIABLE} is not set: modules that are not in development have no address` },
+			cdn: cdn ? { origin: cdn } : { reason: unset },
 			selection: { explicit: selection.explicit },
 			modules,
 			importmap,
 			updates,
 			diagnostics
 		};
+	}
+
+	/**
+	 * The graph of one description: walked by the edges of the installed graph when the host serves one, and
+	 * by the installations found on the disk otherwise
+	 *
+	 * @param entry The entry of the page, whose package decides the runtime of an installed graph
+	 */
+	#graph(selected: (module: IPublishedModule) => boolean, entry: IPublishedModule): Graph {
+		const instances = Instances.of(this.#delivery);
+		const locator = instances ? new ProjectionLocator(instances, entry) : new DiskLocator(this.#delivery, this.#externals);
+		return new Graph(this.#delivery, selected, this.#addresses, this.#externals, locator, instances);
 	}
 
 	/**
@@ -172,8 +211,8 @@ export /*bundle*/ class Preview {
 	 * `bundle` and its coordinator.
 	 */
 	#coordinators(graph: Graph, published: IPublishedModule[]): IPublishedModule[] {
-		const coordinator = (name: string) => published.find(module => Graph.specifier(module) === `${name}/${Preview.COORDINATOR}`);
-		const runtimes = graph.runtimes.map(runtime => Externals.parse(runtime).name);
+		const coordinator = (name: string) => graph.coordinator(`${name}/${Preview.COORDINATOR}`);
+		const runtimes = [...new Set(graph.runtimes.map(runtime => Externals.parse(runtime).name))];
 		if (runtimes.length) return runtimes.map(coordinator).filter(module => !!module);
 
 		const names = new Set(published.filter(module => module.subpath === './bundle').map(({ name }) => name));
@@ -190,7 +229,7 @@ export /*bundle*/ class Preview {
 		for (const runtime of graph.runtimes) {
 			const specifier = `${Externals.parse(runtime).name}/${Preview.COORDINATOR}`;
 			// A runtime without a coordinator, such as the Kernel, is never asked for one
-			if (!(await this.#externals.exports(specifier, entry.path))) continue;
+			if (!(await graph.exports(specifier, entry))) continue;
 			const module = await graph.runtime(specifier, entry);
 			if (module?.url) return specifier;
 		}

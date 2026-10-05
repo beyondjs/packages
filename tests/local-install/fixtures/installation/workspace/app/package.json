@@ -1,0 +1,11 @@
+{
+	"name": "@fixture/app",
+	"version": "1.0.0",
+	"dependencies": {
+		"@fixture/widgets": "^1.0.0",
+		"lib-a": "^1.0.0"
+	},
+	"devDependencies": {
+		"lib-dev": "^1.0.0"
+	}
+}

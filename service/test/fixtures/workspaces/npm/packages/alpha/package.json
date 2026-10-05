@@ -1,0 +1,15 @@
+{
+	"name": "@fixture/alpha",
+	"version": "1.0.0",
+	"description": "The first member",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"left": "^1.0.0",
+		"right": "^2.0.0"
+	},
+	"peerDependencies": {
+		"react": "^19.0.0"
+	}
+}

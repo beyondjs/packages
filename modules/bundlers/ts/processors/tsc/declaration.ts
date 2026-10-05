@@ -77,6 +77,40 @@ export class Declaration {
 	}
 
 	/**
+	 * Where the ambient module of a public specifier is in a declaration that `code` wrote: the last block,
+	 * whose body re-exports the entry point of the module
+	 */
+	static #block(code: string, specifier: string): { start: number; body: string } | undefined {
+		const header = `declare module "${specifier}" {\n`;
+		const start = code.lastIndexOf(header);
+		const end = start < 0 ? -1 : code.indexOf('\n}', start + header.length);
+		if (end < 0) return;
+		return { start, body: code.slice(start + header.length, end) };
+	}
+
+	/**
+	 * A declaration without the ambient module of its public specifier: its internal modules, which its
+	 * versioned identity names, for a program where another instance of the package declares that specifier
+	 */
+	static internal(code: string, specifier: string): string {
+		const block = Declaration.#block(code, specifier);
+		return block ? `${code.slice(0, block.start).trimEnd()}\n` : code;
+	}
+
+	/**
+	 * An ambient module named after an alias of a public module, with the exports of its declaration: what a
+	 * package that imports a member under another name (`"alias": "workspace:…"`) is typed with
+	 *
+	 * @param code The declaration of the public module
+	 * @param specifier The public specifier it declares
+	 * @param alias The specifier as the importer writes it
+	 */
+	static alias(code: string, specifier: string, alias: string): string {
+		const body = Declaration.#block(code, specifier)?.body ?? `\texport * from "${specifier}";`;
+		return `declare module "${alias}" {\n${body}\n}\n`;
+	}
+
+	/**
 	 * The declaration file of the public module
 	 */
 	get code(): string {

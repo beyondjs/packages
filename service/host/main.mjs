@@ -14,15 +14,21 @@ import { writeSync } from 'node:fs';
 import express from 'express';
 import { Routes } from '@beyond-js/packages/http/routes';
 import { WatchersService } from '@beyond-js/packages/watchers';
+import { Execution } from '@beyond-js/packages/execution';
 import { Session } from '@beyond-js/artifact-api';
 import { Deadline } from '../deadline.mjs';
+import { Declaration } from '../workspace/declaration.mjs';
 import { Attachments } from './attachments.mjs';
 import { Description } from './description.mjs';
 import { Extensions } from './extensions.mjs';
 import { Graph } from './graph.mjs';
+import { Holds } from './holds.mjs';
 import { Hosted } from './hosted.mjs';
+import { Installer } from './installer.mjs';
 import { Lifetime } from './lifetime.mjs';
 import { Processors } from './processors.mjs';
+import { InstallationRoutes } from './routes.mjs';
+import { Selection } from './selection.mjs';
 
 const settings = JSON.parse(process.env.BEYOND_HOST_OPTIONS);
 const log = (...values) => console.log(new Date().toISOString(), ...values);
@@ -44,9 +50,10 @@ let workspace;
 let server;
 let ending = false;
 
-
-
 const attachments = new Attachments(settings.token);
+
+// The work that keeps the service alive while it runs, besides its attachments
+const holds = new Holds();
 
 async function end(reason, code = 0) {
 	if (ending) return;
@@ -105,9 +112,26 @@ try {
 	const extensions = new Extensions(settings.extensions);
 	await extensions.load();
 
+	// The selection answers a browser module with the address of its preview, which the development extension serves
+	const selection = new Selection(delivery, graph, { previews: extensions.has(Selection.DEVELOPMENT) });
+
+	// Installing loads the installation of Packages the first time it is asked for, not at every start. A request to
+	// install waits for the one before it within BEYOND_INSTALL_QUEUE_TIMEOUT, and is not started when it expires.
+	// An installation that runs holds the service within its deadline (BEYOND_INSTALL_DEADLINE): a command that stops
+	// waiting for it does not end the service under it
+	const installation = () => import('@beyond-js/packages/installation').then(({ Installation }) => Installation);
+	const queue = new Deadline('BEYOND_INSTALL_QUEUE_TIMEOUT', Installer.QUEUE).read(process.env);
+	const term = new Deadline('BEYOND_INSTALL_DEADLINE', Installer.DEADLINE).read(process.env);
+	const modules = { Declaration, Execution, installation };
+	const installer = new Installer({ root: settings.root, hosted: workspace, modules, log, queue, deadline: term, holds });
+
 	const app = express();
 	app.disable('x-powered-by');
 	await extensions.guard(app, { workspace, settings });
+
+	// Before the routes of the compiled-module contract, whose answers any origin may read: no page of another
+	// origin reads the installation of the workspace or runs one
+	new InstallationRoutes(installer, { bind: settings.bind }).setup(app);
 	Routes.setup(app, delivery);
 	attachments.setup(app);
 
@@ -118,25 +142,7 @@ try {
 	app.get('/state', async (request, response, next) =>
 		description.state().then(value => response.json({ ...value, attachments: attachments.list }), next)
 	);
-
-	/**
-	 * Resolves a selector to a public module and checks that everything it reaches builds, which is what
-	 * executing it requires
-	 */
-	app.get('/selection', async (request, response, next) => {
-		try {
-			const { selector, directory } = request.query;
-			const { selected, errors } = await delivery.selection.resolve(String(selector ?? ''), directory && String(directory));
-			if (!selected) return response.status(404).json({ error: { ...errors[0], diagnostics: errors } });
-
-			const { specifier, vspecifier, subpath } = selected;
-			const { name, version } = selected.package;
-			const checked = await graph.check({ name, version, subpath, vspecifier });
-			response.json({ selected: { specifier, vspecifier, name, version, subpath }, ...checked });
-		} catch (error) {
-			next(error);
-		}
-	});
+	selection.setup(app);
 
 	await extensions.setup(app, { workspace, settings });
 	Routes.errors(app);
@@ -164,7 +170,7 @@ try {
 	const origin = `http://${address}:${server.address().port}`;
 	description.origin = origin;
 
-	new Lifetime(settings.lifetime, attachments, reason => end(reason)).start();
+	new Lifetime(settings.lifetime, attachments, reason => end(reason), holds).start();
 	log(`ready: ${origin} serving ${settings.root}`);
 	report({ ready: { origin } });
 } catch (error) {

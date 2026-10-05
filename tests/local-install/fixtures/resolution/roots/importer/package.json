@@ -1,0 +1,11 @@
+{
+	"name": "fixture-workspace",
+	"private": true,
+	"workspaces": ["apps/app", "packages/widgets"],
+	"dependencies": {
+		"@acme/core": "^1.0.0"
+	},
+	"devDependencies": {
+		"dev-tool": "^1.0.0"
+	}
+}

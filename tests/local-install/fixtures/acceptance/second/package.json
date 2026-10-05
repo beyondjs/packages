@@ -1,0 +1,10 @@
+{
+	"name": "@lt/second",
+	"version": "1.0.0",
+	"private": true,
+	"description": "A standalone project sharing the source store: another patch of React, the same scheduler",
+	"dependencies": {
+		"react": "19.0.0",
+		"scheduler": "^0.26.0"
+	}
+}

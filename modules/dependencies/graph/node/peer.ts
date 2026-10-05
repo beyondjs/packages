@@ -1,5 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Node } from '.';
+import { DependencySourceIsType } from '@beyond-js/packages/dependency-source';
 
 /**
  * A peer requirement and who provides it. A peer is not installed by the package that declares it: it is
@@ -56,6 +57,25 @@ export class Peer {
 			// The dependent may be the peer itself, as a plugin below its host
 			if (context.parent && context.package === name) return this.#found(context, context);
 		}
+	}
+
+	/**
+	 * Binds the requirement to its provider and takes the release of the provider. The required range
+	 * constrains the group of a provider of the same package, from a registry or from the workspace.
+	 */
+	async register(update: boolean) {
+		this.bind();
+		const node = this.#node;
+		const provider = this.#provider;
+		if (!provider) return;
+
+		// Only a provider of the same package can be constrained by the required range
+		const same = provider.source?.id === node.source.id;
+		const { is } = node.source.data;
+		if (same && (is === DependencySourceIsType.Semver || is === DependencySourceIsType.Workspace)) {
+			await node.registry.nodes.register(node, update);
+		}
+		!node.version.error && node.version.update({ version: provider.version.resolved });
 	}
 
 	#found(provider: Node, context: Node) {

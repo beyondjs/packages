@@ -1,0 +1,36 @@
+{
+	"name": "serving-fixture",
+	"private": true,
+	"workspaces": [
+		"app-a",
+		"app-b",
+		"both",
+		"message-v1",
+		"runtime",
+		"lib",
+		"app-c",
+		"orphan",
+		"ui-lib",
+		"app-d",
+		"app-e",
+		"app-s",
+		"peer-lib",
+		"app-m1",
+		"app-w",
+		"app-t",
+		"app-g",
+		"app-l"
+	],
+	"beyond": {
+		"workspaces": [
+			{
+				"path": "../outside/message-v2",
+				"version": "2.0.0"
+			},
+			{
+				"path": "runtime-v2",
+				"version": "2.0.0"
+			}
+		]
+	}
+}

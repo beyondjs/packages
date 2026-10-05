@@ -1,15 +1,17 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { Execution } from '@beyond-js/packages/execution';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import type { PropertyObjectType } from '@beyond-js/config/main';
 import { Config } from '@beyond-js/config/main';
 import { Package } from '@beyond-js/packages/package';
 import { equal } from '@beyond-js/equal/main';
-import { isAbsolute, resolve, relative, dirname, basename, sep, posix } from 'path';
+import { Locations, type ILocation, type IWorkspaceMember } from './locations';
+import { Imports } from './imports';
 
 interface IProcessDone {
 	errors?: IDiagnostic[];
 	warnings?: IDiagnostic[];
-	packages?: Set<string>;
+	packages?: Map<string, ILocation>;
 }
 
 export /*bundle*/ interface IWorkspaceOptions {
@@ -27,12 +29,26 @@ export /*bundle*/ interface IWorkspaceOptions {
 	packages?: string[];
 
 	/**
+	 * The members of the workspace, as its declaration lists them, given by the caller instead of read from a
+	 * `beyond.json`: each one is held under its id and read from its absolute directory, which may be outside
+	 * the workspace. Two versions of one name are two members. They replace `packages` when both are given.
+	 */
+	members?: IWorkspaceMember[];
+
+	/**
 	 * Packages the toolchain supplies to every workspace, as absolute directories: the development
 	 * runtime and the Widgets packages installed with Packages. They are compiled and served like the
 	 * packages of the workspace, so a browser loads them from this environment, but they are not watched:
 	 * an installation changes only when it is replaced.
 	 */
 	supplied?: string[];
+
+	/**
+	 * The execution projection of the installed graph of the workspace (`.beyond/execution.json`). With it,
+	 * the edges of the importing package decide which package satisfies each bare specifier it imports, and
+	 * nothing is resolved by name.
+	 */
+	execution?: Execution;
 }
 
 /**
@@ -46,14 +62,21 @@ export /*bundle*/ interface IWorkspaceResolution {
 	 * The subpath of the module inside the package, such as `./message` or `.`
 	 */
 	subpath: string;
+
+	/**
+	 * With an execution: the key of the member node that the importer's edge reaches, `workspace:<id>`
+	 */
+	node?: string;
 }
 
 /**
  * The packages being developed together.
  *
- * A workspace reads which packages it contains from its `beyond.json` and creates one Package for each,
- * which is also what makes them resolvable between themselves: a public reference from one package to
- * another is satisfied by the package of the workspace, not by an installed copy of it.
+ * A workspace creates one Package for each package it declares: the members its caller gives, or the
+ * packages of its `beyond.json`, and the packages the toolchain supplies. That is also what makes them
+ * resolvable between themselves: a public reference from one package to another is satisfied by the
+ * package of the workspace, not by an installed copy of it. With the execution projection of its installed
+ * graph, several versions of one name can be members, and each importer reaches the one its edges select.
  */
 export /*bundle*/ class Workspace extends DynamicProcessor() {
 	get dp() {
@@ -82,13 +105,36 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 	}
 
 	#packages: Map<string, Package> = new Map();
+
+	/**
+	 * The packages of the workspace by key: the member id, the path relative to the workspace, or the
+	 * absolute directory of a package the toolchain supplies
+	 */
 	get packages() {
 		return this.#packages;
 	}
 
+	#locations: Map<string, ILocation> = new Map();
+
 	#options: IWorkspaceOptions;
 	get options() {
 		return this.#options;
+	}
+
+	/**
+	 * The execution projection of the installed graph, when the caller gave one
+	 */
+	get execution(): Execution | undefined {
+		return this.#options.execution;
+	}
+
+	#imports: Imports;
+
+	/**
+	 * How the bare specifiers the packages of the workspace import are satisfied
+	 */
+	get imports(): Imports {
+		return this.#imports;
 	}
 
 	constructor(path = process.cwd(), options: IWorkspaceOptions = {}) {
@@ -96,9 +142,10 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 
 		this.#path = path;
 		this.#options = options;
+		this.#imports = new Imports(this);
 
 		// Packages given by the caller replace the configuration file, which is then neither read nor required
-		if (options.packages) return;
+		if (options.members || options.packages) return;
 
 		const config = new Config(path);
 		this.#config = config;
@@ -111,118 +158,67 @@ export /*bundle*/ class Workspace extends DynamicProcessor() {
 		const done = ({ errors, warnings, packages }: IProcessDone) => {
 			errors = errors || [];
 			warnings = warnings || [];
-			packages = packages || new Set();
-			const previous = { errors: this.#errors, warnings: this.#warnings, packages: [...this.#packages.keys()] };
+			packages = packages || new Map();
+			const previous = { errors: this.#errors, warnings: this.#warnings, packages: [...this.#locations] };
 
 			const changed = !equal(previous, { errors, warnings, packages: [...packages] });
 			if (!changed) return false;
 
 			this.#errors = errors;
 			this.#warnings = warnings;
+			this.#locations = packages;
 
-			// Destroy unused packages
-			this.#packages.forEach((pkg, path) => {
-				if (packages.has(path)) return;
+			// Destroy the packages that are no longer declared, or no longer at the same directory
+			this.#packages.forEach((pkg, key) => {
+				if (packages.get(key)?.path === pkg.path) return;
 				pkg.destroy();
-				this.#packages.delete(path);
+				this.#packages.delete(key);
 			});
 
-			// Add new packages
-			packages.forEach(path => {
-				if (this.#packages.has(path)) return;
-
-				// A supplied package is named by its absolute directory and is never watched
-				const supplied = this.#supplied.has(path);
-				const fulldir = supplied ? path : resolve(this.#path, path);
-				const pkg = new Package(fulldir, { watcher: !supplied && this.#options.watcher, workspace: this });
-				this.#packages.set(path, pkg);
+			// Add the new packages; a supplied package is never watched
+			packages.forEach(({ path, supplied }, key) => {
+				if (this.#packages.has(key)) return;
+				const pkg = new Package(path, { watcher: !supplied && this.#options.watcher, workspace: this });
+				this.#packages.set(key, pkg);
 			});
 		};
 
 		if (this.#config && !this.#config.valid) return done({ errors: this.#config.errors });
 
+		const { members, supplied } = this.#options;
 		const value: PropertyObjectType = this.#config ? this.#config.value : { packages: this.#options.packages };
-		if (value.packages && !Array.isArray(value.packages)) {
-			const code = 'INVALID_PACKAGES_PROPERTY';
-			const message = '"packages" must be an array of strings';
-			return done({ errors: [{ code, message }] });
-		}
+		const locations = new Locations(this.#path, { members, packages: value?.packages, supplied });
+		if (locations.errors.length) return done({ errors: locations.errors });
 
-		const packages: string[] = value?.packages || ['.'];
-		const output: Set<string> = new Set();
-		const warnings = [];
-
-		// The packages the toolchain supplies come after the ones of the workspace, which take precedence
-		const supplied = (this.#options.supplied ?? []).filter(path => typeof path === 'string' && isAbsolute(path));
-		this.#supplied = new Set(supplied);
-
-		packages.forEach((path: string) => {
-			if (!path || typeof path !== 'string') {
-				const code = 'INVALID_PACKAGE_PATH';
-				const message = `Each package path must be a non-empty string. Found: ${path}`;
-				warnings.push({ code, message });
-				return;
-			}
-			if (path.startsWith('..')) {
-				const code = 'INVALID_PACKAGE_PATH';
-				const message = `Package paths cannot point to parent directories. Found: ${path}`;
-				warnings.push({ code, message });
-				return;
-			}
-			if (isAbsolute(path)) {
-				const code = 'INVALID_PACKAGE_PATH';
-				const message = `Package paths cannot be absolute. Found: ${path}`;
-				warnings.push({ code, message });
-				return;
-			}
-
-			// Normalize package paths using 'path' module, resolving them against the workspace path
-			// Normilized path must be relative to the workspace path
-			const abs = resolve(this.#path, path);
-
-			let normalized = relative(this.#path, abs).split(sep).join(posix.sep);
-			basename(normalized) === 'package.json' && (normalized = dirname(normalized));
-
-			output.add(normalized);
-		});
-		supplied.forEach(path => output.add(path));
-
-		return done({ packages: output });
+		return done({ packages: locations.entries, warnings: locations.warnings });
 	}
-
-	#supplied: Set<string> = new Set();
 
 	/**
 	 * Whether a package of the workspace is one the toolchain supplies
 	 */
 	supplies(pkg: Package): boolean {
-		return this.#supplied.has([...this.#packages].find(([, one]) => one === pkg)?.[0]);
+		const key = [...this.#packages].find(([, one]) => one === pkg)?.[0];
+		return !!this.#locations.get(key)?.supplied;
 	}
 
 	/**
-	 * The public module of the workspace that a public specifier addresses, such as `@suite/shared/message`.
+	 * The package of the workspace that a public specifier addresses, such as `@suite/shared/message`.
 	 *
 	 * The packages of the workspace take precedence over any other source of a package with the same name,
-	 * which is what lets a package under development satisfy the dependencies of its siblings. Resolution
-	 * reads the name of each package, so the packages must have been processed for it to be conclusive.
+	 * which is what lets a package under development satisfy the dependencies of its siblings. With an
+	 * execution, the edges of the importer decide which instance of a name it reaches; without one, a name
+	 * held by several packages answers nothing rather than the first of them (`imports.resolve()` says why).
+	 * Resolution reads the name of each package, so the packages must have been processed for it to be
+	 * conclusive.
 	 *
-	 * @returns undefined when no package of the workspace publishes the specifier
+	 * @param importer The package that imports the specifier
+	 * @returns undefined when no package of the workspace satisfies the specifier
 	 */
-	resolve(specifier: string): IWorkspaceResolution | undefined {
-		if (typeof specifier !== 'string' || !specifier) return;
-
-		const split = specifier.split('/');
-		const scope = split[0].startsWith('@') ? split.shift() : void 0;
-		const name = split.shift();
-		if (!name) return;
-
-		const pkgname = scope ? `${scope}/${name}` : name;
-		const subpath = split.length ? `./${split.join('/')}` : '.';
-
-		for (const pkg of this.#packages.values()) {
-			if (pkg.name !== pkgname) continue;
-			return { specifier, package: pkg, subpath };
-		}
+	resolve(specifier: string, importer?: Package): IWorkspaceResolution | undefined {
+		const found = this.#imports.resolve(specifier, importer);
+		if (!found?.package || found.error) return;
+		const node = found.key ? { node: found.key } : {};
+		return { specifier, package: found.package, subpath: found.subpath, ...node };
 	}
 
 	destroy() {

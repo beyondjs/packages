@@ -1,0 +1,10 @@
+{
+	"name": "app19",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"ui-lib": "^1.0.0",
+		"react": "^19.1.1",
+		"react-dom": "^19.1.1"
+	}
+}

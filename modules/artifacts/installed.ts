@@ -1,12 +1,12 @@
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
+import type { Execution } from '@beyond-js/packages/execution';
 import { Bundle, Compiler, Located, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Exports } from '@beyond-js/packages/publication';
 import { Interop, Sharing } from '@beyond-js/packages/analysis';
 import { ConditionalOutput } from '@beyond-js/packages/module/output';
-import { createRequire } from 'module';
 import { existsSync, readFileSync, realpathSync, statSync } from 'fs';
-import { dirname, extname, join } from 'path';
-import { pathToFileURL } from 'url';
+import { extname, join } from 'path';
+import { Instances, type IInstance } from './instances';
 
 /**
  * A public module of an installed package, compiled for a browser
@@ -15,6 +15,12 @@ export /*bundle*/ interface IInstalledModule {
 	name: string;
 	version: string;
 	subpath: string;
+
+	/**
+	 * With an execution: the key of the node of the installed graph it was compiled from
+	 */
+	key?: string;
+
 	hash: string;
 	code: (sourcemap: 'inline' | 'none') => string;
 	styles?: ConditionalOutput;
@@ -34,20 +40,32 @@ export /*bundle*/ interface IInstalledModule {
  * A Node consumer resolves them itself from the package that imports them. A browser cannot, and in
  * development there is no CDN to ask, so this environment compiles them: each public subpath of an
  * installed package is one ES module, produced by the esbuild packaging path with its bare references
- * kept and its CommonJS shape adapted, exactly as the CDN generation does. A package is found where Node
- * finds it for the packages of the workspace, the ones the toolchain supplies and the toolchain itself,
- * and only at the exact version that was requested. Nothing is served that is not installed.
+ * kept and its CommonJS shape adapted, exactly as the CDN generation does. Only the exact version that was
+ * requested is served, and nothing is served that is not installed.
+ *
+ * With the execution projection of an installed graph, a package is a node of that graph, compiled from the
+ * canonical location of its sources; which node an importer reaches is decided by serving, from the
+ * instances that reached the importer. Without one, a package is found where Node finds it for the packages of
+ * the workspace, the ones the toolchain supplies and the toolchain itself ([Instances](./instances.ts)).
  */
 export /*bundle*/ class Installed {
-	#bases: () => string[];
+	#instances: Instances;
 	#compiled: Map<string, Promise<{ module?: IInstalledModule; failure?: IDiagnostic }>> = new Map();
 	#sharing = new Sharing();
 
 	/**
-	 * @param bases The directories to resolve installed packages from
+	 * @param bases The directories to resolve installed packages from without an execution
+	 * @param execution The execution projection of the installed graph, which replaces the directories
 	 */
-	constructor(bases: () => string[]) {
-		this.#bases = bases;
+	constructor(bases: () => string[], execution?: Execution) {
+		this.#instances = new Instances(bases, execution);
+	}
+
+	/**
+	 * The execution projection the installed packages are located with, when there is one
+	 */
+	get execution(): Execution | undefined {
+		return this.#instances.execution;
 	}
 
 	/**
@@ -59,52 +77,42 @@ export /*bundle*/ class Installed {
 	}
 
 	/**
-	 * The root of an installed package by name, as found from a directory. A package whose `exports` hide
-	 * its manifest is found from its entry point, walking up to the manifest that carries its name.
+	 * The root of an installed package by name, as Node finds it from a directory. A package whose `exports`
+	 * hide its manifest is found from its entry point, walking up to the manifest that carries its name.
 	 */
 	static root(name: string, from: string): string | undefined {
-		const require = createRequire(pathToFileURL(join(from, 'noop.js')).href);
-		try {
-			return dirname(require.resolve(`${name}/package.json`));
-		} catch (error) {
-			if (error.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') return;
-		}
-		try {
-			for (let current = dirname(require.resolve(name)); dirname(current) !== current; current = dirname(current)) {
-				const manifest = join(current, 'package.json');
-				if (existsSync(manifest) && JSON.parse(readFileSync(manifest, 'utf8')).name === name) return current;
-			}
-		} catch {
-			return;
-		}
+		return Instances.root(name, from);
+	}
+
+	/**
+	 * The version of a package installed from a directory, as Node finds it, if any
+	 */
+	static version(name: string, from: string): string | undefined {
+		const root = Instances.root(name, from);
+		return root && Instances.version(root);
 	}
 
 	/**
 	 * Where a package is installed at exactly the requested version, or undefined
+	 *
+	 * @param key With an execution, the node to locate
 	 */
-	locate(name: string, version: string): string | undefined {
-		for (const base of this.#bases()) {
-			const root = Installed.root(name, base);
-			if (!root) continue;
-			try {
-				const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-				if (manifest.version === version) return realpathSync(root);
-			} catch {
-				// A manifest that cannot be read is not an installation
-			}
-		}
+	locate(name: string, version: string, key?: string): string | undefined {
+		return this.#instances.locate(name, version, key).location;
 	}
 
 	/**
-	 * The version of a package installed from a directory, if any
+	 * Whether a module that the workspace could not select is looked for among the installed packages: a
+	 * package the workspace does not contain, for a browser, and with an execution also a version of a name
+	 * the workspace holds only in other versions, when the installed graph has that version (an alias reaches
+	 * the registry copy of a member's name)
+	 *
+	 * @param code Why the workspace could not select it
 	 */
-	static version(name: string, from: string): string | undefined {
-		const root = Installed.root(name, from);
-		try {
-			return root && JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
-		} catch {
-			return;
-		}
+	serves(code: string, request: { name: string; version: string }, conditions: IConditions): boolean {
+		if (conditions.platform === 'node') return false;
+		if (code === 'PACKAGE_NOT_FOUND') return true;
+		return code === 'VERSION_MISMATCH' && !!this.execution && !!this.locate(request.name, request.version);
 	}
 
 	/**
@@ -114,15 +122,18 @@ export /*bundle*/ class Installed {
 	 * version, so the installation located now — its real location and when its manifest was written — is
 	 * part of what the result is kept under, and a replaced one is compiled again.
 	 */
-	module(request: { name: string; version: string; subpath: string }, conditions: IConditions) {
-		const root = this.locate(request.name, request.version);
-		const installation = root ? `${root}\n${Installed.#written(root)}` : '';
+	module(request: { name: string; version: string; subpath: string; key?: string }, conditions: IConditions) {
+		const instance = this.#instances.locate(request.name, request.version, request.key);
+		const root = instance.location;
+		// The node is part of what a result is kept under: one location could hold another node after an install
+		const installation = root ? `${instance.key ?? ''}\n${root}\n${Installed.#written(root)}` : '';
+		// The node located, not whether the request named it, is what a result is kept for
 		const requested = JSON.stringify([request.name, request.version, request.subpath, conditions.platform, conditions.environment ?? '']);
 		const key = `${requested}\n${installation}`;
 		if (!this.#compiled.has(key)) {
 			// What was compiled from an installation that was replaced is never answered again
 			[...this.#compiled.keys()].filter(one => one.startsWith(`${requested}\n`)).forEach(one => this.#compiled.delete(one));
-			this.#compiled.set(key, this.#compile(request, conditions, root));
+			this.#compiled.set(key, this.#compile(request, conditions, instance));
 		}
 		return this.#compiled.get(key);
 	}
@@ -146,8 +157,9 @@ export /*bundle*/ class Installed {
 		return found && realpathSync(found);
 	}
 
-	async #compile({ name, version, subpath }: { name: string; version: string; subpath: string }, conditions: IConditions, root: string | undefined) {
-		if (!root) return { failure: { code: 'PACKAGE_NOT_FOUND', message: `"${name}@${version}" is neither a package of the workspace nor installed for it` } };
+	async #compile({ name, version, subpath }: { name: string; version: string; subpath: string }, conditions: IConditions, instance: IInstance) {
+		const root = instance.location;
+		if (!root) return { failure: instance.failure };
 
 		const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 		const exports = new Exports(manifest);
@@ -195,10 +207,10 @@ export /*bundle*/ class Installed {
 		// Its maps are delivered inline: every source is named by its absolute path in the installation
 		const located = new Located(root, root);
 		Object.assign(bundled, { map: located.map(bundled.map), cssmap: located.map(bundled.cssmap) });
-		return { module: Installed.#describe(name, version, subpath, bundled) };
+		return { module: Installed.#describe(name, version, subpath, bundled, instance.key) };
 	}
 
-	static #describe(name: string, version: string, subpath: string, bundled: IBundled): IInstalledModule {
+	static #describe(name: string, version: string, subpath: string, bundled: IBundled, key?: string): IInstalledModule {
 		const output = new ConditionalOutput();
 		output.set({ code: bundled.code ?? '', map: bundled.map });
 
@@ -211,6 +223,7 @@ export /*bundle*/ class Installed {
 			name,
 			version,
 			subpath,
+			...(key ? { key } : {}),
 			hash: output.hash,
 			code: sourcemap => output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
 			styles,

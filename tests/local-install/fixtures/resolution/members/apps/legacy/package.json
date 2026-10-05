@@ -1,0 +1,9 @@
+{
+	"name": "legacy",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "~1.1.0",
+		"react": "^19.1.1"
+	}
+}

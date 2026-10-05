@@ -5,6 +5,7 @@ import { type IGraphOptions, type IGraphLogger, Policy } from './policy';
 import { Registry } from './registry';
 import { Selection } from './selection';
 import { Closure } from './closure';
+import { Importers } from './importers';
 import { Node } from './node';
 
 /**
@@ -15,6 +16,10 @@ import { Node } from './node';
  * when a pass confirms the versions it was walked with; a limit of passes turns a graph that never
  * settles into an explicit failure. Dependencies are always walked in name order, and grouping is
  * canonical, so equal inputs give an equal graph whatever order they were declared in.
+ *
+ * The root of a workspace (a project with `members`) depends on its importers: each member, and the root package
+ * when it declares dependencies without being a member. What the root declares of its own then only supplies the
+ * overrides and the versions they reference.
  */
 export /*bundle*/ class DependenciesGraph extends Node {
 	#project: IProject;
@@ -123,12 +128,16 @@ export /*bundle*/ class DependenciesGraph extends Node {
 			// in the process of the dependencies graph
 			this.version.update({ version: this.version.specified });
 
-			const spec = new DependenciesSpec(this.#project.dependencies.spec);
+			const declared = new DependenciesSpec(this.#project.dependencies.spec);
+			const { members } = this.#project;
+			const importers = members ? new Importers(members) : void 0;
+			const spec = importers || declared;
+
 			const options = update ? { ...this.#options, lock: void 0 } : this.#options;
-			const policy = new Policy(options, spec, spec.overrides);
+			const policy = new Policy(options, declared, declared.overrides);
 			this.registry.configure(policy);
 			this.#policy = policy;
-			this.#warnings = [...spec.warnings, ...policy.overrides.warnings];
+			this.#warnings = [...declared.warnings, ...policy.overrides.warnings, ...(importers?.warnings || [])];
 
 			let selection = new Selection();
 			let settled = false;

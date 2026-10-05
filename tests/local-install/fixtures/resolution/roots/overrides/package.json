@@ -1,0 +1,10 @@
+{
+	"name": "fixture-workspace",
+	"private": true,
+	"workspaces": ["apps/legacy", "apps/modern", "packages/widgets", "packages/widgets-next", "../outside/widgets-v2"],
+	"overrides": {
+		"@acme/core": "1.0.0",
+		"legacy": { "@acme/widgets": "1.2.0" },
+		"modern": { "@acme/widgets": "npm:@acme/widgets@2.9.9" }
+	}
+}

@@ -75,7 +75,11 @@ export const serve = async (seed, access) => {
 	const development = new Development({ delivery: new Delivery(project), settings: { root: project.path, runtime } }, access);
 	const app = express();
 	development.guard(app);
+	// Stand-ins for routes the hosting service mounts itself, which the guard covers
 	app.get('/session', (request, response) => response.json({ protocol: 'beyond-dev-session/1' }));
+	app.get('/installation', (request, response) => response.json({ state: 'ready' }));
+	app.post('/installation', (request, response) => response.json({ protocol: 'beyond-installation/1' }));
+	app.get(['/resolution.json', '/importmap.json'], (request, response) => response.json({ imports: {} }));
 	await development.setup(app);
 	const server = await new Promise(resolve => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
 	const origin = `http://127.0.0.1:${server.address().port}`;

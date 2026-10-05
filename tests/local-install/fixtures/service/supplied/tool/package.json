@@ -1,0 +1,21 @@
+{
+	"name": "@fixture/supplied",
+	"version": "1.0.0",
+	"exports": {
+		"./tool": "./tool/index.js"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

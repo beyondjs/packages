@@ -3,8 +3,9 @@
  * this module starts nothing.
  */
 export { Context, ContextError } from './context.mjs';
+export { Declaration } from './workspace/declaration.mjs';
 export { Service, ServiceError } from './service.mjs';
-export { Connection, AccessError, TimeoutError } from './connection.mjs';
+export { Connection, AbortError, AccessError, TimeoutError } from './connection.mjs';
 export { Installation } from './installation.mjs';
 export { Component } from './component.mjs';
 export { Home } from './home.mjs';

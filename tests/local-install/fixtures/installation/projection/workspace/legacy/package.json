@@ -1,0 +1,9 @@
+{
+	"name": "@fixture/legacy",
+	"version": "1.0.0",
+	"dependencies": {
+		"@fixture/widgets": "^1.0.0",
+		"react": "^18.3.0",
+		"some-ui": "^1.0.0"
+	}
+}

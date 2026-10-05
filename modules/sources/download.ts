@@ -52,7 +52,10 @@ export class Download {
 			return { result: await this.#run(node, pinned, excepted) };
 		} catch (error) {
 			if (error instanceof Refusal) return { diagnostic: { code: error.code, message: error.message, node } };
-			return { diagnostic: { code: 'SOURCE_FETCH_FAILED', message: 'The source could not be fetched', node } };
+			// The cause is named by its code only: its message may quote a path or an address
+			const cause = typeof error?.code === 'string' ? ` (${error.code})` : '';
+			const message = `The source could not be fetched${cause}`;
+			return { diagnostic: { code: 'SOURCE_FETCH_FAILED', message, node } };
 		}
 	}
 
@@ -99,27 +102,31 @@ export class Download {
 			integrity: established ? 'established' : pinned.integrity
 		};
 
-		const stored = (await this.#store.has(record)) && (await this.#store.get(record));
+		const what = `${name}@${version}`;
+		const lookup = async () => (await this.#store.has(record)) && (await this.#store.get(record));
+		const stored = await this.#stored(`read "${what}"`, lookup);
 		if (stored) {
 			const { bytes, extracted, entries } = stored;
 			const result = { node, key: record.key, scope, integrity: stored.integrity, bytes, extracted, entries };
-			return established ? { ...result, reused: true, established } : { ...result, reused: true };
+			return this.#result(result, true, established, stored.location);
 		}
 
+		// The stage is opened before the download is bounded, so that a store that refuses it leaves no timer behind
+		const stage = await this.#stored(`open a stage for "${what}"`, () => this.#store.put(record));
 		const abort = new AbortController();
 		const timer = setTimeout(() => abort.abort(), this.#limits.timeout);
-		const stage = await this.#store.put(record);
 
 		try {
-			const body = await this.#request(tarball, headers, abort.signal, `${name}@${version}`);
+			const body = await this.#request(tarball, headers, abort.signal, what);
 			const archive = new Archive(this.#limits, integrity, established);
 			const outcome = await archive.extract(body, stage);
 
 			const verified = established ? outcome.integrity : pinned.integrity;
-			const source = await this.#store.commit(stage, { ...record, integrity: verified, ...outcome });
+			const published = { ...record, integrity: verified, ...outcome };
+			const source = await this.#stored(`publish "${what}"`, () => this.#store.commit(stage, published));
 			const { bytes, extracted, entries } = source;
 			const result = { node, key: record.key, scope, integrity: source.integrity, bytes, extracted, entries };
-			return established ? { ...result, reused: false, established } : { ...result, reused: false };
+			return this.#result(result, false, established, source.location);
 		} catch (error) {
 			// Stop the transfer at once: a refused archive is not read to its end
 			abort.abort();
@@ -128,6 +135,38 @@ export class Download {
 		} finally {
 			clearTimeout(timer);
 		}
+	}
+
+	/**
+	 * Runs an operation of the store. Its failure is the store's, never the provider's: it keeps its cause code and is
+	 * reported as `SOURCE_STORE_UNAVAILABLE`
+	 */
+	async #stored<T>(what: string, operation: () => Promise<T>): Promise<T> {
+		try {
+			return await operation();
+		} catch (error) {
+			if (error instanceof Refusal) throw error;
+			const cause = typeof error?.code === 'string' ? error.code : 'unknown error';
+			throw new Refusal('SOURCE_STORE_UNAVAILABLE', `The source store could not ${what} (${cause})`);
+		}
+	}
+
+	/**
+	 * The result of one source, with whether it was reused, whether its integrity was established at fetch and,
+	 * when the store reports one, where its files are
+	 */
+	#result(
+		result: Omit<ISourceResult, 'reused' | 'established' | 'location'>,
+		reused: boolean,
+		established: boolean,
+		location?: string
+	): ISourceResult {
+		return {
+			...result,
+			reused,
+			...(established ? { established } : {}),
+			...(typeof location === 'string' ? { location } : {})
+		};
 	}
 
 	async #request(url: string, headers: Record<string, string>, signal: AbortSignal, what: string) {

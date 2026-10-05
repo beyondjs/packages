@@ -1,0 +1,29 @@
+{
+	"name": "@serving/app-b",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"dependencies": {
+		"@serving/message": "^2.0.0",
+		"kit": "1.0.0",
+		"ping": "1.0.0",
+		"react": "19.1.0",
+		"shared": "1.0.0",
+		"toolkit": "2.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

@@ -1,0 +1,27 @@
+{
+	"name": "@fixture/app-v1",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./typed": "./typed/index.ts",
+		"./missing": "./missing/index.ts",
+		"./mismatch": "./mismatch/index.ts",
+		"./toolchain": "./toolchain/index.ts",
+		"./alias": "./alias/index.ts",
+		"./mapped": "./mapped/index.ts",
+		"./reference": "./reference/index.ts",
+		"./unreferenced": "./unreferenced/index.ts"
+	},
+	"dependencies": {
+		"@fixture/message": "^1.0.0",
+		"greeting": "1.0.0",
+		"kit": "1.0.0",
+		"message-two": "workspace:../outside/message-v2",
+		"plain": "1.0.0"
+	},
+	"devDependencies": {
+		"@types/plain": "1.0.0"
+	},
+	"beyond": { "bundler": "ts" },
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" }
+}

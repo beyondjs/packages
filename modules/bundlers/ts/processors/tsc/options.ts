@@ -3,6 +3,7 @@ import type { IDiagnostic } from '@beyond-js/packages/types';
 import * as ts from 'typescript';
 import { existsSync } from 'fs';
 import { dirname, join } from 'path';
+import type { Graph } from './graph';
 
 /**
  * The compiler options of the program that checks a module and emits its declarations.
@@ -12,19 +13,26 @@ import { dirname, join } from 'path';
  * syntax with bundler resolution, no emit of code. Type roots are the `node_modules/@types` directories
  * found from the module upwards, and the one of the installation that runs Packages, so the types of
  * a framework the toolchain supplies resolve for a package that does not install them.
+ *
+ * With the installed graph of the workspace, no directory is searched for types: the roots are only the ones
+ * the author names, and the types included are the ones the author lists or else the `@types` packages the
+ * package declares and its edges reach.
  */
 export class Options {
 	#directory: string;
 	#fallback: string;
+	#graph: Graph | undefined;
 
 	/**
 	 * @param directory The module directory
 	 * @param fallback A directory whose installed packages complete what the package does not install:
 	 * the one Packages runs from, which in an installation holds the toolchain
+	 * @param graph The installed graph of the workspace, which replaces the directories searched for types
 	 */
-	constructor(directory: string, fallback: string) {
+	constructor(directory: string, fallback: string, graph?: Graph) {
 		this.#directory = directory;
 		this.#fallback = fallback;
+		this.#graph = graph;
 	}
 
 	get #roots(): string[] {
@@ -72,9 +80,10 @@ export class Options {
 			isolatedModules: false,
 			resolveJsonModule: true,
 			allowJs: false,
-			// The roots the author names, then the ones found from the module and from the installation
-			typeRoots: [...(typeRoots ?? []), ...this.#roots],
-			...(types ? { types } : {})
+			// The roots the author names, then the ones found from the module and from the installation; through
+			// the installed graph nothing is searched for, and the types included are named
+			typeRoots: [...(typeRoots ?? []), ...(this.#graph ? [] : this.#roots)],
+			...(types ? { types } : this.#graph ? { types: this.#graph.types() } : {})
 		};
 		return { options, diagnostics };
 	}

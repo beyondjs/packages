@@ -1,0 +1,3 @@
+{
+	"packages": ["app", "libs/shared/package.json"]
+}

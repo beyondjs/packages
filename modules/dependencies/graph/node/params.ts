@@ -7,6 +7,9 @@ import type { Node } from '.';
 export interface INodeDependency {
 	kind: DependencyKind;
 	package: string;
+	// What identifies the occurrence among its siblings, when it is not its declared name: an importer of a
+	// workspace is keyed by its node key, because several members may provide one name
+	key?: string;
 	version: string;
 	// The version the dependent declares, when an override replaced it
 	declared?: string;

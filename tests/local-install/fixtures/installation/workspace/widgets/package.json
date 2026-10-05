@@ -1,0 +1,7 @@
+{
+	"name": "@fixture/widgets",
+	"version": "1.0.0",
+	"dependencies": {
+		"lib-b": "^1.0.0"
+	}
+}

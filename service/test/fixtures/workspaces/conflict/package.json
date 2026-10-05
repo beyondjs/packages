@@ -1,0 +1,5 @@
+{
+	"name": "conflict-root",
+	"private": true,
+	"workspaces": ["app"]
+}

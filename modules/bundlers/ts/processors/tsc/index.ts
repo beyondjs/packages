@@ -2,6 +2,7 @@ import type { Conditional, ProcessorOutputs } from '@beyond-js/packages/sdk';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { DynamicFileObject } from '@beyond-js/file/dynamic';
+import type { Package } from '@beyond-js/packages/package';
 import { ConditionalProcessor } from '@beyond-js/packages/sdk';
 import * as ts from 'typescript';
 import { join, relative } from 'path';
@@ -9,6 +10,7 @@ import { Options } from './options';
 import { Host } from './host';
 import { Declaration } from './declaration';
 import { Dependencies } from './dependencies';
+import { Graph } from './graph';
 
 /**
  * Checks the sources of a public module as one program and emits its public declaration.
@@ -18,7 +20,8 @@ import { Dependencies } from './dependencies';
  * import, held in memory. Its semantic diagnostics are reported on the source files of the module with
  * their positions; diagnostics of other files (installed declarations, dependencies) are left to their
  * owners. The declarations it emits are assembled into the one declaration of the public module, which
- * is the output of the `types` conditional.
+ * is the output of the `types` conditional. With the installed graph of the workspace, the bare specifiers
+ * and the types of the program are resolved through the edges of the importing packages ([Graph](./graph.ts)).
  */
 export /*bundle*/ class Processor extends ConditionalProcessor {
 	#dependencies: Dependencies;
@@ -59,19 +62,35 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 		if (!roots.length) return void (this.#diagnostics = diagnostics);
 		void outputs;
 
-		const { options, diagnostics: configuration } = new Options(directory, process.cwd()).read(<DynamicFileObject>this.sources.files?.get('tsconfig.json'));
+		// Through the installed graph of the workspace, when it has one, and never from the toolchain then. A
+		// module types its package with an interface of its own; the object is the package of the workspace.
+		const graph = Graph.of(<Package>(<unknown>module.package), directory);
+		const { options, diagnostics: configuration } = new Options(directory, process.cwd(), graph).read(<DynamicFileObject>this.sources.files?.get('tsconfig.json'));
 		configuration.forEach(diagnostic => diagnostics.push(diagnostic));
 
 		// The declarations of the workspace modules the sources import, as ambient modules of the program
 		const specifiers = Dependencies.specifiers(inputs.map(input => input.content));
-		const { declarations, unresolved } = await this.#dependencies.read(specifiers);
+		const { declarations, owners, unresolved } = await this.#dependencies.read(specifiers);
 		if (request !== this._request) return;
 		unresolved.forEach((reason, specifier) => diagnostics.push({ code: 'TYPES_UNRESOLVED', message: `${specifier}: ${reason}` }));
 
-		const virtual = new Map<string, string>();
-		declarations.forEach((code, specifier) => virtual.set(`${Host.VIRTUAL}${specifier.replace(/[@/]/g, '_')}.d.ts`, code));
+		// A package the installed graph does not have resolves nothing of another package; its own modules and
+		// the builtins need no edge
+		const foreign = graph && !graph.member ? Graph.foreign(specifiers, module.package.name) : [];
+		if (foreign.length) {
+			const message = `"${module.package.vname}" (${module.package.path}) imports ${foreign.join(', ')}, but it is not a package of the installed graph: run beyond install`;
+			diagnostics.push({ code: 'DEPENDENCY_NOT_INSTALLED', message });
+		}
 
-		const host = new Host(options, directory, process.cwd(), virtual, specifier => this.#dependencies.published(specifier));
+		// One file per imported specifier, numbered so that two specifiers never share a file name
+		const virtual = new Map<string, string>();
+		[...declarations].forEach(([specifier, code], index) => {
+			const file = `${Host.VIRTUAL}${index}-${specifier.replace(/[^\w.-]/g, '_')}.d.ts`;
+			virtual.set(file, code);
+			graph?.own(file, owners.get(specifier));
+		});
+
+		const host = new Host(options, directory, process.cwd(), virtual, specifier => this.#dependencies.published(specifier), graph);
 		const program = ts.createProgram({ rootNames: [...roots, ...virtual.keys()], options, host: host.compiler });
 
 		const own = new Set(roots);

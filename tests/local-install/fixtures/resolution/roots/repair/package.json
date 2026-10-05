@@ -1,0 +1,12 @@
+{
+	"name": "fixture-workspace",
+	"private": true,
+	"workspaces": ["apps/leak", "packages/widgets", "packages/widgets-next"],
+	"overrides": {
+		"leaky": {
+			"@acme/widgets": "workspace:packages/widgets",
+			"anything": "npm:@acme/core@^1.0.0",
+			"react": "^19.0.0"
+		}
+	}
+}

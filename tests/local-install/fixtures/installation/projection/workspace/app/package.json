@@ -1,0 +1,14 @@
+{
+	"name": "@fixture/app",
+	"version": "1.0.0",
+	"dependencies": {
+		"@fixture/widgets": "^2.0.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"react-legacy": "npm:react@18.3.1",
+		"some-ui": "^1.0.0"
+	},
+	"optionalDependencies": {
+		"fsevents": "^2.3.0"
+	}
+}

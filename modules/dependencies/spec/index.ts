@@ -28,6 +28,12 @@ export /*bundle*/ interface IDependencySpec {
 	kind: DependencyKind;
 	// True for a peer that `peerDependenciesMeta` marks as optional
 	optional?: boolean;
+	// The `devDependencies` range of a name another group also declares. The top of a project whose development
+	// dependencies are installed takes it instead, as package managers install the top of a project
+	development?: string;
+	// The declared name, when the entry is not keyed by it: the importers of a workspace are keyed by their node
+	// key, because several members may provide one name
+	package?: string;
 }
 
 /**
@@ -61,8 +67,14 @@ export /*bundle*/ class DependenciesSpec extends Map<string, IDependencySpec> {
 
 		const add = (name: string, value: string, kind: DependencyKind) => {
 			const current = this.get(name);
+			// A development range outranked by another group is kept for the top of a project
+			const previous = current?.kind === 'development' ? current.version : current?.development;
+			const development = kind === 'development' ? value : previous;
 			if (!current || priority[kind] > priority[current.kind]) {
-				this.set(name, { version: value, kind });
+				const kept = development !== void 0 && kind !== 'development' ? { development } : {};
+				this.set(name, { version: value, kind, ...kept });
+			} else if (kind === 'development') {
+				current.development = value;
 			}
 		};
 

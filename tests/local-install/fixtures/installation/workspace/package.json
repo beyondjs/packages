@@ -1,0 +1,5 @@
+{
+	"name": "@fixture/install",
+	"private": true,
+	"workspaces": ["app", "widgets"]
+}

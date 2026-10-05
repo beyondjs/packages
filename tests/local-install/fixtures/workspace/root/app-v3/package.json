@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/app-v3",
+	"version": "1.0.0",
+	"exports": { "./main": "./main/index.ts" },
+	"dependencies": {
+		"@fixture/wrap": "^1.0.0"
+	},
+	"beyond": { "bundler": "ts" },
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" }
+}

@@ -1,6 +1,7 @@
 import { type Delivery, Installed } from '@beyond-js/packages/artifacts';
 import { type Identity, ContractError } from '@beyond-js/artifact-api';
 import { type IOrigin, Origins } from '../origins';
+import { Instances } from '../instances';
 
 /**
  * Which source a development service delivers a package from, and whether a request names it.
@@ -10,6 +11,9 @@ import { type IOrigin, Origins } from '../origins';
  * `/m/<registry id>/…` for any other registry. A request that names another source than the one the package
  * came from addresses nothing this service holds, which is `PACKAGE_NOT_FOUND`, so one path never delivers two
  * packages. Git and digest sources are not delivered by a development service: `SOURCE_UNSUPPORTED`.
+ *
+ * A workspace served from its execution projection (`beyond install`) reads none of that from the disk: the
+ * source of a package is the provider of its node in the installed graph (`Instances.origin`).
  */
 export /*bundle*/ class Sources {
 	#delivery: Delivery;
@@ -28,6 +32,13 @@ export /*bundle*/ class Sources {
 	 * workspace contains, or one that is not installed, is written unprefixed.
 	 */
 	async origin(name: string, version: string): Promise<IOrigin> {
+		const instances = Instances.of(this.#delivery);
+		if (instances) {
+			const [key] = instances.find(name, version);
+			const node = key && instances.node(key);
+			return node ? instances.origin(node) : { registry: Origins.NPM };
+		}
+
 		const published = await this.#delivery.published();
 		if (published.some(module => module.name === name && module.version === version)) return { registry: Origins.NPM };
 
@@ -62,6 +73,9 @@ export /*bundle*/ class Sources {
 			throw new ContractError('SOURCE_UNSUPPORTED', `A development service delivers the workspace and registry packages; "${source}" sources are not served`);
 		}
 
+		const instances = Instances.of(this.#delivery);
+		if (instances) return this.#projected(instances, identity);
+
 		const { registry, name, version } = identity;
 		const published = await this.#delivery.published();
 		if (published.some(module => module.name === name)) {
@@ -82,5 +96,32 @@ export /*bundle*/ class Sources {
 
 		const actual = origin.registry === Origins.NPM ? `/m/${name}@${version}/…` : `/m/${origin.registry}/${name}@${version}/…`;
 		throw new ContractError('PACKAGE_NOT_FOUND', `"${name}@${version}" was not installed from ${registry === Origins.NPM ? 'the npm registry' : `registry "${registry}"`}: it is addressed as ${actual}`);
+	}
+
+	/**
+	 * The admission of a request by the nodes of the installed graph: the release must be a node whose provider
+	 * is the source the path names
+	 */
+	#projected(instances: Instances, identity: Identity): void {
+		const { registry, name, version } = identity;
+		const nodes = instances.find(name, version).map(key => instances.node(key)).filter(node => !!node);
+		if (!nodes.length) {
+			if (registry === Origins.NPM) return;
+			const known = instances
+				.find(name)
+				.map(key => instances.node(key))
+				.some(node => node && instances.origin(node).registry === registry);
+			throw new ContractError(known ? 'VERSION_MISMATCH' : 'PACKAGE_NOT_FOUND', `"${name}@${version}" is not installed from registry "${registry}"`);
+		}
+		if (nodes.some(node => instances.origin(node).registry === registry)) return;
+
+		const [node] = nodes;
+		if (instances.member(node)) {
+			throw new ContractError('PACKAGE_NOT_FOUND', `"${name}" is a package of the workspace, which belongs to no registry: it is addressed as /m/${name}@<version>/…`);
+		}
+		const origin = instances.origin(node);
+		if (!origin.registry) throw new ContractError('SOURCE_UNSUPPORTED', `"${name}@${version}" has no registry address: ${origin.reason}`);
+		const from = registry === Origins.NPM ? 'the npm registry' : `registry "${registry}"`;
+		throw new ContractError('PACKAGE_NOT_FOUND', `"${name}@${version}" was not installed from ${from}: it is addressed as ${instances.address(node)}`);
 	}
 }

@@ -1,0 +1,13 @@
+{
+	"name": "solo",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/core": "^1.0.0",
+		"@acme/widgets": "^1.0.0",
+		"react": "^19.1.1"
+	},
+	"overrides": {
+		"@acme/core": "1.0.0"
+	}
+}

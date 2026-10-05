@@ -1,6 +1,17 @@
 import type { ConditionalProcessor } from '@beyond-js/packages/sdk';
 import type { BaseConditional } from '@beyond-js/packages/module';
+import type { Package } from '@beyond-js/packages/package';
+import type { IWorkspaceImport } from '@beyond-js/packages/workspace';
 import * as ts from 'typescript';
+import { Ambient } from './ambient';
+
+/**
+ * What a package knows of the workspace it belongs to, as the declarations of its imports need it
+ */
+interface IResolver {
+	imports?: { resolve(specifier: string, importer?: Package): IWorkspaceImport | undefined };
+	resolve?(specifier: string, importer?: Package): { package: Package; subpath: string } | undefined;
+}
 
 /**
  * The declarations of the public modules of the workspace that the sources of a module import.
@@ -10,6 +21,11 @@ import * as ts from 'typescript';
  * become ready in time is reported as unresolved instead of blocking the build. Each dependency is
  * subscribed to, and a change of its declaration reprocesses the processor that reads it; subscriptions
  * of dependencies a later build no longer imports are released.
+ *
+ * Which package of the workspace a specifier is depends on the package that imports it, so a specifier of a
+ * declaration is resolved for the package that declaration belongs to. A public specifier is one ambient
+ * module of the program, declared by the first instance it reaches; an alias of a member is declared under its
+ * own name ([Ambient](./ambient.ts)).
  */
 export class Dependencies {
 	static WAIT = 8000;
@@ -35,10 +51,32 @@ export class Dependencies {
 	}
 
 	/**
-	 * Whether a bare specifier names a public module of the workspace
+	 * How the workspace satisfies a specifier for a package that imports it
+	 */
+	#resolve(specifier: string, importer: Package): IWorkspaceImport | undefined {
+		const workspace = <IResolver>(<unknown>importer.workspace);
+		if (workspace?.imports) return workspace.imports.resolve(specifier, importer);
+
+		const resolution = workspace?.resolve?.(specifier);
+		return resolution && { specifier, name: resolution.package.name, subpath: resolution.subpath, package: resolution.package };
+	}
+
+	/**
+	 * Whether a bare specifier the module imports names a public module of the workspace, declared ambiently
+	 * by the program. A name the workspace holds in several packages is one too: it is never looked for on disk.
+	 * Without an installed graph only: with one, the graph decides for the node that holds the importing file.
 	 */
 	published(specifier: string): boolean {
-		return !!this.#processor.conditional.module.package.workspace?.resolve?.(specifier);
+		const found = this.#resolve(specifier, this.#own);
+		return !!found?.package || ['PACKAGE_AMBIGUOUS', 'PACKAGE_DUPLICATED'].includes(found?.error?.code);
+	}
+
+	/**
+	 * The package of the module being checked. A module types its package with an interface of its own, to
+	 * avoid a circular dependency between their modules; the object is the package the workspace created.
+	 */
+	get #own(): Package {
+		return <Package>(<unknown>this.#processor.conditional.module.package);
 	}
 
 	/**
@@ -46,42 +84,54 @@ export class Dependencies {
 	 * those declarations import in turn: a class a module extends may be declared two modules away, and the
 	 * program resolves it only when that declaration is in it too.
 	 *
-	 * @returns The declarations by specifier, and the specifiers that could not be read
+	 * @returns The declarations by specifier, the directory of the package each one belongs to, and the
+	 * specifiers that could not be read
 	 */
-	async read(specifiers: Set<string>): Promise<{ declarations: Map<string, string>; unresolved: Map<string, string> }> {
+	async read(specifiers: Set<string>): Promise<{ declarations: Map<string, string>; owners: Map<string, string>; unresolved: Map<string, string> }> {
 		const declarations = new Map<string, string>();
+		const owners = new Map<string, string>();
 		const unresolved = new Map<string, string>();
 		const wanted = new Set<BaseConditional>();
 		const visited = new Set<string>();
-		const queue = [...specifiers].sort();
+		const ambient = new Ambient();
+		const own = this.#own;
+		const queue: { specifier: string; importer: Package }[] = [...specifiers].sort().map(specifier => ({ specifier, importer: own }));
 
 		while (queue.length) {
-			const specifier = queue.shift();
+			const { specifier, importer } = queue.shift();
 			if (visited.has(specifier)) continue;
 			visited.add(specifier);
 
-			const outcome = await this.#read(specifier, wanted);
+			const outcome = await this.#read(specifier, importer, wanted);
 			if (!outcome) continue;
 			if ('reason' in outcome) {
 				unresolved.set(specifier, outcome.reason);
 				continue;
 			}
-			declarations.set(specifier, outcome.code);
-			Dependencies.specifiers([outcome.code]).forEach(imported => !visited.has(imported) && queue.push(imported));
+			const { code, pkg, subpath } = outcome;
+			const declared = ambient.add(specifier, code, pkg, subpath);
+			if (declared) {
+				declarations.set(specifier, declared);
+				owners.set(specifier, pkg.path);
+			}
+			Dependencies.specifiers([code]).forEach(imported => !visited.has(imported) && queue.push({ specifier: imported, importer: pkg }));
 		}
 
 		[...this.#subscriptions.keys()].forEach(types => !wanted.has(types) && this.#unsubscribe(types));
-		return { declarations, unresolved };
+		return { declarations, owners, unresolved };
 	}
 
 	/**
 	 * The declaration of one workspace module, or why it cannot be read; undefined for a specifier that
 	 * is not a workspace module, or the module being checked itself
+	 *
+	 * @param importer The package whose sources or declaration import the specifier
 	 */
-	async #read(specifier: string, wanted: Set<BaseConditional>): Promise<{ code: string } | { reason: string } | undefined> {
+	async #read(specifier: string, importer: Package, wanted: Set<BaseConditional>): Promise<{ code: string; pkg: Package; subpath: string } | { reason: string } | undefined> {
 		const { module } = this.#processor.conditional;
-		const resolution = module.package.workspace?.resolve?.(specifier);
-		if (!resolution) return;
+		const resolution = this.#resolve(specifier, importer);
+		if (resolution?.error && ['PACKAGE_AMBIGUOUS', 'PACKAGE_DUPLICATED'].includes(resolution.error.code)) return { reason: resolution.error.message };
+		if (!resolution?.package) return;
 
 		const { package: pkg, subpath } = resolution;
 		await pkg.ready;
@@ -105,7 +155,7 @@ export class Dependencies {
 		if (typeof code !== 'string') {
 			return { reason: `"${specifier}" has no declaration: ${types.errors.map(({ message }) => message).join('; ') || 'its types conditional produced nothing'}` };
 		}
-		return { code };
+		return { code, pkg, subpath };
 	}
 
 	#subscribe(types: BaseConditional) {

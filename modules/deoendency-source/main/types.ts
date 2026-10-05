@@ -5,6 +5,7 @@ export /*bundle*/ type DependencySourceType =
 	| IGitDependencySource
 	| IUrlDependencySource
 	| IAliasDependencySource
+	| IWorkspaceDependencySource
 	| IDependencySourceError;
 
 /**
@@ -16,6 +17,7 @@ export /*bundle*/ enum DependencySourceIsType {
 	Url = 'url', // Remote .tgz file (e.g., https://host/pkg.tgz)
 	Alias = 'alias', // Package alias (e.g., npm:lib@^1.0.0)
 	File = 'file', // Local file path (e.g., file:../lib)
+	Workspace = 'workspace', // A member of the workspace (e.g., workspace:^1.0.0, workspace:*, workspace:packages/lib)
 	Error = 'error' // Error state, used for failed parsing
 }
 
@@ -53,6 +55,19 @@ export /*bundle*/ interface IAliasDependencySource {
 	is: DependencySourceIsType.Alias;
 	target: string; // The target package name being aliased (e.g., 'lodash')
 	spec: string; // The version specifier of the target (e.g., '^4.17.0')
+}
+
+/**
+ * A dependency on a member of the workspace, which only a workspace resolves. It either selects among the members
+ * that provide the declared name (`range`) or names one member by its id (`member`), never both.
+ */
+export /*bundle*/ interface IWorkspaceDependencySource {
+	is: DependencySourceIsType.Workspace;
+	// The range a member of the declared name is selected with: `*` for any version (`workspace:*`, `workspace:^`,
+	// `workspace:~` and an empty range)
+	range?: string;
+	// The id of the member it names: the POSIX path of its directory relative to the workspace root
+	member?: string;
 }
 
 export /*bundle*/ interface IDependencySourceError {

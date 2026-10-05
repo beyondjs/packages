@@ -1,0 +1,21 @@
+{
+	"name": "@fixture/widget",
+	"version": "0.5.0",
+	"exports": {
+		"./view": "./view/index.js"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

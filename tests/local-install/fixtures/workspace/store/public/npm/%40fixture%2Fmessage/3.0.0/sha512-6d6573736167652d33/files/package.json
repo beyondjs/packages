@@ -1,0 +1,6 @@
+{
+	"name": "@fixture/message",
+	"version": "3.0.0",
+	"type": "module",
+	"exports": { "./main": "./main/index.js" }
+}

@@ -1,6 +1,7 @@
 import type { DependencySourceType } from './types';
 import { DependencySourceIsType } from './types';
 import { GitInfo } from './git';
+import { WorkspaceInfo } from './workspace';
 import * as semver from 'semver';
 
 /**
@@ -17,6 +18,7 @@ export /*bundle*/ class DependencySource {
 	 * - 'git:github:user/repo#ref'
 	 * - 'url:cdn.example.com/pkg.tgz'
 	 * - the id of the aliased package for an alias ('npm:lodash@^4' is 'semver:lodash')
+	 * - 'workspace:<name>' for a member of the workspace, whichever member the specifier selects
 	 * - undefined for unrecognized specifiers
 	 */
 	get id() {
@@ -102,6 +104,22 @@ export /*bundle*/ class DependencySource {
 		if (spec === void 0 || spec === null) throw new Error('Dependency specificaction cannot be undefined');
 		if (spec === '') spec = '*';
 		this.#spec = spec;
+
+		// Workspace source (e.g., "workspace:^1.0.0", "workspace:*", "workspace:packages/lib"): a member of the
+		// workspace, which only a workspace resolves
+		const workspace = WorkspaceInfo.parse(spec);
+		if (workspace) {
+			const { error, range, member } = workspace;
+			if (error) {
+				this.#data = { is: DependencySourceIsType.Error, error };
+				return;
+			}
+
+			this.#id = `workspace:${pkg}`;
+			const selection = member !== void 0 ? { member } : { range };
+			this.#data = { is: DependencySourceIsType.Workspace, ...selection };
+			return;
+		}
 
 		// Semver source (e.g., "^1.0.0", "~2.3.4")
 		if (semver.valid(spec) || semver.validRange(spec)) {

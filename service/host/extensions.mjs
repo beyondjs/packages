@@ -37,6 +37,16 @@ export class Extensions {
 	}
 
 	/**
+	 * Whether an extension was loaded. Every extension given is loaded or the service does not start, so the
+	 * session lists the ones of the settings.
+	 *
+	 * @param {string} specifier
+	 */
+	has(specifier) {
+		return this.#modules.some(module => module.specifier === specifier);
+	}
+
+	/**
 	 * Imports the extensions, once
 	 */
 	async load() {

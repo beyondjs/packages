@@ -1,0 +1,7 @@
+{
+	"name": "kit",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": { ".": "./index.js" },
+	"dependencies": { "shared": "1.0.0" }
+}

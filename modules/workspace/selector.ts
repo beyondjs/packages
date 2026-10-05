@@ -5,8 +5,9 @@ import { valid } from 'semver';
  *
  * A selector is a public identity, never a file: `@example/app/main` is the `main` module of the package
  * `@example/app`, and `./main` is the same module named from inside that package. An exact version,
- * `@example/app@1.0.0/main`, asserts which version the local package has; it selects nothing else, so
- * ranges have no meaning here.
+ * `@example/app@1.0.0/main`, names the local package of that version: the instance it selects when the
+ * workspace holds several versions of the name, and an assertion when it holds one. Ranges have no meaning
+ * here.
  *
  * | Selector | Package | Subpath |
  * | --- | --- | --- |

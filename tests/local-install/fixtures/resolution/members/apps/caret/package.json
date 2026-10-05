@@ -1,0 +1,9 @@
+{
+	"name": "caret",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"@acme/widgets": "workspace:^",
+		"react": "^19.1.1"
+	}
+}

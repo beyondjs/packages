@@ -1,0 +1,5 @@
+{
+	"name": "outside-root",
+	"private": true,
+	"workspaces": ["app", "../shared", "packages/*"]
+}

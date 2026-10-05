@@ -1,0 +1,5 @@
+{
+	"name": "negation-root",
+	"private": true,
+	"workspaces": ["packages/*", "!packages/excluded", "!packages/legacy-*", "!!extra/again"]
+}

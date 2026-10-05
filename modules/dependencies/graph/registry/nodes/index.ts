@@ -64,7 +64,8 @@ export class Nodes {
 		dependency.nodes.unregister(node);
 
 		// If the package has no more nodes, remove it from the registry
-		if (!dependency.nodes.semver.size && !dependency.nodes.fixed.size) {
+		const { semver, fixed, workspace } = dependency.nodes;
+		if (!semver.size && !fixed.size && !workspace.size) {
 			this.#registry.packages.delete(source.id);
 		}
 	}

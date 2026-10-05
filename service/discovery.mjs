@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -27,6 +28,11 @@ const alive = pid => {
  * whose holder died is taken over.
  */
 export class Discovery {
+	/**
+	 * How long one look at whether something accepts connections at an address is waited for, in milliseconds
+	 */
+	static PROBE = 1000;
+
 	#directory;
 	#key;
 
@@ -127,5 +133,50 @@ export class Discovery {
 		} finally {
 			rmSync(lock, { recursive: true, force: true });
 		}
+	}
+
+	/**
+	 * How the service a record names leaves, looked at every 100 ms within bounds. Only positive evidence ends it:
+	 * nothing accepts connections at its address any more, and its supervisor has exited or removed the record,
+	 * which it does once it stopped what its preparation started. Anything that accepts a connection, whatever it
+	 * would answer, an error included, is a service that is there.
+	 *
+	 * @param {{origin: string, pid: number}} record
+	 * @param {{settle: number, deadline: number}} bounds Milliseconds a service that ends by itself takes to stop
+	 * accepting connections, and that its whole departure may take
+	 * @returns {Promise<'ended' | 'answering' | 'ending'>} `ended`; `answering` when it still accepts connections
+	 * after `settle`; `ending` when it stopped accepting them and its supervisor did not end within `deadline`
+	 */
+	async departure(record, { settle, deadline }) {
+		const started = Date.now();
+		for (;;) {
+			// A record that is read is one whose supervisor is alive: one whose supervisor exited is removed
+			const listening = await Discovery.#listening(record.origin);
+			const recorded = this.read()?.pid === record.pid;
+			if (!listening && !recorded) return 'ended';
+
+			const elapsed = Date.now() - started;
+			if (listening && elapsed >= settle) return 'answering';
+			if (elapsed >= deadline) return 'ending';
+			await sleep(100);
+		}
+	}
+
+	/**
+	 * Whether something accepts connections at an address. A connection that is neither accepted nor refused
+	 * within `Discovery.PROBE` is not evidence that nothing is there.
+	 */
+	static #listening(origin) {
+		const { hostname, port } = new URL(origin);
+		return new Promise(resolve => {
+			const socket = connect({ host: hostname.replace(/^\[|\]$/g, ''), port: Number(port) });
+			const settle = listening => {
+				socket.destroy();
+				resolve(listening);
+			};
+			socket.setTimeout(Discovery.PROBE, () => settle(true));
+			socket.once('connect', () => settle(true));
+			socket.once('error', error => settle(error.code !== 'ECONNREFUSED'));
+		});
 	}
 }

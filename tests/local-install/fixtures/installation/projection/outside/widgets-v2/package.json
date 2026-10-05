@@ -1,0 +1,7 @@
+{
+	"name": "@fixture/widgets",
+	"version": "2.0.0",
+	"peerDependencies": {
+		"react": "^19.0.0"
+	}
+}

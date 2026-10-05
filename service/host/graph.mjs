@@ -19,11 +19,19 @@ export class Graph {
 	}
 
 	/**
+	 * The conditions a graph is checked with when the caller names none: those of a Node consumer
+	 */
+	get conditions() {
+		return this.#conditions;
+	}
+
+	/**
 	 * @param {{name: string, version: string, subpath: string, vspecifier: string}} entry
+	 * @param {{platform: string, environment?: string}} [conditions] What the modules are built for
 	 * @returns {Promise<{modules: string[], failures: {vspecifier: string, code: string, message: string,
 	 * diagnostics?: {code: string, message: string}[]}[]}>}
 	 */
-	async check(entry) {
+	async check(entry, conditions = this.#conditions) {
 		const published = new Map((await this.#delivery.published()).map(module => [module.vspecifier, module]));
 		const visited = new Set();
 		const failures = [];
@@ -40,7 +48,7 @@ export class Graph {
 				continue;
 			}
 
-			const { delivered, failure } = await this.#delivery.module(module, this.#conditions);
+			const { delivered, failure } = await this.#delivery.module(module, conditions);
 			if (failure) {
 				failures.push({ vspecifier, ...failure });
 				continue;

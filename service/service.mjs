@@ -12,8 +12,6 @@ import { Startup } from './startup.mjs';
 
 export { ServiceError };
 
-const SUPERVISOR = fileURLToPath(new URL('./supervisor/main.mjs', import.meta.url));
-
 /**
  * The development service of one workspace, as a command uses it: reuse the one that runs, or start it.
  *
@@ -34,6 +32,27 @@ export class Service {
 	 * each of which reports its own failure first. A deployment that raises those raises this one too.
 	 */
 	static START = 300000;
+
+	/**
+	 * How long a running service that lacks an extension the caller needs, and that ends by itself once nobody
+	 * is attached (`lifetime: 'attachments'`), is given to stop accepting connections before it is taken as in use
+	 * and refused, in milliseconds: the idle time of its host (2 s) and a grace. It is how the service of a command
+	 * that just ended is replaced instead of reported as in use.
+	 */
+	static SETTLE = 5000;
+
+	/**
+	 * How long the whole departure of such a service is waited for before another one is started in its place, in
+	 * milliseconds: its idle time (2 s), the end of its host (6 s at most), the stop of what its preparation started
+	 * (4 s at most) and its last sweep. The new service is started only once the previous supervisor exited or
+	 * removed its record, so the two never prepare the same service directory at once.
+	 */
+	static DEPART = 15000;
+
+	/**
+	 * The supervisor a start launches, a script run by Node
+	 */
+	static SUPERVISOR = fileURLToPath(new URL('./supervisor/main.mjs', import.meta.url));
 
 	static #deadline = new Deadline('BEYOND_START_TIMEOUT', Service.START);
 
@@ -93,16 +112,22 @@ export class Service {
 	 * commas), which is how a person adds the development extension, and with it the preview of the
 	 * workspace, to the service that a command starts.
 	 * @returns {Promise<{connection: Connection, started: boolean, token?: string}>}
+	 * @throws {ServiceError} `SERVICE_EXTENSIONS_MISSING` when the running service lacks an extension this call
+	 * names and is held by its owner, still in use after `Service.SETTLE`, or still ending after `Service.DEPART`:
+	 * it is not reused as if it had the extension, and it is not replaced while it is there
+	 * @throws {ContractError} `UNAVAILABLE` when the running service answers that it cannot describe itself now
 	 */
 	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env) }) {
 		// Whoever waits for the lock waits for as long as the holder's start can last, stop and description
+		// included, and the time the holder gives a service that lacks an extension to leave, its last look
 		// included, so that a slow start is not reported to it as a failed one
 		const env = process.env;
-		const timeout = Service.#deadline.read(env) + Startup.GRACE + 2 * Connection.deadline(env);
+		const timeout = Service.#deadline.read(env) + Startup.GRACE + Service.DEPART + Discovery.PROBE + 3 * Connection.deadline(env);
 
 		return this.#discovery.exclusive(async () => {
 			const found = await this.find();
-			if (found) return { connection: found, started: false };
+			const reused = found && (await this.#reusable(found, extensions));
+			if (reused) return { connection: reused, started: false };
 
 			const token = randomUUID();
 			const record = await this.#start({ lifetime, port, bind, extensions, token });
@@ -130,6 +155,41 @@ export class Service {
 	}
 
 	/**
+	 * The running service, when it has every extension the caller names. The extensions describe a service when
+	 * it starts, so one started without an extension never gains it. A service that ends by itself once nobody is
+	 * attached, such as the one a command that just finished started, is given `Service.SETTLE` to stop accepting
+	 * connections and `Service.DEPART` for its supervisor to end, and a service with the extensions is then
+	 * started under the same lock. One its owner holds, one still in use and one still ending are not replaced:
+	 * the caller is told which extensions are missing and how to have them, instead of receiving a service whose
+	 * routes it expects and does not find.
+	 *
+	 * @param {Connection} connection
+	 * @param {string[]} [requested]
+	 * @returns {Promise<Connection | undefined>} undefined when the service ended and another one is to be started
+	 */
+	async #reusable(connection, requested = []) {
+		const loaded = connection.session.service.extensions ?? [];
+		const missing = requested.filter(specifier => !loaded.includes(specifier));
+		if (!missing.length) return connection;
+
+		// A record gone since it was found is a service that is ending
+		const record = this.#discovery.read();
+		const leaving = record ?? { origin: connection.origin, pid: connection.session.service.pid, lifetime: 'attachments' };
+		const bounds = { settle: Service.SETTLE, deadline: Service.DEPART };
+		const departure = leaving.lifetime === 'attachments' ? await this.#discovery.departure(leaving, bounds) : 'held';
+		if (departure === 'ended') return;
+
+		const names = missing.join(', ');
+		const where = `The development service of "${connection.session.workspace.root}" (${connection.origin})`;
+		const ending = `${where} stopped answering and is still ending: its supervisor (pid ${leaving.pid}) did not end within ${Service.DEPART}ms`;
+		const message = departure === 'ending'
+			? `${ending}. Run this command again once it ended: it then starts the service with ${names}, which this command needs`
+			: `${where} is in use without ${names}, which this command needs, and a running service is reused as it was started. ` +
+				`End the commands and applications that use it, so that it stops, and run this command again: it then starts the service with ${names}`;
+		throw new ServiceError(message, record?.log, 'SERVICE_EXTENSIONS_MISSING');
+	}
+
+	/**
 	 * The extensions the environment names, undefined when it names none
 	 *
 	 * @param {Record<string, string | undefined>} environment
@@ -153,7 +213,7 @@ export class Service {
 		// ends, is reported with it as well
 		const log = join(this.#home.directory('services', this.#discovery.key), 'service.log');
 
-		const child = spawn(process.execPath, [SUPERVISOR], {
+		const child = spawn(process.execPath, [Service.SUPERVISOR], {
 			detached: true,
 			stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
 			env: { ...process.env, NODE_OPTIONS: '', BEYOND_SERVICE_OPTIONS: JSON.stringify(options) }

@@ -1,0 +1,5 @@
+{
+	"name": "scheduler",
+	"version": "0.23.2",
+	"main": "index.js"
+}

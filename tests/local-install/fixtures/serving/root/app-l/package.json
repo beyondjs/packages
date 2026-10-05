@@ -1,0 +1,25 @@
+{
+	"name": "@serving/app-l",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"dependencies": {
+		"d0a": "1.0.0",
+		"d0b": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

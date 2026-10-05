@@ -1,0 +1,1 @@
+A directory that "packages/*" matches and that holds no package.json: npm skips it without a word.

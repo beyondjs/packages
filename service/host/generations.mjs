@@ -28,6 +28,7 @@ export class Generations {
 	#current;
 	#pending;
 	#wanted = false;
+	#reason;
 	#reloads = 0;
 
 	/**
@@ -77,10 +78,29 @@ export class Generations {
 	}
 
 	/**
-	 * Records that the served generation no longer reflects the manifests
+	 * Records that the served generation no longer reflects the manifests, or what else it is created from
+	 *
+	 * @param {string} [reason] Why, for the log of the reload
 	 */
-	invalidate() {
+	invalidate(reason = 'a manifest changed') {
 		this.#wanted = true;
+		this.#reason = reason;
+	}
+
+	/**
+	 * Replaces the served generation with one created after this call, whatever the manifests say: what it is
+	 * created from changed (an installation wrote its projection). A reload in progress, which may have read the
+	 * files before they changed, does not stand for this one whatever its outcome: it is waited for, and then a
+	 * generation is created, unless one that started after this call already replaced it.
+	 *
+	 * @param {string} reason Why, for the log of the reload
+	 * @throws {ContractError} `UNAVAILABLE` (503) when the reload is not ready within the deadline
+	 * @throws {Error} What the reload rejected with
+	 */
+	async reload(reason) {
+		this.invalidate(reason);
+		while (this.#pending) await this.#pending.catch(() => void 0);
+		await this.refresh();
 	}
 
 	/**
@@ -100,7 +120,7 @@ export class Generations {
 
 	async #replace() {
 		this.#wanted = false;
-		this.#log('a manifest changed: reloading the workspace');
+		this.#log(`${this.#reason ?? 'a manifest changed'}: reloading the workspace`);
 
 		const next = this.#create();
 		try {

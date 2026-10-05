@@ -1,0 +1,9 @@
+{
+	"name": "leak",
+	"version": "1.0.0",
+	"private": true,
+	"dependencies": {
+		"leaky": "1.0.0",
+		"react": "^19.1.1"
+	}
+}

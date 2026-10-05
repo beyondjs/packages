@@ -1,0 +1,7 @@
+{
+	"name": "@forms/standalone",
+	"version": "1.0.0",
+	"dependencies": {
+		"scheduler": "^0.26.0"
+	}
+}

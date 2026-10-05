@@ -1,0 +1,23 @@
+{
+	"name": "@lt/app18",
+	"version": "1.0.0",
+	"private": true,
+	"description": "React 18 application: the same @lt/counter-view bound to another React, and @lt/message by workspace protocol",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"dependencies": {
+		"@lt/counter-view": "^1.0.0",
+		"@lt/message": "workspace:*",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"use-store": "^1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

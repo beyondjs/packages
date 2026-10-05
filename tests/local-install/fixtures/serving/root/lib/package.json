@@ -1,0 +1,11 @@
+{
+	"name": "@serving/lib",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": { "modules": ".", "bundler": "ts" },
+	"bundlers": {
+		"ts": { "specifier": "@beyond-js/packages/bundlers/ts", "runtime": "@serving/runtime/bundle" }
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"name": "@lt/drafts",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Excluded by the negated pattern !packages/drafts: its dependency is published nowhere",
+	"exports": {
+		"./draft": "./draft/index.ts"
+	},
+	"dependencies": {
+		"not-published": "^1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

@@ -1,0 +1,787 @@
+{
+	"protocol": "beyond-execution/1",
+	"root": "${ROOT}",
+	"lock": "sha256-fixture-lock",
+	"inputs": {
+		"declaration": "sha256-fixture-declaration",
+		"members": {
+			"message-v1": "sha256-fixture-message-v1",
+			"../outside/message-v2": "sha256-fixture-outside-message-v2",
+			"app-a": "sha256-fixture-app-a",
+			"app-b": "sha256-fixture-app-b",
+			"both": "sha256-fixture-both",
+			"runtime": "sha256-fixture-runtime",
+			"runtime-v2": "sha256-fixture-runtime-v2",
+			"lib": "sha256-fixture-lib",
+			"app-c": "sha256-fixture-app-c",
+			"orphan": "sha256-fixture-orphan",
+			"ui-lib": "sha256-fixture-ui-lib",
+			"app-d": "sha256-fixture-app-d",
+			"app-e": "sha256-fixture-app-e",
+			"app-s": "sha256-fixture-app-s",
+			"peer-lib": "sha256-fixture-peer-lib",
+			"app-m1": "sha256-fixture-app-m1",
+			"app-w": "sha256-fixture-app-w",
+			"app-t": "sha256-fixture-app-t",
+			"app-g": "sha256-fixture-app-g",
+			"app-l": "sha256-fixture-app-l"
+		}
+	},
+	"store": "${STORE}",
+	"members": {
+		"message-v1": {
+			"name": "@serving/message",
+			"version": "1.0.0",
+			"node": "workspace:message-v1",
+			"location": "${ROOT}/message-v1"
+		},
+		"../outside/message-v2": {
+			"name": "@serving/message",
+			"version": "2.0.0",
+			"node": "workspace:../outside/message-v2",
+			"location": "${OUTSIDE}/message-v2"
+		},
+		"app-a": {
+			"name": "@serving/app-a",
+			"version": "1.0.0",
+			"node": "workspace:app-a",
+			"location": "${ROOT}/app-a"
+		},
+		"app-b": {
+			"name": "@serving/app-b",
+			"version": "1.0.0",
+			"node": "workspace:app-b",
+			"location": "${ROOT}/app-b"
+		},
+		"both": {
+			"name": "@serving/both",
+			"version": "1.0.0",
+			"node": "workspace:both",
+			"location": "${ROOT}/both"
+		},
+		"runtime": {
+			"name": "@serving/runtime",
+			"version": "1.0.0",
+			"node": "workspace:runtime",
+			"location": "${ROOT}/runtime"
+		},
+		"runtime-v2": {
+			"name": "@serving/runtime",
+			"version": "2.0.0",
+			"node": "workspace:runtime-v2",
+			"location": "${ROOT}/runtime-v2"
+		},
+		"lib": {
+			"name": "@serving/lib",
+			"version": "1.0.0",
+			"node": "workspace:lib",
+			"location": "${ROOT}/lib"
+		},
+		"app-c": {
+			"name": "@serving/app-c",
+			"version": "1.0.0",
+			"node": "workspace:app-c",
+			"location": "${ROOT}/app-c"
+		},
+		"orphan": {
+			"name": "@serving/orphan",
+			"version": "1.0.0",
+			"node": "workspace:orphan",
+			"location": "${ROOT}/orphan"
+		},
+		"ui-lib": {
+			"name": "@serving/ui-lib",
+			"version": "1.0.0",
+			"node": "workspace:ui-lib",
+			"location": "${ROOT}/ui-lib"
+		},
+		"app-d": {
+			"name": "@serving/app-d",
+			"version": "1.0.0",
+			"node": "workspace:app-d",
+			"location": "${ROOT}/app-d"
+		},
+		"app-e": {
+			"name": "@serving/app-e",
+			"version": "1.0.0",
+			"node": "workspace:app-e",
+			"location": "${ROOT}/app-e"
+		},
+		"app-s": {
+			"name": "@serving/app-s",
+			"version": "1.0.0",
+			"node": "workspace:app-s",
+			"location": "${ROOT}/app-s"
+		},
+		"peer-lib": {
+			"name": "@serving/peer-lib",
+			"version": "1.0.0",
+			"node": "workspace:peer-lib",
+			"location": "${ROOT}/peer-lib"
+		},
+		"app-m1": {
+			"name": "@serving/app-m1",
+			"version": "1.0.0",
+			"node": "workspace:app-m1",
+			"location": "${ROOT}/app-m1"
+		},
+		"app-w": {
+			"name": "@serving/app-w",
+			"version": "1.0.0",
+			"node": "workspace:app-w",
+			"location": "${ROOT}/app-w"
+		},
+		"app-t": {
+			"name": "@serving/app-t",
+			"version": "1.0.0",
+			"node": "workspace:app-t",
+			"location": "${ROOT}/app-t"
+		},
+		"app-g": {
+			"name": "@serving/app-g",
+			"version": "1.0.0",
+			"node": "workspace:app-g",
+			"location": "${ROOT}/app-g"
+		},
+		"app-l": {
+			"name": "@serving/app-l",
+			"version": "1.0.0",
+			"node": "workspace:app-l",
+			"location": "${ROOT}/app-l"
+		}
+	},
+	"nodes": {
+		"workspace:message-v1": {
+			"name": "@serving/message",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "message-v1",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/message-v1"
+		},
+		"workspace:../outside/message-v2": {
+			"name": "@serving/message",
+			"version": "2.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "../outside/message-v2",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${OUTSIDE}/message-v2"
+		},
+		"workspace:app-a": {
+			"name": "@serving/app-a",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-a",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-a"
+		},
+		"workspace:app-b": {
+			"name": "@serving/app-b",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-b",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-b"
+		},
+		"workspace:both": {
+			"name": "@serving/both",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "both",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/both"
+		},
+		"npm:react@18.3.1": {
+			"name": "react",
+			"version": "18.3.1",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-72656163742d3138",
+			"tarball": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+			"location": "${STORE}/public/npm/react/18.3.1/sha512-72656163742d3138/files"
+		},
+		"npm:react@19.1.0": {
+			"name": "react",
+			"version": "19.1.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-72656163742d3139",
+			"tarball": "https://registry.npmjs.org/react/-/react-19.1.0.tgz",
+			"location": "${STORE}/public/npm/react/19.1.0/sha512-72656163742d3139/files"
+		},
+		"npm:shared@1.0.0": {
+			"name": "shared",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-7368617265642d31",
+			"tarball": "https://registry.npmjs.org/shared/-/shared-1.0.0.tgz",
+			"location": "${STORE}/public/npm/shared/1.0.0/sha512-7368617265642d31/files"
+		},
+		"npm:loose@1.0.0": {
+			"name": "loose",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6c6f6f73652d31",
+			"tarball": "https://registry.npmjs.org/loose/-/loose-1.0.0.tgz",
+			"location": "${STORE}/public/npm/loose/1.0.0/sha512-6c6f6f73652d31/files"
+		},
+		"registry-packages-example-test-npm-1dd7cc74a2fab1c6ac05b563a9260766:toolkit@2.0.0": {
+			"name": "toolkit",
+			"version": "2.0.0",
+			"origin": {
+				"provider": "registry-packages-example-test-npm-1dd7cc74a2fab1c6ac05b563a9260766",
+				"registry": "https://packages.example.test/npm/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-746f6f6c6b69742d32",
+			"tarball": "https://packages.example.test/npm/toolkit/-/toolkit-2.0.0.tgz",
+			"location": "${STORE}/public/registry-packages-example-test-npm-1dd7cc74a2fab1c6ac05b563a9260766/toolkit/2.0.0/sha512-746f6f6c6b69742d32/files"
+		},
+		"git:github.com/example/tool@0123456789abcdef0123456789abcdef01234567": {
+			"name": "tool",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "git-github-com-example-tool-e5122a7566b437f3435cf2cbf0e3653e",
+				"registry": "https://github.com/example/tool/"
+			},
+			"visibility": "public",
+			"integrity": null,
+			"tarball": "https://codeload.github.com/example/tool/tar.gz/0123456789abcdef0123456789abcdef01234567",
+			"location": "${STORE}/git/github.com/example/tool/0123456789abcdef0123456789abcdef01234567/files"
+		},
+		"npm:kit@1.0.0": {
+			"name": "kit",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6b69742d31",
+			"tarball": "https://registry.npmjs.org/kit/-/kit-1.0.0.tgz",
+			"location": "${STORE}/public/npm/kit/1.0.0/sha512-6b69742d31/files"
+		},
+		"npm:ping@1.0.0": {
+			"name": "ping",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-70696e672d31",
+			"tarball": "https://registry.npmjs.org/ping/-/ping-1.0.0.tgz",
+			"location": "${STORE}/public/npm/ping/1.0.0/sha512-70696e672d31/files"
+		},
+		"npm:pong@1.0.0": {
+			"name": "pong",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-706f6e672d31",
+			"tarball": "https://registry.npmjs.org/pong/-/pong-1.0.0.tgz",
+			"location": "${STORE}/public/npm/pong/1.0.0/sha512-706f6e672d31/files"
+		},
+		"workspace:runtime": {
+			"name": "@serving/runtime",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "runtime",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/runtime"
+		},
+		"workspace:runtime-v2": {
+			"name": "@serving/runtime",
+			"version": "2.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "runtime-v2",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/runtime-v2"
+		},
+		"workspace:lib": {
+			"name": "@serving/lib",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "lib",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/lib"
+		},
+		"workspace:app-c": {
+			"name": "@serving/app-c",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-c",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-c"
+		},
+		"workspace:orphan": {
+			"name": "@serving/orphan",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "orphan",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/orphan"
+		},
+		"workspace:ui-lib": {
+			"name": "@serving/ui-lib",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "ui-lib",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/ui-lib"
+		},
+		"workspace:app-d": {
+			"name": "@serving/app-d",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-d",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-d"
+		},
+		"workspace:app-e": {
+			"name": "@serving/app-e",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-e",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-e"
+		},
+		"workspace:app-s": {
+			"name": "@serving/app-s",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-s",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-s"
+		},
+		"workspace:peer-lib": {
+			"name": "@serving/peer-lib",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "peer-lib",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/peer-lib"
+		},
+		"workspace:app-m1": {
+			"name": "@serving/app-m1",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-m1",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-m1"
+		},
+		"workspace:app-w": {
+			"name": "@serving/app-w",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-w",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-w"
+		},
+		"workspace:app-t": {
+			"name": "@serving/app-t",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-t",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-t"
+		},
+		"workspace:app-g": {
+			"name": "@serving/app-g",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-g",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-g"
+		},
+		"workspace:app-l": {
+			"name": "@serving/app-l",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "app-l",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null,
+			"location": "${ROOT}/app-l"
+		},
+		"npm:selfy@1.0.0": {
+			"name": "selfy",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-73656c6679",
+			"tarball": "https://registry.npmjs.org/selfy/-/selfy-1.0.0.tgz",
+			"location": "${STORE}/public/npm/selfy/1.0.0/sha512-73656c6679/files"
+		},
+		"npm:deppy@1.0.0": {
+			"name": "deppy",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6465707079",
+			"tarball": "https://registry.npmjs.org/deppy/-/deppy-1.0.0.tgz",
+			"location": "${STORE}/public/npm/deppy/1.0.0/sha512-6465707079/files"
+		},
+		"npm:broken@1.0.0": {
+			"name": "broken",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-62726f6b656e",
+			"tarball": "https://registry.npmjs.org/broken/-/broken-1.0.0.tgz",
+			"location": "${STORE}/public/npm/broken/1.0.0/sha512-62726f6b656e/files"
+		},
+		"npm:kit-css@1.0.0": {
+			"name": "kit-css",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-6b69742d637373",
+			"tarball": "https://registry.npmjs.org/kit-css/-/kit-css-1.0.0.tgz",
+			"location": "${STORE}/public/npm/kit-css/1.0.0/sha512-6b69742d637373/files"
+		},
+		"npm:gone@1.0.0": {
+			"name": "gone",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-676f6e65",
+			"tarball": "https://registry.npmjs.org/gone/-/gone-1.0.0.tgz",
+			"location": "${STORE}/public/npm/gone/1.0.0/sha512-676f6e65/files"
+		}
+	},
+	"edges": [
+		{
+			"from": "workspace:app-a",
+			"to": "workspace:message-v1",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:app-a",
+			"to": "npm:loose@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-a",
+			"to": "npm:react@18.3.1",
+			"kind": "dependency",
+			"range": "18.3.1"
+		},
+		{
+			"from": "workspace:app-a",
+			"to": "npm:shared@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "workspace:../outside/message-v2",
+			"kind": "dependency",
+			"range": "^2.0.0"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "npm:react@19.1.0",
+			"kind": "dependency",
+			"range": "19.1.0"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "npm:shared@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-g",
+			"to": "git:github.com/example/tool@0123456789abcdef0123456789abcdef01234567",
+			"kind": "dependency",
+			"range": "github:example/tool#0123456789abcdef0123456789abcdef01234567"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "registry-packages-example-test-npm-1dd7cc74a2fab1c6ac05b563a9260766:toolkit@2.0.0",
+			"kind": "dependency",
+			"range": "2.0.0"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "npm:kit@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-b",
+			"to": "npm:ping@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:both",
+			"to": "workspace:app-a",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:both",
+			"to": "workspace:app-b",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "npm:shared@1.0.0",
+			"to": "npm:react@18.3.1",
+			"kind": "peer",
+			"range": ">=18",
+			"context": "workspace:app-a"
+		},
+		{
+			"from": "npm:shared@1.0.0",
+			"to": "npm:react@19.1.0",
+			"kind": "peer",
+			"range": ">=18",
+			"context": "workspace:app-b"
+		},
+		{
+			"from": "npm:kit@1.0.0",
+			"to": "npm:shared@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "npm:ping@1.0.0",
+			"to": "npm:pong@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "npm:pong@1.0.0",
+			"to": "npm:ping@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-c",
+			"to": "workspace:lib",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-c",
+			"to": "workspace:runtime",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-d",
+			"to": "workspace:ui-lib",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-d",
+			"to": "npm:react@18.3.1",
+			"kind": "dependency",
+			"range": "18.3.1"
+		},
+		{
+			"from": "workspace:app-e",
+			"to": "workspace:ui-lib",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-e",
+			"to": "npm:react@19.1.0",
+			"kind": "dependency",
+			"range": "19.1.0"
+		},
+		{
+			"from": "workspace:ui-lib",
+			"to": "npm:react@19.1.0",
+			"kind": "peer",
+			"range": "^18.0.0 || ^19.0.0"
+		},
+		{
+			"from": "workspace:ui-lib",
+			"to": "npm:react@18.3.1",
+			"kind": "peer",
+			"range": "^18.0.0 || ^19.0.0",
+			"context": "workspace:app-d"
+		},
+		{
+			"from": "workspace:ui-lib",
+			"to": "npm:react@19.1.0",
+			"kind": "peer",
+			"range": "^18.0.0 || ^19.0.0",
+			"context": "workspace:app-e"
+		},
+		{
+			"from": "workspace:app-s",
+			"to": "npm:selfy@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "npm:selfy@1.0.0",
+			"to": "npm:deppy@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-m1",
+			"to": "workspace:message-v1",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:app-m1",
+			"to": "workspace:peer-lib",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:peer-lib",
+			"to": "workspace:../outside/message-v2",
+			"kind": "peer",
+			"range": "*"
+		},
+		{
+			"from": "workspace:peer-lib",
+			"to": "workspace:message-v1",
+			"kind": "peer",
+			"range": "*",
+			"context": "workspace:app-m1"
+		},
+		{
+			"from": "workspace:app-w",
+			"to": "npm:broken@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-w",
+			"to": "npm:gone@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		},
+		{
+			"from": "workspace:app-t",
+			"to": "npm:kit-css@1.0.0",
+			"kind": "dependency",
+			"range": "1.0.0"
+		}
+	],
+	"written": "2026-10-05T12:00:00.000Z"
+}

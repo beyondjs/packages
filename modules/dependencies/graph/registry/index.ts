@@ -62,7 +62,9 @@ export /*bundle*/ class Registry {
 	}
 
 	/**
-	 * Ends a pass: groups the requirements of every package and selects their versions.
+	 * Ends a pass: groups the requirements of every package and selects their versions. The members of a workspace
+	 * are selected when they are registered and never change within a resolution: only the peer requirements they
+	 * provide are concluded here.
 	 *
 	 * @returns The selection of this pass, and whether it confirms the versions the pass was walked with
 	 */
@@ -73,6 +75,7 @@ export /*bundle*/ class Registry {
 		for (const id of [...this.#packages.keys()].sort()) {
 			const dependency = this.#packages.get(id);
 			settled = dependency.nodes.semver.regroup(selection) && settled;
+			dependency.nodes.workspace.conclude();
 		}
 		return { selection, settled };
 	}

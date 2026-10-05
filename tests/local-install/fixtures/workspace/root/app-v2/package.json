@@ -1,0 +1,17 @@
+{
+	"name": "@fixture/app-v2",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./typed": "./typed/index.ts",
+		"./mismatch": "./mismatch/index.ts"
+	},
+	"dependencies": {
+		"@fixture/message": "^2.0.0",
+		"greeting": "2.0.0",
+		"kit": "1.0.0",
+		"message-three": "npm:@fixture/message@3.0.0"
+	},
+	"beyond": { "bundler": "ts" },
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" }
+}

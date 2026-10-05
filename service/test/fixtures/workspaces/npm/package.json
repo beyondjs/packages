@@ -1,0 +1,12 @@
+{
+	"name": "npm-root",
+	"private": true,
+	"description": "An npm workspace whose members are matched by patterns",
+	"workspaces": ["packages/*", "apps/web"],
+	"dependencies": {
+		"left": "^1.0.0"
+	},
+	"overrides": {
+		"left": "1.0.1"
+	}
+}

@@ -1,0 +1,236 @@
+{
+  "digest": "sha256-0ac7540da61d00f3d466dd0cc735285b032778c1c81aa8b427c82940435cc2ae",
+  "edges": [
+    {
+      "context": "workspace:app",
+      "from": "npm:react-dom@19.1.1",
+      "kind": "peer",
+      "range": "^19.1.1",
+      "to": "npm:react@19.1.1"
+    },
+    {
+      "context": "workspace:app",
+      "from": "npm:some-ui@1.0.0",
+      "kind": "peer",
+      "range": ">=18",
+      "to": "npm:react@19.1.1"
+    },
+    {
+      "context": "workspace:legacy",
+      "from": "npm:some-ui@1.0.0",
+      "kind": "peer",
+      "range": ">=18",
+      "to": "npm:react@18.3.1"
+    },
+    {
+      "from": "npm:react-dom@19.1.1",
+      "kind": "dependency",
+      "range": "^0.26.0",
+      "to": "npm:scheduler@0.26.0"
+    },
+    {
+      "from": "workspace:../outside/widgets-v2",
+      "kind": "peer",
+      "range": "^19.0.0",
+      "to": "npm:react@19.1.1"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "dependency",
+      "name": "react-legacy",
+      "range": "npm:react@18.3.1",
+      "to": "npm:react@18.3.1"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "dependency",
+      "range": "^1.0.0",
+      "to": "npm:some-ui@1.0.0"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "dependency",
+      "range": "^19.0.0",
+      "to": "npm:react-dom@19.1.1"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "dependency",
+      "range": "^19.0.0",
+      "to": "npm:react@19.1.1"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "dependency",
+      "range": "^2.0.0",
+      "to": "workspace:../outside/widgets-v2"
+    },
+    {
+      "from": "workspace:app",
+      "kind": "optional",
+      "name": "fsevents",
+      "range": "^2.3.0",
+      "skipped": "PACKAGE_NOT_FOUND: The package \"fsevents\" was not found",
+      "to": null
+    },
+    {
+      "from": "workspace:legacy",
+      "kind": "dependency",
+      "range": "^1.0.0",
+      "to": "npm:some-ui@1.0.0"
+    },
+    {
+      "from": "workspace:legacy",
+      "kind": "dependency",
+      "range": "^1.0.0",
+      "to": "workspace:widgets-v1"
+    },
+    {
+      "from": "workspace:legacy",
+      "kind": "dependency",
+      "range": "^18.3.0",
+      "to": "npm:react@18.3.1"
+    },
+    {
+      "from": "workspace:widgets-v1",
+      "kind": "peer",
+      "range": "^18.0.0",
+      "to": "npm:react@18.3.1"
+    }
+  ],
+  "exceptions": [],
+  "inputs": {
+    "declaration": "sha256-d6aa95b1a909dd774a216dede64b383e9a01b6e7db839026bf95be551162f4b3",
+    "members": {
+      "../outside/widgets-v2": "sha256-b893ef63bcad54e5316e349656c919ba9ef862eb54ca643082383f44f71787f9",
+      "app": "sha256-4dc6d9ec9ba5d4b9386ce3e02f6d7b3023d50639e48d04ea17e0a809107c839d",
+      "legacy": "sha256-3aa6ad12447b17b675ba0d2f346194aacd19e79614e76d757455f4cd61ab757b",
+      "widgets-v1": "sha256-8c05b0fe514b06d8a3ab6e035600142fa5ca495c20a0323ca9d3a3e81dcd94d3"
+    }
+  },
+  "members": {
+    "../outside/widgets-v2": {
+      "name": "@fixture/widgets",
+      "node": "workspace:../outside/widgets-v2",
+      "version": "2.0.0"
+    },
+    "app": {
+      "name": "@fixture/app",
+      "node": "workspace:app",
+      "version": "1.0.0"
+    },
+    "legacy": {
+      "name": "@fixture/legacy",
+      "node": "workspace:legacy",
+      "version": "1.0.0"
+    },
+    "widgets-v1": {
+      "name": "@fixture/widgets",
+      "node": "workspace:widgets-v1",
+      "version": "1.0.0"
+    }
+  },
+  "nodes": {
+    "npm:react-dom@19.1.1": {
+      "integrity": "sha512-etHqWRG0tZD+K7Q9PhyHntvdzxoG+k0K0nJHatunmWxM8uNjiNjtMy770VTzxM8hVjeOiUvFGaPdkAoKbFJWQg==",
+      "name": "react-dom",
+      "origin": {
+        "provider": "npm",
+        "registry": "https://registry.npmjs.org/"
+      },
+      "tarball": "https://registry.npmjs.org/react-dom/-/react-dom-19.1.1.tgz",
+      "version": "19.1.1",
+      "visibility": "public"
+    },
+    "npm:react@18.3.1": {
+      "integrity": "sha512-ixLYTR2n+gmMNJXVxytNlw1tDn0XZkB3839TZTtv0EPlpwWMDND9vX5QQ8VJcfRXbURbuna07vW8Ap05zbidNg==",
+      "name": "react",
+      "origin": {
+        "provider": "npm",
+        "registry": "https://registry.npmjs.org/"
+      },
+      "tarball": "https://registry.npmjs.org/react/-/react-18.3.1.tgz",
+      "version": "18.3.1",
+      "visibility": "public"
+    },
+    "npm:react@19.1.1": {
+      "integrity": "sha512-5WL94E3sR8ZtFMyUQrMXgj95yQJkGryBxsXKnB+nxBP6WFkPiWYc5t6XcAueYSbq/Z0OcV0vpiG/0zZqs+tVoQ==",
+      "name": "react",
+      "origin": {
+        "provider": "npm",
+        "registry": "https://registry.npmjs.org/"
+      },
+      "tarball": "https://registry.npmjs.org/react/-/react-19.1.1.tgz",
+      "version": "19.1.1",
+      "visibility": "public"
+    },
+    "npm:scheduler@0.26.0": {
+      "integrity": "sha512-+336Jg6dNna2KxX4su1Z4aJWjgfDyihlIf8ySo8YqpyytcOofloLl0AmsHYvAiZVh9pTHLLtBnm7Vfeg7AjWrA==",
+      "name": "scheduler",
+      "origin": {
+        "provider": "npm",
+        "registry": "https://registry.npmjs.org/"
+      },
+      "tarball": "https://registry.npmjs.org/scheduler/-/scheduler-0.26.0.tgz",
+      "version": "0.26.0",
+      "visibility": "public"
+    },
+    "npm:some-ui@1.0.0": {
+      "integrity": "sha512-ku6D/AfEdvrumyPJZM+sQ6mJgMi4tDDaizAwVb00Byt9oCsq0xLrBBBHl9UyVcHXXyrj/AksdjvvKHgmWIob4A==",
+      "name": "some-ui",
+      "origin": {
+        "provider": "npm",
+        "registry": "https://registry.npmjs.org/"
+      },
+      "tarball": "https://registry.npmjs.org/some-ui/-/some-ui-1.0.0.tgz",
+      "version": "1.0.0",
+      "visibility": "public"
+    },
+    "workspace:../outside/widgets-v2": {
+      "integrity": null,
+      "member": "../outside/widgets-v2",
+      "name": "@fixture/widgets",
+      "origin": {
+        "provider": "workspace"
+      },
+      "tarball": null,
+      "version": "2.0.0",
+      "visibility": "public"
+    },
+    "workspace:app": {
+      "integrity": null,
+      "member": "app",
+      "name": "@fixture/app",
+      "origin": {
+        "provider": "workspace"
+      },
+      "tarball": null,
+      "version": "1.0.0",
+      "visibility": "public"
+    },
+    "workspace:legacy": {
+      "integrity": null,
+      "member": "legacy",
+      "name": "@fixture/legacy",
+      "origin": {
+        "provider": "workspace"
+      },
+      "tarball": null,
+      "version": "1.0.0",
+      "visibility": "public"
+    },
+    "workspace:widgets-v1": {
+      "integrity": null,
+      "member": "widgets-v1",
+      "name": "@fixture/widgets",
+      "origin": {
+        "provider": "workspace"
+      },
+      "tarball": null,
+      "version": "1.0.0",
+      "visibility": "public"
+    }
+  },
+  "overrides": [],
+  "protocol": "beyond-lock/2"
+}

@@ -1,0 +1,12 @@
+{
+	"name": "@fixture/workspace",
+	"version": "1.0.0",
+	"private": true,
+	"workspaces": ["app-v1", "app-v2", "app-v3", "app-pinned", "wrap", "message-v1", "unlisted"],
+	"overrides": {
+		"@fixture/app-pinned": { "@fixture/message": "2.0.0" }
+	},
+	"beyond": {
+		"workspaces": [{ "path": "../outside/message-v2", "version": "2.0.0" }]
+	}
+}

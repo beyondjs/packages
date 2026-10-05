@@ -1,4 +1,4 @@
-import type { DependencyKind } from '@beyond-js/packages/dependencies/spec';
+import type { IDependencySpec } from '@beyond-js/packages/dependencies/spec';
 import { type OverridesType, Overrides } from './overrides';
 import { Lock } from './lock';
 
@@ -16,7 +16,8 @@ export /*bundle*/ interface IGraphOptions {
 	overrides?: OverridesType;
 	// Releases pinned by a previous resolution (see `Lock` for the accepted forms)
 	lock?: any;
-	// Include the development dependencies of the root, as build dependencies. Default false
+	// Include the development dependencies of the top (the root, or the importers of a workspace), as build
+	// dependencies. Default false
 	development?: boolean;
 	// Resolution passes allowed before the graph is declared unsettled. Default 25
 	passes?: number;
@@ -60,13 +61,23 @@ export class Policy {
 	}
 
 	/**
-	 * Whether a dependency is part of the graph.
+	 * The declaration a dependent follows for one name, or undefined when the name is not part of the graph.
 	 *
-	 * Development dependencies never are below the root: they build or test a package, they are not what
-	 * its consumers execute. Those of the root are followed only on request, as build dependencies.
+	 * The top is the root of the graph, or an importer of a workspace: a package whose own dependencies are
+	 * installed for it, not for a consumer.
+	 *
+	 * - Development dependencies are never followed below the top: they build or test a package, they are not
+	 *   what its consumers execute. Those of the top are followed only on request, as build dependencies, and
+	 *   there a development declaration wins over another group of the same name, as package managers install
+	 *   the top of a project.
+	 * - An optional peer of the top is not followed: nothing above the top provides it.
 	 */
-	follows(kind: DependencyKind, root: boolean): boolean {
-		if (kind !== 'development') return true;
-		return root && this.#development;
+	declaration(entry: IDependencySpec, top: boolean): IDependencySpec | undefined {
+		const development = top && this.#development;
+		if (development && entry.development !== void 0) return { version: entry.development, kind: 'development' };
+
+		if (entry.kind === 'development') return development ? entry : void 0;
+		if (top && entry.kind === 'peer' && entry.optional) return;
+		return entry;
 	}
 }

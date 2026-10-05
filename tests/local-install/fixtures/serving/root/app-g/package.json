@@ -1,0 +1,24 @@
+{
+	"name": "@serving/app-g",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"dependencies": {
+		"tool": "github:example/tool#0123456789abcdef0123456789abcdef01234567"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

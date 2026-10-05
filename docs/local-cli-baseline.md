@@ -39,9 +39,9 @@ Every form leads to the same public module. The manifests below are complete: no
 
 ## Selectors
 
-`Selector` and `Selection` (public, in `@beyond-js/packages/workspace`) turn what a user typed into a declared public module. `@scope/name[@version][/subpath]` names a package; `.` and `./subpath` name a module of the package that contains a directory. A version is exact and must equal the version of the workspace package (`VERSION_MISMATCH`); ranges and tags are `SELECTOR_VERSION_UNSUPPORTED`. Paths, including `../x` and absolute ones, are `SELECTOR_INVALID`. A local selector without a containing package is `SELECTOR_PACKAGE_REQUIRED`: a coincidentally unique module name is never searched for. Two workspace packages with one name are `PACKAGE_DUPLICATED`, with both locations. A missing module lists what the package declares and why a declared module could not be resolved.
+`Selector` and `Selection` (public, in `@beyond-js/packages/workspace`) turn what a user typed into a declared public module. `@scope/name[@version][/subpath]` names a package; `.` and `./subpath` name a module of the package that contains a directory. A version is exact and names the workspace package of that version: the instance it selects when the workspace holds several versions of the name, and an assertion when it holds one (`VERSION_MISMATCH` when no package has it); ranges and tags are `SELECTOR_VERSION_UNSUPPORTED`. Paths, including `../x` and absolute ones, are `SELECTOR_INVALID`. A local selector without a containing package is `SELECTOR_PACKAGE_REQUIRED`: a coincidentally unique module name is never searched for. Several versions of one name are instances: a selector that names such a package without its version is `PACKAGE_AMBIGUOUS`, which lists them, and one name and version at two directories is `PACKAGE_DUPLICATED`, with both locations. A missing module lists what the package declares and why a declared module could not be resolved.
 
-`new Workspace(path, { packages: ['.'] })` takes its packages from the caller instead of a `beyond.json`, which is how a standalone package is a workspace of one without a file being written into it. Paths given to `Workspace` are absolute.
+`new Workspace(path, { packages: ['.'] })` takes its packages from the caller instead of a `beyond.json`, which is how a standalone package is a workspace of one without a file being written into it. `new Workspace(path, { members })` takes the members a workspace declaration lists, each `{ id, path }` held under its id at its absolute directory, inside the workspace or not, and replaces both; with `execution`, the projection of an installed graph, each importer reaches what its own edges select ([local installation](local-installation.md)). Paths given to `Workspace` are absolute.
 
 ## Delivery
 
@@ -56,7 +56,7 @@ Every form leads to the same public module. The manifests below are complete: no
 
 ## Authoring note for this implementation
 
-Engine classifies a dependency of a bundle by the first import statement that names the specifier. A type-only import followed by a value import of the same specifier drops the runtime dependency, and the bundle fails with "is not registered as a dependency". Use one statement: `import { Selection, type Workspace } from '@beyond-js/packages/workspace'`.
+Engine classifies a dependency of a bundle by the first import statement that names the specifier, and a running Engine recomputes that classification only when the set of specifiers the bundle imports changes. A specifier first imported for its types only, in any file of the bundle, keeps the runtime dependency out after a value import of it is added, and the bundle fails with "is not registered as a dependency" until the set of specifiers changes or Engine starts again. Use one statement per specifier: `import { Selection, type Workspace } from '@beyond-js/packages/workspace'`.
 
 ## Limits
 

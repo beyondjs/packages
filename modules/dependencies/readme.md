@@ -17,7 +17,11 @@ The `spec` component is a class that transforms the dependencies of the `package
 `devDependencies`, and `peerDependencies`) into a Map. Each key in the Map is a package name, and the corresponding
 value is an object with `.version` (the value specified in the `package.json`), `.kind` ('main', 'development', 'peer'
 or 'optional') and `.optional` for a peer that `peerDependenciesMeta` marks as optional. A name declared in several
-groups keeps the kind with the highest precedence: optional, main, peer, development.
+groups keeps the kind with the highest precedence: optional, main, peer, development. A `devDependencies` range that
+another group outranks is kept as `.development`: the top of a project (the root of a graph, or an importer of a
+workspace) whose development dependencies are followed takes it instead, as package managers install the top of a
+project. An entry keyed by something else than its name carries the name as `.package` (the importers of a workspace
+are keyed by their node key, `workspace:<id>`).
 
 ## Printer
 
