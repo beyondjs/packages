@@ -31,6 +31,8 @@ export class Workspace {
 	}
 
 	#projects = new Map();
+	/** The ports this start took, given back when it stops */
+	#ports = [];
 
 	/**
 	 * The staged projects by name, each with its origin, its specifier and its version
@@ -60,11 +62,13 @@ export class Workspace {
 
 		const registered = [];
 		for (const { name, component } of projects) {
+			const port = await Ports.free();
+			this.#ports.push(port);
 			const project = new Project({
 				name,
 				component,
 				directory: join(this.#directory, name),
-				port: await Ports.free()
+				port
 			});
 			this.#projects.set(name, project);
 			registered.push(project.stage());
@@ -123,6 +127,7 @@ export class Workspace {
 
 	async stop() {
 		await this.#group?.stop();
+		for (const port of this.#ports.splice(0)) Ports.release(port);
 		this.#group = undefined;
 	}
 }

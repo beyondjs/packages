@@ -57,5 +57,6 @@ An installation therefore carries the selected sources and depends on no checkou
 ## Limits
 
 - Engine listens on all interfaces, on ports chosen when the service starts.
+- `BEYOND_BOOTSTRAP_PORTS` (`<first>-<last>`) confines those ports to a range, for a machine whose packet filter admits only declared loopback ports (Conduict runs the service as its agent with `31800-31999`); with no free port in it the start fails instead of taking another.
 - Validated on macOS. Process groups are POSIX; Windows was not exercised.
 - `@beyond-js/packages-bootstrap` is a provisional name whose availability in a registry has not been checked.
