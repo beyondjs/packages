@@ -10,15 +10,15 @@ Inspector is no longer an independent product component. Integrate required insp
 
 ## Consumers and authority
 
-Standalone CLI can run Packages against a local directory without Docker or Workspace UI. Workspace is a separate product owning frontend and a central administration API for users/teams/roles/permissions, project/resource catalog, Docker creation/start/placement/recovery and scoped access grants. That authority never belongs inside each project container.
+Standalone CLI can run Core against a local directory without Docker or a product UI. Packages UI inspects and controls Core, with no backend of its own. Conduict owns machines, repository copies and its supervisor; Accounts owns people and sign-in, Projects owns common project authorization and Packages enablement. Conduict runs the same service per authorized copy through `files/2`, `development/1` and `archive/1`; see [portable connections](portable.md) for standalone pairing and [the service](service.md) for its lifecycle.
 
-Workspace project Docker installs Packages and pinned tools in local and cloud modes. Both modes use the same capability/API contract via infrastructure adapters. Packages validates delegated project/root/operation authorization and selected expiry/revocation rules without a parallel roles database. Grant format, transport and precise schemas need fixtures; Docker alone does not prove untrusted-code isolation.
+Workspace 2026 remains a running migration source with its existing central administration and environment rules until coordinated transition. Its legacy environment grants do not define the target product architecture. Packages validates delegated root/operation authorization, expiry and revocation without a parallel roles database. Docker alone does not prove untrusted-code isolation.
 
 CDN consumes the same packaging/artifact capabilities under immutable release/delivery policy. Do not make CDN production depend on a mutable working tree or live development environment. Template source/guidance/config may record compatibility but never copy this server or central administration implementation.
 
 ## Local storage
 
-Saved project files, manifests and uncommitted work remain on the local filesystem: Workspace mounts a durable project volume in Docker, while standalone CLI uses a local directory without requiring Docker. Workspace central administration owns its separate product catalog and PostgreSQL migration.
+Saved files, manifests and uncommitted work remain in the selected working copy: Conduict owns its copy storage and recovery, while standalone CLI uses a local directory without requiring Docker. Packages UI has no product database. The former Workspace retains its own catalog and storage during migration.
 
 In the traced service path, Packages graphs, file/event indexes and delivery output live in memory and rebuild locally; explicit artifact builds write their configured output. A local installation keeps durable state of its own: the committed lock (`beyond-lock.json`) and the machine-local execution projection (`.beyond/execution.json`) in the working copy, and the source store and metadata cache, shared by every workspace of the user, in the user's cache directory ([local installation](local-installation.md#store-metadata-and-settings)). SQLite is permitted for local development cache, but the optional persistence source was not proved initialized by the current service/bootstrap/Workspace/Delivery path. Project files and development caches remain local rather than becoming Supabase data. Preserve this storage model in local and cloud Workspace environments.
 
@@ -26,16 +26,16 @@ In the traced service path, Packages graphs, file/event indexes and delivery out
 
 Define source revisions, expected-write checks, external-write race handling and multi-file visibility. API-only locks do not serialize tools writing directly to disk. Create/change/delete/rename must reconcile trees and existing Packages invalidation, not a second graph. Realtime is primary; polling/manual refresh must inspect authoritative state when watcher events are missed. Replay valid cursors or snapshot/rescan after gaps/restart; no lossless watcher guarantee.
 
-Report file persistence, build completion/errors and preview/HMR state separately against identified inputs. Reject obsolete build results as current. Preserve unsaved editor buffers through explicit compare/conflicts on agent changes, deletion/rename and reconnect. Central environment orchestration must persist uncommitted/unpushed work and buffers beyond containers under explicit recovery policies; Packages exposes the required revision/state contract.
+Report file persistence, build completion/errors and preview/HMR state separately against identified inputs. Reject obsolete build results as current. Preserve unsaved editor buffers through explicit compare/conflicts on agent changes, deletion/rename and reconnect. The host of a working copy must persist uncommitted/unpushed work and buffers beyond containers under explicit recovery policies; Packages exposes the required revision/state contract.
 
-Saved, committed and pushed differ. GitHub restores pushed history only; it does not persist agent state, conversations or buffers automatically. Workspace supports user and Beyond-managed repositories plus later transfer preserving history/work. Exact credentials, branches, ownership/transfer and automatic commit/push policy remain open; this guide does not authorize repository creation or Git mutations.
+Saved, committed and pushed differ. GitHub restores pushed history only; it does not persist agent state, conversations or buffers automatically. Conduict owns repository copies and their history; Workspace's existing repositories and work require preservation through migration. Exact credentials, branches, ownership/transfer and automatic commit/push policy remain open; this guide does not authorize repository creation or Git mutations.
 
 ## Acceptance and implementation boundaries
 
 - Reproduce current packaging baseline before claiming repairs; validate actual public API/schema paths, artifact provenance and ready/error/stop outside fixed checkouts.
 - Exercise read/list/tree/create/edit/rename/delete via API and direct agent/tools, same-file conflicts, dirty-buffer handling, build failure/recovery and stale result rejection.
 - Exercise event duplicates/gaps, disconnect/reconnect, polling/manual refresh, rescan and cleanup. Verify runtime HMR separately.
-- Reject unauthorized/revoked delegated access without adding project-container role authority. Prove matching local/cloud contract inside Workspace Docker and independent Docker-free standalone CLI consumption.
-- With Workspace, test recovered pending source/buffers after container replacement, scoped routing and cloud parity. Full local product proof comes first, but cloud/administration are in Workspace v1.
+- Reject unauthorized/revoked delegated access without adding project-container role authority. Prove the per-copy contract inside Conduict Docker and independent Docker-free standalone CLI consumption.
+- Test recovery of pending sources and buffers after machine replacement, scoped routing and cloud parity with Conduict; preserve the former Workspace's recovery obligations through migration.
 
 Exact package exports, revision/event/delegation schemas and compatibility versions are engineering contracts to define from source and fixtures. The service implementation first written in the Workspace repository was relocated here in coordination with its consumers; do not move or delete other concurrent implementation based only on this document, and coordinate ownership and an explicit migration before such code changes. Documentation/source audit is not runtime validation.
