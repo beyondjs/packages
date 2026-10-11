@@ -261,7 +261,7 @@ try {
 
 	await step('selection: the commands of the README replace and clear it, and a package that is not selected is asked of the CDN', async () => {
 		const call = async (method, body) => (await fetch(`${server.endpoint}/development/selection`, { method, body })).json();
-		assert.deepEqual(await call('PUT', '{"packages":["@project/app"]}'), { explicit: true, packages: ['@project/app'], modules: [], unknown: [] });
+		assert.deepEqual(await call('PUT', '{"packages":["@project/app"]}'), { explicit: true, packages: ['@project/app'], modules: [], externals: 'environment', unknown: [] });
 
 		const shared = (await get('/preview/entry.json')).json().modules.find(({ specifier }) => specifier === '@project/shared/text');
 		assert.deepEqual([shared.source, shared.version, shared.url.startsWith(`${cdn.origin}/m/@project/shared@0.1.0/modules/text?`)], ['cdn', '0.1.0', true]);

@@ -149,10 +149,11 @@ test('outputs: a style module of the esbuild packaging mode has a stylesheet and
 	assert.match(failure.styles, /^[0-9a-f]{32}$/);
 });
 
-test('errors: every answer, errors included, can be read by another origin, and a path the service does not serve is NOT_FOUND', async () => {
+test('errors: every answer of the compiled-module routes, errors included, can be read by another origin; a path the service does not serve is NOT_FOUND, for its own origin only', async () => {
 	for (const path of [`/m/@fixture/app@1.0.0/modules/absent?${browser}`, '/resolution.json?target=browser', '/nothing/here']) {
 		const response = await served.get(path);
-		assert.equal(Cors.violation(response.headers), undefined, path);
+		const compiled = path !== '/nothing/here';
+		assert.equal(compiled ? Cors.violation(response.headers) : response.headers.get('access-control-allow-origin'), compiled ? undefined : null, path);
 		assert.equal(response.headers.get('cache-control'), 'no-store', path);
 	}
 	assert.deepEqual(await error(await served.get('/nothing/here')), [404, 'NOT_FOUND']);

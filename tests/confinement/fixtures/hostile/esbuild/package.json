@@ -1,0 +1,13 @@
+{
+	"name": "@fixture/esbuild-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"exports": {
+		"./absolute": "./absolute.js",
+		"./escape": "./escape.js",
+		"./text": "./text.js",
+		"./linked": "./linked.js",
+		"./styles": "./styles.js",
+		"./reexport": "./reexport.cjs"
+	}
+}

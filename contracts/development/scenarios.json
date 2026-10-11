@@ -1,6 +1,6 @@
 {
 	"protocol": "beyond-dev-files/1",
-	"description": "Behavior every implementation must reproduce. `given` seeds the root. A step is an `api` mutation, an `external` write that bypasses the API, a `control` action on the service, or an `expect` that names events (by type, path, origin) or a result. `$rev(path)` is the revision of the seeded or last written content of a path. A `selection` step reads (`read`), replaces (`replace`) or clears the development selection, and a `preview` step reads the entry description for an optional `entry`.",
+	"description": "Behavior every implementation must reproduce. `given` seeds the root. A step is an `api` mutation, an `external` write that bypasses the API, a `control` action on the service, or an `expect` that names events (by type, path, origin) or a result. `$rev(path)` is the revision of the seeded or last written content of a path. A `selection` step reads (`read`), replaces (`replace`) or clears the development selection, and a `preview` step reads the entry description for an optional `entry`. A `selection` replacement may name `externals`; a `control` step changes what the CDN origin answers (`cdn:holds`, `cdn:missing <package>`, `cdn:redirect <package>`, `cdn:untagged <package>`, `cdn:html <package>`, `cdn:silent`); a `composition` step reads the composition document for an optional `entry`.",
 	"scenarios": [
 		{
 			"name": "edit-with-current-revision",
@@ -1018,6 +1018,323 @@
 								"type": "file.changed"
 							}
 						]
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-default-is-environment",
+			"requirement": "Until somebody selects, and in any replacement that does not name it, `externals` is `environment`: an installed package this environment compiles for browsers is addressed here, as before",
+			"steps": [
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false,
+						"externals": "environment"
+					}
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							]
+						}
+					},
+					"result": {
+						"explicit": true,
+						"externals": "environment"
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"selection": {
+							"externals": "environment"
+						},
+						"modules": [
+							{
+								"specifier": "library",
+								"source": "environment"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-cdn-addresses-installed-on-cdn",
+			"requirement": "With `externals: cdn` and a CDN origin, an installed package the workspace does not contain is addressed on the CDN at its installed exact version, every importer resolving it through the one import map; each address is checked with a bounded HEAD before it is given, and the import map pins the integrity of the digest the CDN answered for it",
+			"steps": [
+				{
+					"control": "cdn:holds"
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							],
+							"externals": "cdn"
+						}
+					},
+					"result": {
+						"externals": "cdn"
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"selection": {
+							"externals": "cdn"
+						},
+						"modules": [
+							{
+								"specifier": "library",
+								"source": "cdn",
+								"version": "$installed(library)"
+							}
+						],
+						"diagnostics": [],
+						"importmap": {
+							"integrity": {
+								"$cdn(library)": "$sri(etag)"
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-cdn-missing-is-unresolved",
+			"requirement": "An output the CDN answers it does not hold is unresolved with PREVIEW_CDN_MISSING, leaves the import map, and is never replaced by another source",
+			"steps": [
+				{
+					"control": "cdn:missing library"
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							],
+							"externals": "cdn"
+						}
+					},
+					"result": {
+						"externals": "cdn"
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"modules": [
+							{
+								"specifier": "library",
+								"source": "unresolved"
+							}
+						],
+						"diagnostics": [
+							{
+								"code": "PREVIEW_CDN_MISSING"
+							}
+						]
+					},
+					"never": {
+						"importmap": {
+							"imports": {
+								"library": "$any"
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-cdn-outage-is-unavailable",
+			"requirement": "A CDN that does not answer within the bound is an outage, not a refusal: the description is answered within the bound, PREVIEW_CDN_UNAVAILABLE names it, and the address is not given unchecked: the module is unresolved until the CDN answers",
+			"steps": [
+				{
+					"control": "cdn:silent"
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							],
+							"externals": "cdn"
+						}
+					},
+					"result": {
+						"externals": "cdn"
+					}
+				},
+				{
+					"preview": {
+						"within": "BEYOND_PREVIEW_CDN_TIMEOUT"
+					},
+					"result": {
+						"modules": [
+							{
+								"specifier": "library",
+								"source": "unresolved"
+							}
+						],
+						"diagnostics": [
+							{
+								"code": "PREVIEW_CDN_UNAVAILABLE"
+							}
+						]
+					},
+					"never": {
+						"importmap": {
+							"imports": {
+								"library": "$any"
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-cdn-unverified-is-unresolved",
+			"requirement": "An answer the address cannot be bound to (a redirect, another media type, no strong sha256 entity tag) is unresolved with PREVIEW_CDN_UNVERIFIED, leaves the import map and is never replaced by another source",
+			"steps": [
+				{
+					"control": "cdn:untagged library"
+				},
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							],
+							"externals": "cdn"
+						}
+					},
+					"result": {
+						"externals": "cdn"
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"modules": [
+							{
+								"specifier": "library",
+								"source": "unresolved"
+							}
+						],
+						"diagnostics": [
+							{
+								"code": "PREVIEW_CDN_UNVERIFIED"
+							}
+						]
+					},
+					"never": {
+						"importmap": {
+							"imports": {
+								"library": "$any"
+							}
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-cdn-keeps-supplied-packages",
+			"requirement": "Under `externals: cdn` a package the toolchain supplies and publishes nowhere stays on this environment whatever the selection says, with the reason on its record",
+			"steps": [
+				{
+					"control": "cdn:holds"
+				},
+				{
+					"selection": {
+						"replace": {
+							"modules": [
+								"@case/app/main"
+							],
+							"externals": "cdn"
+						}
+					},
+					"result": {
+						"externals": "cdn"
+					}
+				},
+				{
+					"preview": {},
+					"result": {
+						"modules": [
+							{
+								"specifier": "$supplied",
+								"source": "environment",
+								"reason": "$any"
+							}
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "externals-invalid-is-refused",
+			"requirement": "A replacement whose externals are neither environment nor cdn changes nothing",
+			"steps": [
+				{
+					"selection": {
+						"replace": {
+							"packages": [
+								"@case/app"
+							],
+							"externals": "npm"
+						}
+					},
+					"error": {
+						"status": 400,
+						"code": "SELECTION_INVALID"
+					}
+				},
+				{
+					"selection": "read",
+					"result": {
+						"explicit": false,
+						"externals": "environment"
+					}
+				}
+			]
+		},
+		{
+			"name": "composition-keeps-graphs-apart",
+			"requirement": "The composition document lists packages, public modules and their public dependencies apart, with each output per platform and where it comes from; it is read with the access of the preview (artifacts.read) and carries no location of this machine, no source file and no file event",
+			"steps": [
+				{
+					"grant": [
+						"artifacts.read",
+						"events.subscribe"
+					]
+				},
+				{
+					"composition": {},
+					"result": {
+						"protocol": "beyond-dev-composition/1",
+						"packages": "$nonempty",
+						"modules": "$nonempty",
+						"edges": "$nonempty"
+					},
+					"never": {
+						"$text": "$absolute-path"
+					}
+				},
+				{
+					"grant": [
+						"files.read"
+					]
+				},
+				{
+					"composition": {},
+					"error": {
+						"status": 403,
+						"code": "GRANT_CAPABILITY"
 					}
 				}
 			]

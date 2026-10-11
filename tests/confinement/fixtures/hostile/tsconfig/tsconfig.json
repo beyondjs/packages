@@ -1,0 +1,3 @@
+{
+	"extends": "__OUTSIDE__/secret.txt"
+}

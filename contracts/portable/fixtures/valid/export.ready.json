@@ -1,0 +1,62 @@
+{
+	"id": "exp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	"protocol": "beyond-dev-exports/1",
+	"state": "ready",
+	"created": "2026-10-10T12:00:00.000Z",
+	"expires": "2026-10-11T12:00:00.000Z",
+	"packages": [
+		{
+			"path": ".",
+			"name": "@example/root",
+			"version": "1.0.0",
+			"manifest": {
+				"name": "@example/root",
+				"version": "1.0.0"
+			},
+			"digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			"bytes": 3072,
+			"files": [
+				"README.md",
+				"package.json",
+				"src/index.ts"
+			],
+			"excluded": {
+				"ignored": [
+					"dist/"
+				],
+				"secrets": [
+					".env"
+				],
+				"links": [],
+				"members": [
+					"packages/widgets/"
+				],
+				"internal": [
+					"node_modules/"
+				]
+			}
+		},
+		{
+			"path": "packages/widgets",
+			"name": "@example/widgets",
+			"version": "1.2.0",
+			"manifest": {
+				"name": "@example/widgets",
+				"version": "1.2.0"
+			},
+			"digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			"bytes": 2048,
+			"files": [
+				"package.json",
+				"src/widget.ts"
+			],
+			"excluded": {
+				"ignored": [],
+				"secrets": [],
+				"links": [],
+				"members": [],
+				"internal": []
+			}
+		}
+	]
+}

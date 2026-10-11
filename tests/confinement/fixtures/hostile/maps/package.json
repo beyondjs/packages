@@ -1,0 +1,12 @@
+{
+	"name": "@fixture/maps-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"exports": {
+		"./comment": "./comment.js",
+		"./styled": "./styled.js",
+		"./mapped": "./mapped.js",
+		"./inline": "./inline.js",
+		"./kept": "./kept.js"
+	}
+}

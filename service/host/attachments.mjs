@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Caller } from './pairing/caller.mjs';
 
 /**
  * Who is using the service right now.
@@ -15,6 +16,13 @@ import { randomUUID } from 'node:crypto';
  * `attached` event. It proves liveness in both directions: a client whose connection still looks open can
  * tell that the service stopped answering, and a write to a client whose connection is gone closes its
  * attachment. Event-stream parsers ignore comment lines.
+ *
+ * On a service that pairs browsers, a stream that a paired page opened ends with an `access.ended` event, whose
+ * `reason` is `PAIRING_EXPIRED` or `PAIRING_REVOKED`, when its pairing ends, and every stream is told of each new
+ * pairing (`paired`, with its identifier and origin), so the command line names it.
+ *
+ * The owner proves it started the service with the start token in the `Beyond-Owner` header, never in the address
+ * of the stream, which proxies and logs keep.
  */
 export class Attachments {
 	/** The default interval of the heartbeat, in milliseconds, as the `/events` stream of the development extension */
@@ -70,7 +78,7 @@ export class Attachments {
 			if (!['owner', 'session', 'consumer'].includes(kind)) {
 				return response.status(400).json({ error: { code: 'ATTACHMENT_INVALID', message: `Unknown attachment kind "${kind}"` } });
 			}
-			if (kind === 'owner' && (!this.#token || request.query.token !== this.#token || this.owned)) {
+			if (kind === 'owner' && (!this.#token || request.headers['beyond-owner'] !== this.#token || this.owned)) {
 				const message = 'Only the session that started this service can own it';
 				return response.status(403).json({ error: { code: 'ATTACHMENT_FORBIDDEN', message } });
 			}
@@ -83,11 +91,26 @@ export class Attachments {
 			this.#listeners.forEach(listener => listener({ type: 'attached', kind }));
 			this.#beat();
 
+			const release = Caller.of(request)?.ended(reason => {
+				response.write(`event: access.ended\ndata: ${JSON.stringify({ reason })}\n\n`);
+				response.end();
+			});
 			request.on('close', () => {
+				release?.();
 				if (!this.#streams.delete(id)) return;
 				this.#listeners.forEach(listener => listener({ type: 'detached', kind }));
 			});
 		});
+	}
+
+	/**
+	 * Tells every client an event of the service, such as a new pairing
+	 *
+	 * @param {string} type
+	 * @param {object} data
+	 */
+	announce(type, data) {
+		this.#streams.forEach(({ response }) => response.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`));
 	}
 
 	/**

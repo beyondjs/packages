@@ -35,7 +35,7 @@ export /*bundle*/ interface IScanned {
  */
 export /*bundle*/ type RoleType = { kind: 'own' } | { kind: 'carrier'; contained: IScanned[] } | { kind: 'facade'; carrier: IScanned; index: number };
 
-export /*bundle*/ interface ISharingSettings extends Pick<IBundleRequest, 'platform' | 'environment' | 'conditions' | 'mode'> {
+export /*bundle*/ interface ISharingSettings extends Pick<IBundleRequest, 'platform' | 'environment' | 'conditions' | 'mode' | 'confined'> {
 	root: string;
 	name: string;
 	manifest: Record<string, any>;
@@ -193,8 +193,8 @@ export /*bundle*/ class Plan {
 	}
 
 	async #bundle(subpath: string, entry: string, facade?: string, entries = new Map<string, string>()) {
-		const { root, compiler, platform, environment, conditions, mode } = this.#settings;
-		return new Bundle(compiler, { root, entry, facade, entries, package: { root, subpath }, platform, environment, conditions, mode }).run();
+		const { root, compiler, platform, environment, conditions, mode, confined } = this.#settings;
+		return new Bundle(compiler, { root, entry, facade, entries, package: { root, subpath }, platform, environment, conditions, mode, confined }).run();
 	}
 
 	/**

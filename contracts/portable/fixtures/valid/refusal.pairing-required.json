@@ -1,0 +1,6 @@
+{
+	"error": {
+		"code": "PAIRING_REQUIRED",
+		"message": "This page is not paired with this development service"
+	}
+}

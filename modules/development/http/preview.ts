@@ -65,6 +65,13 @@ export class PreviewRoutes {
 			response.set('cache-control', 'no-store').json(await this.#preview.describe(this.#entry(request)));
 		}));
 
+		// The composition of the entry's application (`beyond-dev-composition/1`): packages, public modules with
+		// their outputs, and their edges. It names no file or path, so it is read like the preview itself
+		app.get('/preview/composition.json', route(async (request, response) => {
+			this.#access.require(request, 'artifacts.read');
+			response.set('cache-control', 'no-store').json(await this.#preview.composition(this.#entry(request)));
+		}));
+
 		// The addresses of the document are relative to `preview/`, so the document only exists with the slash
 		app.get('/preview', route(async (request, response) => {
 			this.#access.require(request, 'artifacts.read');

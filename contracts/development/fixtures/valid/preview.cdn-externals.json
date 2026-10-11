@@ -1,0 +1,95 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"origin": "https://cdn.example.test"
+	},
+	"selection": {
+		"explicit": true,
+		"externals": "cdn"
+	},
+	"modules": [
+		{
+			"specifier": "@beyond-js/local-2026/bundle",
+			"source": "environment",
+			"version": "0.1.0",
+			"vspecifier": "@beyond-js/local-2026@0.1.0/bundle",
+			"url": "../m/@beyond-js/local-2026@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"reason": "Supplied by the toolchain and published in no registry: this environment serves it"
+		},
+		{
+			"specifier": "@beyond-js/local-2026/main",
+			"source": "environment",
+			"version": "0.1.0",
+			"vspecifier": "@beyond-js/local-2026@0.1.0/main",
+			"url": "../m/@beyond-js/local-2026@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"reason": "Supplied by the toolchain and published in no registry: this environment serves it"
+		},
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/app@1.0.0/main",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "react",
+			"source": "cdn",
+			"version": "19.2.0",
+			"url": "https://cdn.example.test/m/react@19.2.0/modules/~root?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		},
+		{
+			"specifier": "react-dom/client",
+			"source": "cdn",
+			"version": "19.2.0",
+			"url": "https://cdn.example.test/m/react-dom@19.2.0/modules/client?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		},
+		{
+			"specifier": "scheduler",
+			"source": "unresolved",
+			"version": "0.26.0",
+			"reason": "The CDN does not hold this output (HTTP 404): it has no address"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@beyond-js/local-2026/bundle": "../m/@beyond-js/local-2026@0.1.0/modules/bundle?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@beyond-js/local-2026/main": "../m/@beyond-js/local-2026@0.1.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"react": "https://cdn.example.test/m/react@19.2.0/modules/~root?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false",
+			"react-dom/client": "https://cdn.example.test/m/react-dom@19.2.0/modules/client?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+		},
+		"scopes": {
+			"https://cdn.example.test/m/react-dom@19.2.0/": {
+				"react": "https://cdn.example.test/m/react@19.2.0/modules/~root?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false"
+			}
+		},
+		"integrity": {
+			"https://cdn.example.test/m/react-dom@19.2.0/modules/client?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false": "sha256-wQBiChHvwiD5inmxpLTxfh055EmrOPrbe6L+7zeQKsk=",
+			"https://cdn.example.test/m/react@19.2.0/modules/~root?target=browser&format=esm&env=production&min=true&sourcemap=external&types=false&css=false": "sha256-3Ch9lnx02BIV9PZkv58Ae5SI6SQa9dyq2n8diYRw7Ns="
+		}
+	},
+	"updates": {
+		"runtime": "@beyond-js/local-2026/main",
+		"session": {
+			"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"modules": {
+				"@example/app/main": {
+					"package": "@example/app",
+					"vspecifier": "@example/app@1.0.0/main",
+					"path": "/m/@example/app@1.0.0/modules/main"
+				}
+			}
+		}
+	},
+	"diagnostics": [
+		{
+			"code": "PREVIEW_CDN_MISSING",
+			"message": "\"scheduler\" is not on the CDN (https://cdn.example.test answered HTTP 404 for https://cdn.example.test/m/scheduler@0.26.0/modules/~root), and no other source takes its place"
+		}
+	]
+}

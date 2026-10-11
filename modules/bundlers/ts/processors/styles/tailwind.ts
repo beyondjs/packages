@@ -1,9 +1,10 @@
 import type { IProcessorDiagnostic } from '@beyond-js/packages/sdk';
 import type { ICompiledStyle } from './sass';
-import { createRequire } from 'module';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { pathToFileURL } from 'url';
-import { promises as fs, existsSync, statSync } from 'fs';
+import { promises as fs, statSync } from 'fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'path';
+import { Resolver } from './resolver';
 
 /**
  * How a module declares what Tailwind may scan, in its manifest:
@@ -35,6 +36,11 @@ const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.vue', '.svelte', '.h
  * candidates and cannot forget a class that no source uses any more. Every file it reads (the stylesheet
  * itself, `tailwindcss`, a theme it imports, a plugin or a configuration, the scanned sources) is reported,
  * so the processor watches all of them.
+ *
+ * Where what a stylesheet names is found, and whether a confined compilation reads or loads it, is the
+ * [Resolver](./resolver.ts)'s: confined, no plugin the package supplies and no configuration is loaded, and
+ * no file outside the package is read or scanned. A refusal is reported as `SOURCE_CONFINED` or
+ * `PLUGIN_REFUSED` instead of `TAILWIND_ERROR`.
  */
 export class Tailwind {
 	/**
@@ -46,14 +52,17 @@ export class Tailwind {
 
 	#module: string;
 	#package: string;
+	#confinement?: Confinement;
 
 	/**
 	 * @param module The module directory
 	 * @param pkg The package directory, which a stylesheet or a plugin may be resolved from
+	 * @param confinement The rules of a confined compilation, when the package is compiled confined
 	 */
-	constructor(module: string, pkg: string) {
+	constructor(module: string, pkg: string, confinement?: Confinement) {
 		this.#module = module;
 		this.#package = pkg;
+		this.#confinement = confinement;
 	}
 
 	#inside(file: string): boolean {
@@ -67,6 +76,10 @@ export class Tailwind {
 	async #sources(declared: string[] | undefined, read: Set<string>, diagnostics: IProcessorDiagnostic[]) {
 		const files: { file: string; extension: string }[] = [];
 		const visit = async (path: string) => {
+			// Confined, a source whose real location leaves the package (a symbolic link) is neither listed nor read
+			if (this.#confinement && statSync(path, { throwIfNoEntry: false }) && !this.#confinement.inside(path)) {
+				return void diagnostics.push(Confinement.source(relative(this.#package, path), 'the Tailwind sources of the manifest'));
+			}
 			const stats = statSync(path, { throwIfNoEntry: false });
 			if (!stats) return void diagnostics.push({ code: 'TAILWIND_SOURCE_MISSING', message: `The Tailwind source "${relative(this.#module, path)}" does not exist` });
 			if (stats.isDirectory()) {
@@ -93,39 +106,13 @@ export class Tailwind {
 		return files;
 	}
 
-	/**
-	 * Resolves a stylesheet id as Tailwind asks: a relative path from the importing base, or a stylesheet of
-	 * an installed package (`tailwindcss`, `tailwindcss/theme.css`, the `index.css` of a plugin) resolved
-	 * from the package of the module first, then from this implementation, which installs Tailwind itself
-	 */
-	#stylesheet(id: string, base: string): string | undefined {
-		if (id.startsWith('.') || isAbsolute(id)) {
-			const file = resolve(base, id);
-			return existsSync(file) ? file : void 0;
-		}
-
-		const segments = id.split('/');
-		const name = segments.splice(0, id.startsWith('@') ? 2 : 1).join('/');
-		const subpath = segments.join('/');
-		// This implementation runs from a directory whose installed packages include Tailwind: the one Packages
-		// was started from, which in an installation is the toolchain
-		for (const from of [pathToFileURL(join(this.#package, 'noop.js')).href, pathToFileURL(join(process.cwd(), 'noop.js')).href]) {
-			try {
-				const root = dirname(createRequire(from).resolve(`${name}/package.json`));
-				const file = join(root, subpath || 'index.css');
-				if (existsSync(file)) return file;
-			} catch {
-				// Not installed there, or its manifest is not exported: the next location is tried
-			}
-		}
-	}
-
 	async compile(file: string, content: string, settings: ITailwindSettings, relativeName: string): Promise<ICompiledStyle> {
 		const read = new Set<string>();
 		const diagnostics: IProcessorDiagnostic[] = [];
 		const files = await this.#sources(settings?.sources, read, diagnostics);
 		if (diagnostics.length) return { read: [...read], diagnostics };
 
+		const resolver = new Resolver(this.#package, this.#confinement);
 		try {
 			const { compile } = await import('tailwindcss');
 			const { Scanner } = await import('@tailwindcss/oxide');
@@ -136,17 +123,15 @@ export class Tailwind {
 				base: this.#module,
 				from: file,
 				loadStylesheet: async (id, base) => {
-					const path = this.#stylesheet(id, base);
+					const path = resolver.stylesheet(id, base);
 					if (!path) throw new Error(`The stylesheet "${id}" cannot be resolved from "${base}"`);
 					read.add(path);
 					return { path, base: dirname(path), content: await fs.readFile(path, 'utf8') };
 				},
-				loadModule: async (id, base) => {
-					const require = createRequire(join(base, 'noop.js'));
-					const path = require.resolve(id, { paths: [base, this.#package] });
+				loadModule: async (id, base, hint) => {
+					const { path, module } = await resolver.module(id, base, hint);
 					read.add(path);
-					const imported = await import(pathToFileURL(path).href);
-					return { path, base: dirname(path), module: imported.default ?? imported };
+					return { path, base: dirname(path), module: <any>module };
 				}
 			});
 
@@ -162,7 +147,8 @@ export class Tailwind {
 			return { code, map, read: [...read], diagnostics };
 		} catch (error) {
 			read.delete(file);
-			return { read: [...read], diagnostics: [{ code: 'TAILWIND_ERROR', message: error.message }] };
+			const refused = resolver.refused;
+			return { read: [...read], diagnostics: refused.length ? refused : [{ code: 'TAILWIND_ERROR', message: error.message }] };
 		}
 	}
 

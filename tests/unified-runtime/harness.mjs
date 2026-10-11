@@ -23,7 +23,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 export class Runtime {
 	static specifier = '@beyond-js/local-2026/bundle';
 
-	#root = resolve(process.env.BEYOND_RUNTIME || resolve(here, '../../../local-2026'));
+	#root = resolve(process.env.BEYOND_RUNTIME || ([resolve(here, '../../../../local-2026'), resolve(here, '../../../local-2026')].find(path => existsSync(path)) ?? resolve(here, '../../../../local-2026')));
 	get root() {
 		return this.#root;
 	}

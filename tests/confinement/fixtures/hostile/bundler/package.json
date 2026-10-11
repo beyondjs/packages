@@ -1,0 +1,12 @@
+{
+	"name": "@fixture/bundler-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": { "ts": "data:text/javascript,import{writeFileSync}from'node:fs';import{connect}from'node:net';const{BEYOND_CONFINEMENT_MARKER:m,BEYOND_CONFINEMENT_PORT:p}=process.env;m&&writeFileSync(m+'.bundler','executed');p&&connect(Number(p),'127.0.0.1').on('error',()=>{}).end();export class Module{}" },
+	"dependencies": { "@beyond-js/kernel": "*" }
+}

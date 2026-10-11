@@ -43,13 +43,23 @@ export class ModulesRoutes {
 	}
 
 	/**
+	 * The paths whose answers a page of another origin may read: the compiled modules and their companions
+	 * (`/m/`), the updates of composed modules (`/u/`) and the resolution documents. Nothing else of a service is
+	 * given the headers of the contract.
+	 */
+	static PATHS = ['/m', '/u', '/resolution.json', '/importmap.json'];
+
+	/**
 	 * Compiled modules, their companions and the resolution documents may be loaded by a page of another origin,
 	 * such as an existing site that embeds a widget served here: a module script needs the cross-origin header,
 	 * a page that revalidates needs to read the validator, and one that fails needs to read why. The headers are
-	 * those of the contract (`Cors`), on every answer, errors included.
+	 * those of the contract (`Cors`), on every answer of those paths, errors included, and only there: the session,
+	 * the state, the files and the other routes of a host are never readable by another origin through them. A host
+	 * that restricts who reads its modules (a development service that pairs browsers) replaces them when its
+	 * answers are written.
 	 */
 	static cors(app: Application) {
-		app.use((request: Request, response: Response, next: NextFunction) => {
+		app.use(ModulesRoutes.PATHS, (request: Request, response: Response, next: NextFunction) => {
 			Object.entries(Cors.headers()).forEach(([name, value]) => response.setHeader(name, value));
 			request.method === 'OPTIONS' ? response.status(204).end() : next();
 		});

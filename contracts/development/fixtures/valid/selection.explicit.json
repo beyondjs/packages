@@ -6,6 +6,7 @@
 	"modules": [
 		"@example/shared/text"
 	],
+	"externals": "environment",
 	"unknown": [
 		"@example/removed"
 	]

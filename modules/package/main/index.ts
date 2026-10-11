@@ -1,6 +1,7 @@
 import type { IDiagnostic, IPackageManifest } from '@beyond-js/packages/types';
 import { WatcherClient } from '@beyond-js/watchers/client';
 import { Config } from '@beyond-js/config/main';
+import { Confinement } from '@beyond-js/packages/confinement';
 import Attributes from './attributes';
 import { Bundlers } from './bundlers';
 import { PackageController } from './controller';
@@ -22,6 +23,13 @@ interface IOptions {
 	 * name and version, which is what a workspace makes unique.
 	 */
 	identity?: string;
+
+	/**
+	 * Whether the package is compiled confined: its sources are not trusted, so no code it supplies is loaded
+	 * and no file outside it is read ([Confinement](../../confinement/index.ts)). Only whoever reads the
+	 * package selects it; a preparation for delivery does.
+	 */
+	confined?: boolean;
 }
 
 interface IDone {
@@ -53,6 +61,16 @@ export /*bundle*/ class Package extends Attributes {
 	 */
 	get identity(): string {
 		return this.#options.identity ?? this.vname;
+	}
+
+	#confinement: Confinement | undefined;
+
+	/**
+	 * The rules a confined compilation of this package follows, rooted at its directory; undefined when the
+	 * package is not compiled confined
+	 */
+	get confinement(): Confinement | undefined {
+		return this.#confinement;
 	}
 
 	#watcher: WatcherClient;
@@ -116,7 +134,7 @@ export /*bundle*/ class Package extends Attributes {
 			static: config.properties.get('static')
 		};
 
-		this.#bundlers = new Bundlers(config);
+		this.#bundlers = new Bundlers(config, this.#confinement);
 		this.#controller = new PackageController(this);
 		this.#modules = new Modules(this, config);
 		// this.#static = new Static(this, cfg.static, this.#modules);
@@ -132,6 +150,7 @@ export /*bundle*/ class Package extends Attributes {
 
 		this.#path = path;
 		this.#options = options;
+		this.#confinement = options.confined ? new Confinement([path]) : void 0;
 
 		// As the modules are subscribed to the events of the package, then
 		// it is required to increase the number of listeners

@@ -1,0 +1,15 @@
+{
+	"name": "@fixture/legacy-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts",
+		"legacy": "@beyond-js/packages/bundlers/exports"
+	},
+	"dependencies": { "@beyond-js/kernel": "*" }
+}

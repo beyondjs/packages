@@ -48,17 +48,19 @@ export /*bundle*/ class Unit {
 
 	/**
 	 * The compiler as a provenance reports it: what it is, never where it is installed or how it was named,
-	 * which are facts of the machine that ran it and not of the output
+	 * which are facts of the machine that ran it and not of the output; and `confined: true` when it compiled
+	 * the sources confined
 	 */
 	#described(toolchain: Toolchain): Record<string, unknown> {
 		const system = this.#format === 'system' ? Toolchain.system : void 0;
+		const confined = this.#pinned.confined || void 0;
 		if (this.#composed) {
 			// The selected compiler never ran for a composed module: its package declared what compiles it
-			return { name: this.#composed.specifier, bundler: this.#composed.name, composition: Toolchain.COMPOSITION, system };
+			return { name: this.#composed.specifier, bundler: this.#composed.name, composition: Toolchain.COMPOSITION, system, confined };
 		}
 
 		const { version, assigned, provenance } = this.#compiler.identity;
-		return { name: 'esbuild', version, assigned, revision: provenance?.revision, options: toolchain.options(this.#opened), system };
+		return { name: 'esbuild', version, assigned, revision: provenance?.revision, options: toolchain.options(this.#opened), system, confined };
 	}
 
 	/**
@@ -102,7 +104,7 @@ export /*bundle*/ class Unit {
 		const { resolution, references } = await this.#references(bundled, warnings, diagnostics);
 		if (diagnostics.length) return { outputs: [], diagnostics, warnings };
 
-		const toolchain = new Toolchain(this.#compiler, conditions, this.#format);
+		const toolchain = new Toolchain(this.#compiler, conditions, this.#format, this.#pinned.confined);
 		const shared = Keyed.inputs(this.#opened, this.#module.subpath, resolution, toolchain.describe(this.#opened, this.#composed), 'js');
 		if (!shared) return { outputs: [], diagnostics: [{ code: 'INTEGRITY_MISSING', message: `Package "${key}" has no integrity` }], warnings };
 		const outputs = new Outputs(shared);

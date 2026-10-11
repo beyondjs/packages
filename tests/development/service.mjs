@@ -233,7 +233,7 @@ export async function service() {
 
 		const before = events.filter(({ type }) => type === 'build.started').length;
 		const mutations = ['x', 'y', 'z'].map(name => ({ operation: 'write', path: `app/${name}.ts`, expected: 'absent', content: name }));
-		await context.call('POST', '/files/operations', { body: JSON.stringify({ mutations }) });
+		await context.call('POST', '/files/operations', { body: JSON.stringify({ mutations }), headers: { 'content-type': 'application/json' } });
 		await wait(600);
 		assert.equal(events.filter(({ type }) => type === 'build.started').length - before, 1);
 		context.stop();

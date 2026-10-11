@@ -1,0 +1,13 @@
+{
+	"capture": {
+		"id": "snp_ffffffffffffffffffffffffffffffff"
+	},
+	"grants": [
+		{
+			"path": ".",
+			"upload": "https://snapshots.example/v1/captures/snp_ffffffffffffffffffffffffffffffff/archive?package=.",
+			"token": "grant-token",
+			"expires": "2026-10-10T12:15:00.000Z"
+		}
+	]
+}

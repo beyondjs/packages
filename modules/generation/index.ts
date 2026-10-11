@@ -14,6 +14,10 @@ import { Prebuilt } from './prebuilt';
  * module and a static file are read and verified. A unit that fails returns its diagnostics and no output.
  * The key of every output is the key of the inventory item it satisfies, so what was looked up before
  * generating is what is stored after it.
+ *
+ * A request that sets `confined` generates from sources it does not trust: no code a package supplies runs
+ * and no file outside a package is read ([Confinement](../confinement/index.ts)), and the provenance of every
+ * output says so.
  */
 export /*bundle*/ class Generation {
 	static get formats(): FormatType[] {
@@ -41,7 +45,7 @@ export /*bundle*/ class Generation {
 		if (invalid.length) return { outputs: [], diagnostics: invalid, warnings };
 
 		const { item, format } = request;
-		const pinned = new Pinned(request.graph, request.sources, request.conditions);
+		const pinned = new Pinned(request.graph, request.sources, request.conditions, request.confined === true);
 		try {
 			if (pinned.graph.diagnostics.length) return { outputs: [], diagnostics: pinned.graph.diagnostics, warnings };
 
@@ -49,7 +53,7 @@ export /*bundle*/ class Generation {
 			if (!opened) return { outputs: [], diagnostics, warnings };
 
 			const distribution = opened instanceof DistributedPackage ? await opened.distribution : void 0;
-			const prebuilt = new Prebuilt(opened, pinned.conditions, format);
+			const prebuilt = new Prebuilt(opened, pinned.conditions, format, pinned.confined);
 			if (item.kind === 'asset') return await prebuilt.asset(item.subpath, distribution);
 
 			const found = await opened.module(Keyed.declared(item.subpath), pinned.conditions);

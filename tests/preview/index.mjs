@@ -62,7 +62,7 @@ try {
 
 	await step('default: until somebody selects, every workspace package is in development and every address is relative', async () => {
 		const selection = (await call('GET', '/development/selection')).body;
-		assert.deepEqual(selection, { explicit: false, packages: ['@beyond-js/local-2026', '@fixture/shared', '@fixture/web'], modules: [], unknown: [] });
+		assert.deepEqual(selection, { explicit: false, packages: ['@beyond-js/local-2026', '@fixture/shared', '@fixture/web'], modules: [], externals: 'environment', unknown: [] });
 
 		const entry = (await call('GET', '/preview/entry.json', { grant: visitor })).body;
 		assert.equal(entry.entry.vspecifier, WEB, 'The entry is the only browser module that nothing imports');

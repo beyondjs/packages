@@ -2,12 +2,16 @@ import type { IBuildable, IPublishedModule } from '../builds';
 import type { Selection } from '../selection';
 import { DevelopmentError } from '../error';
 import { Addresses } from './addresses';
+import { Availability } from './availability';
+import { Composition, type IWalked } from './composition';
 import { Externals } from './externals';
 import { Graph } from './graph';
-import type { IPreviewDiagnostic, IPreviewModule, IPreviewUpdatable } from './types';
+import type { ICompositionDocument, IPreviewDiagnostic, IPreviewModule, IPreviewUpdatable } from './types';
 import { Document } from './document';
 import { DiskLocator } from './disk';
 import { Instances } from './instances';
+import { Policy, type Externals as Origins } from './policy';
+import { Probe } from './probe';
 import { ProjectionLocator } from './projection';
 
 export /*bundle*/ interface IPreviewDescription {
@@ -19,13 +23,19 @@ export /*bundle*/ interface IPreviewDescription {
 	 */
 	options: string;
 	cdn: { origin?: string; reason?: string };
-	selection: { explicit: boolean };
+
+	/**
+	 * Whether somebody selected, and where the installed packages this environment could compile are loaded from
+	 * (`externals`); `reason` says why the externals policy does not decide it, for an installed workspace
+	 */
+	selection: { explicit: boolean; externals: 'environment' | 'cdn'; reason?: string };
 	modules: IPreviewModule[];
 	/**
-	 * What the document gives the browser: the import of each specifier, and the scopes of the importers that
-	 * resolve another version of one
+	 * What the document gives the browser: the import of each specifier, the scopes of the importers that
+	 * resolve another version of one, and, under the `cdn` externals, the integrity of every address on the CDN,
+	 * from the digest the CDN answered for it
 	 */
-	importmap: { imports: Record<string, string>; scopes?: Record<string, Record<string, string>> };
+	importmap: { imports: Record<string, string>; scopes?: Record<string, Record<string, string>>; integrity?: Record<string, string> };
 
 	/**
 	 * Whether the document registers a development runtime, which is what applies updates to the page while
@@ -58,6 +68,7 @@ export /*bundle*/ class Preview {
 	#selection: Selection;
 	#addresses: Addresses;
 	#externals: Externals;
+	#probe: Probe;
 
 	/**
 	 * The versioned identity of the entry that was last chosen without being named
@@ -69,6 +80,7 @@ export /*bundle*/ class Preview {
 		this.#selection = selection;
 		this.#addresses = new Addresses(environment);
 		this.#externals = new Externals(runtime);
+		this.#probe = new Probe(environment);
 	}
 
 	/**
@@ -141,13 +153,26 @@ export /*bundle*/ class Preview {
 	 * module that builds for browsers and that nothing else imports.
 	 */
 	async describe(requested?: string): Promise<IPreviewDescription> {
+		return (await this.#walk(requested)).description;
+	}
+
+	/**
+	 * The composition of the application of the entry: its packages, its public modules with their outputs per
+	 * platform and the public dependencies between them, as the page of the entry and a Node consumer load them
+	 */
+	async composition(requested?: string): Promise<ICompositionDocument> {
+		return new Composition(this.#delivery, this.#addresses, this.#externals).document(await this.#walk(requested));
+	}
+
+	async #walk(requested: string | undefined): Promise<IWalked> {
 		await this.#delivery.refresh?.();
 		const published = await this.#delivery.published();
 		const entry = await this.#entry(requested, published);
 
 		// The selection is read once, so every module of one description is routed by the same selection
 		const selection = await this.#selection.read();
-		const graph = this.#graph(module => this.#selection.covers(selection, module), entry);
+		const policy = new Policy(selection.externals, !!Instances.of(this.#delivery));
+		const graph = this.#graph(module => this.#selection.covers(selection, module), entry, policy);
 		await graph.walk([entry], published);
 
 		// The coordinator of a runtime that the workspace contains is loaded by the document, not by the application
@@ -176,17 +201,23 @@ export /*bundle*/ class Preview {
 		const unset = Instances.of(this.#delivery)
 			? `${Addresses.VARIABLE} is not set, and no module of the installed graph needs it: this environment serves every one`
 			: `${Addresses.VARIABLE} is not set: modules that are not in development have no address`;
-		return {
+		const externals: { externals: Origins; reason?: string } = { externals: policy.value, ...(policy.reason ? { reason: policy.reason } : {}) };
+		const description: IPreviewDescription = {
 			protocol: 'beyond-dev-files/1',
 			entry: { specifier: Graph.specifier(entry), vspecifier: entry.vspecifier },
 			options: this.#addresses.options,
 			cdn: cdn ? { origin: cdn } : { reason: unset },
-			selection: { explicit: selection.explicit },
+			selection: { explicit: selection.explicit, ...externals },
 			modules,
 			importmap,
 			updates,
 			diagnostics
 		};
+
+		// Under the `cdn` policy an address on the CDN is given only for an output the CDN holds
+		const report = (code: string, message: string) => graph.report(code, message);
+		const answers = policy.cdn && cdn ? await new Availability(this.#probe, cdn).apply(description, report) : new Map();
+		return { description, graph, published, answers };
 	}
 
 	/**
@@ -195,10 +226,10 @@ export /*bundle*/ class Preview {
 	 *
 	 * @param entry The entry of the page, whose package decides the runtime of an installed graph
 	 */
-	#graph(selected: (module: IPublishedModule) => boolean, entry: IPublishedModule): Graph {
+	#graph(selected: (module: IPublishedModule) => boolean, entry: IPublishedModule, policy: Policy): Graph {
 		const instances = Instances.of(this.#delivery);
 		const locator = instances ? new ProjectionLocator(instances, entry) : new DiskLocator(this.#delivery, this.#externals);
-		return new Graph(this.#delivery, selected, this.#addresses, this.#externals, locator, instances);
+		return new Graph({ delivery: this.#delivery, selected, addresses: this.#addresses, externals: this.#externals, locator, policy, instances });
 	}
 
 	/**

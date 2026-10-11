@@ -14,6 +14,7 @@ export class Addresses {
 
 	#development = new Options({ target: 'browser', format: 'esm', env: 'development', min: 'false', sourcemap: 'inline' });
 	#published = new Options({ target: 'browser', format: 'esm' });
+	#node = new Options(Options.development);
 
 	#cdn: string;
 
@@ -54,6 +55,14 @@ export class Addresses {
 	 */
 	environment(name: string, version: string, subpath: string, registry?: string): string {
 		return `..${this.path(name, version, subpath, registry)}?${this.#development.query}`;
+	}
+
+	/**
+	 * The address a Node consumer of this environment requests a module at, relative to the preview document: the
+	 * options of a Node development consumer, which the session description gives it
+	 */
+	node(name: string, version: string, subpath: string): string {
+		return `..${this.path(name, version, subpath)}?${this.#node.query}`;
 	}
 
 	/**

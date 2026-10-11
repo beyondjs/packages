@@ -63,8 +63,11 @@ export /*bundle*/ class Keyed {
 		return { id, kind, package: opened.key, subpath: Keyed.subpath(subpath), loading: 'lazy', targets: [], media: media ?? MEDIA[<'module' | 'style'>kind], inputs, key: Compatibility.key(inputs) };
 	}
 
-	static asset(opened: Opened, path: string, media: string): IItem | undefined {
-		const inputs = Keyed.inputs(opened, path, {}, Toolchain.copied, 'asset');
+	/**
+	 * @param confined Whether the packages are compiled confined, which is part of the key of the file
+	 */
+	static asset(opened: Opened, path: string, media: string, confined = false): IItem | undefined {
+		const inputs = Keyed.inputs(opened, path, {}, Toolchain.copy(confined), 'asset');
 		return inputs && Keyed.item('asset', opened, path, inputs, media);
 	}
 }

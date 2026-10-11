@@ -1,0 +1,9 @@
+{
+	"explicit": true,
+	"packages": [
+		"@example/app"
+	],
+	"modules": [],
+	"externals": "registry",
+	"unknown": []
+}

@@ -3,6 +3,8 @@ import type { Metafile, Message } from 'esbuild';
 import { Compiler, type ICompilerIdentity } from './compiler';
 import { Boundary, type StylesType } from './boundary';
 import { Resources, type IResource } from './resources';
+import { Confined } from './confined';
+import { TSConfig } from './tsconfig';
 
 /**
  * What to bundle: exactly one public module
@@ -49,6 +51,13 @@ export /*bundle*/ interface IBundleRequest {
 
 	minify?: boolean;
 	styles?: StylesType;
+
+	/**
+	 * Whether the sources are compiled confined: nothing outside the package root is resolved or read
+	 * ([Confined](./confined.ts)), and the TypeScript configuration is the package's own ([TSConfig](./tsconfig.ts)).
+	 * It is selected by whoever compiles sources it does not trust, never by the sources.
+	 */
+	confined?: boolean;
 }
 
 /**
@@ -169,15 +178,20 @@ export /*bundle*/ class Bundle {
 		const outfile = style ? 'out.css' : 'out.js';
 		const source = facade ? { stdin: { contents: facade, resolveDir: root, sourcefile: 'beyond-facade.js', loader: <const>'js' } } : { entryPoints: [entry] };
 
+		// Confined, the build is kept inside the package before anything else resolves a name
+		const confined = this.#request.confined ? new Confined(resources.root) : void 0;
+		const plugins = confined ? [confined, resources, boundary] : [resources, boundary];
+		const settings = confined ? { tsconfigRaw: new TSConfig(resources.root).raw(root) } : {};
+
 		try {
-			const built = await this.#compiler.api.build(Object.assign({}, this.#options, source, {
+			const built = await this.#compiler.api.build(Object.assign({}, this.#options, source, settings, {
 				absWorkingDir: root,
 				metafile: true,
 				write: false,
 				outfile,
 				logLevel: <const>'silent',
 				logOverride: { 'unsupported-dynamic-import': <const>'warning', 'unsupported-require-call': <const>'warning' },
-				plugins: [resources, boundary]
+				plugins
 			}));
 
 			const text = (suffix: string) => built.outputFiles.find(({ path }) => path.endsWith(suffix))?.text;
@@ -225,6 +239,7 @@ export /*bundle*/ class Bundle {
 				// A default or named import of a stylesheet, or a CSS module script: a stylesheet binds no value
 				const style = /No matching export in "beyond-style:([^"]+)"/.exec(text);
 				if (style) return { code: 'STYLE_BINDING_UNSUPPORTED', message: at + Boundary.binding(style[1]) };
+				if (confined?.refused(text)) return { code: 'SOURCE_CONFINED', message: at + text };
 				return { code: boundary.refused(text) ? 'STYLE_BINDING_UNSUPPORTED' : 'BUNDLE_ERROR', message: at + text };
 			});
 			return { diagnostics: diagnostics.length ? diagnostics : [{ code: 'BUNDLE_ERROR', message: exc.message }] };

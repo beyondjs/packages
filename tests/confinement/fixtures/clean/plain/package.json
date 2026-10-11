@@ -1,0 +1,9 @@
+{
+	"name": "@fixture/clean-plain",
+	"version": "1.0.0",
+	"private": true,
+	"exports": {
+		".": "./index.js",
+		"./view": "./view.tsx"
+	}
+}

@@ -22,7 +22,7 @@ const listening = server => new Promise(done => server.listen(0, '127.0.0.1', ()
  * The sources of the Widgets package, `widgets/widgets/src` of the suite unless BEYOND_WIDGETS names them
  */
 export class Widgets {
-	#root = resolve(process.env.BEYOND_WIDGETS || resolve(here, '../../../widgets/widgets/src'));
+	#root = resolve(process.env.BEYOND_WIDGETS || ([resolve(here, '../../../../widgets/widgets/src'), resolve(here, '../../../widgets/widgets/src')].find(path => existsSync(path)) ?? resolve(here, '../../../../widgets/widgets/src')));
 	get root() {
 		return this.#root;
 	}

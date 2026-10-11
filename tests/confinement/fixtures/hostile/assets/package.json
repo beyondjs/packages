@@ -1,0 +1,7 @@
+{
+	"name": "@fixture/assets-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"exports": { ".": "./index.js" },
+	"beyond": { "assets": ["linked.txt"] }
+}

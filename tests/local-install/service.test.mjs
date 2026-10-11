@@ -119,15 +119,16 @@ test('the installation is for the service\'s own clients: no page of another ori
 	assert.equal(read.status, 200);
 	assert.equal(read.headers.get('access-control-allow-origin'), null);
 	const session = await fetch(`${host.origin}/session`, { headers: { origin: site } });
-	assert.equal(session.headers.get('access-control-allow-origin'), '*', 'unlike the compiled-module routes');
+	assert.equal(session.headers.get('access-control-allow-origin'), null, 'like every route but the compiled-module ones');
 
 	const preflight = await fetch(`${host.origin}/installation`, { method: 'OPTIONS', headers: { origin: site, 'access-control-request-method': 'POST' } });
-	assert.equal(preflight.status, 204);
 	assert.equal(preflight.headers.get('access-control-allow-origin'), null);
 
 	registry.reset();
 	const text = await fetch(`${host.origin}/installation`, { method: 'POST', headers: { origin: site, 'content-type': 'text/plain' }, body: '{"update":true}' });
-	assert.equal(text.status, 415);
+	assert.equal(text.status, 403, 'a page of another origin changes nothing, whatever it sends');
+	const plain = await fetch(`${host.origin}/installation`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: '{"update":true}' });
+	assert.equal(plain.status, 415);
 	const foreign = await fetch(`${host.origin}/installation`, { method: 'POST', headers: { origin: site, 'content-type': 'application/json' }, body: '{}' });
 	assert.equal(foreign.status, 403);
 	assert.equal((await foreign.json()).error.code, 'ORIGIN_REFUSED');

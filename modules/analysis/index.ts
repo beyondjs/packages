@@ -16,6 +16,9 @@ import { Specifier } from './specifier';
  * follow, and for each item the inputs and the value of its compatibility key. A public module nothing
  * reaches is not in it. It writes nothing, keeps no compiled code and returns none, so an inventory can be
  * inspected, stored and compared before a single output exists.
+ *
+ * A request that sets `confined` traces sources it does not trust: nothing a package supplies runs and no file
+ * outside a package is read ([Confinement](../confinement/index.ts)), and every key says so.
  */
 export /*bundle*/ class Analysis {
 	static get protocol() {
@@ -36,7 +39,7 @@ export /*bundle*/ class Analysis {
 		const started = Date.now();
 		const diagnostics: IInventoryDiagnostic[] = [];
 		const fail = (code: string, message: string) => diagnostics.push({ code, message, severity: 'error' });
-		const pinned = new Pinned(request?.graph, request?.sources, request?.conditions);
+		const pinned = new Pinned(request?.graph, request?.sources, request?.conditions, request?.confined === true);
 		const { conditions } = pinned;
 
 		const done = async (tracer?: Tracer, entries: { id: string; target: string; package: string; subpath: string }[] = [], compiler?: Compiler): Promise<IMeasured> => {
@@ -68,7 +71,7 @@ export /*bundle*/ class Analysis {
 		const compiler = await Compiler.load(request.compiler, process.cwd());
 		if (compiler.error) return fail(compiler.error.code, compiler.error.message), done();
 
-		const tracer = new Tracer(pinned, compiler, new Toolchain(compiler, conditions, format), request.declared);
+		const tracer = new Tracer(pinned, compiler, new Toolchain(compiler, conditions, format, pinned.confined), request.declared);
 		const entries = [];
 		for (const entry of request.entries) {
 			const { specifier, target }: Exclude<EntryType, string> = typeof entry === 'string' ? { specifier: entry } : entry;

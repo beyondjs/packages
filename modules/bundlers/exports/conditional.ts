@@ -103,8 +103,5 @@ export class Conditional extends BaseConditional {
 
 		this.#errors = [];
 		this.#output.set({ code, map });
-
-		require('fs').writeFileSync(`${process.cwd()}/output.js`, code);
-		console.log('Build output code written to output.js');
 	}
 }

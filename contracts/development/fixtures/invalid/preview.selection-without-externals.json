@@ -1,0 +1,40 @@
+{
+	"protocol": "beyond-dev-files/1",
+	"entry": {
+		"specifier": "@example/app/main",
+		"vspecifier": "@example/app@1.0.0/main"
+	},
+	"options": "target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+	"cdn": {
+		"origin": "https://cdn.example.test"
+	},
+	"selection": {
+		"explicit": true
+	},
+	"modules": [
+		{
+			"specifier": "@example/app/main",
+			"source": "environment",
+			"version": "1.0.0",
+			"vspecifier": "@example/app@1.0.0/main",
+			"url": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		},
+		{
+			"specifier": "react",
+			"source": "environment",
+			"version": "19.2.0",
+			"vspecifier": "react@19.2.0",
+			"url": "../m/react@19.2.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@example/app/main": "../m/@example/app@1.0.0/modules/main?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false",
+			"react": "../m/react@19.2.0/modules/~root?target=browser&format=esm&env=development&min=false&sourcemap=inline&types=false&css=false"
+		}
+	},
+	"updates": {
+		"reason": "The runtime of the application (none) has no development coordinator in this workspace or on the CDN, so nothing applies updates to the running page"
+	},
+	"diagnostics": []
+}

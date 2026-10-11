@@ -1,5 +1,5 @@
-import { request } from 'node:http';
 import { ContractError } from '@beyond-js/artifact-api';
+import { Attachment } from './attachment.mjs';
 import { Deadline } from './deadline.mjs';
 import { Description } from './description.mjs';
 import { AbortError, AccessError, TimeoutError, Transport } from './errors.mjs';
@@ -38,7 +38,7 @@ export class Connection {
 	/**
 	 * How many heartbeats of silence mean that an attached service stopped answering
 	 */
-	static SILENCE = 2.5;
+	static SILENCE = Attachment.SILENCE;
 
 	static #deadlines = {
 		session: new Deadline('BEYOND_SESSION_TIMEOUT', Connection.TIMEOUT),
@@ -59,6 +59,14 @@ export class Connection {
 	 */
 	get session() {
 		return this.#session;
+	}
+
+	/**
+	 * The access context this client presents to the service: a guarded service's grant, or the local credential of
+	 * a service that pairs browsers, which a process of the machine where it runs reads from its record
+	 */
+	get headers() {
+		return { ...this.#headers };
 	}
 
 	constructor(origin, session, headers = {}) {
@@ -220,78 +228,20 @@ export class Connection {
 	}
 
 	/**
-	 * Attaches to the service and stays attached until `detach()` or until this process ends.
+	 * Attaches to the service and stays attached until `detach()` or until this process ends (see `Attachment`).
 	 *
-	 * The first answer is waited for as long as a first description (`BEYOND_SESSION_TIMEOUT`); the service
-	 * writes it as soon as the stream opens. A service that announces a heartbeat and then stays silent for
-	 * `Connection.SILENCE` heartbeats has stopped answering, although its connection looks open: the stream
-	 * is closed and `stopping` is called, as when the service ends. A service that announces none is not
-	 * held to one.
+	 * The first answer is waited for as long as a first description (`BEYOND_SESSION_TIMEOUT`). A service that
+	 * announces a heartbeat and then stays silent for `Connection.SILENCE` heartbeats has stopped answering: the
+	 * stream is closed and `stopping` is called, as when the service ends.
 	 *
 	 * @param {'owner' | 'session' | 'consumer'} kind
-	 * @param {{token?: string, stopping?: (reason: string) => void}} [options] The start token of an owner,
-	 * and what to do when the service says it is stopping or disappears
+	 * @param {{token?: string, stopping?: (reason: string) => void, observe?: (event: {type: string, data: unknown})
+	 * => void}} [options] The start token of an owner, what to do when the service says it is stopping or disappears,
+	 * and what to do with the other events it announces, such as a new pairing (`paired`)
 	 * @returns {Promise<{detach: () => void}>}
 	 * @throws {TimeoutError} When the service does not answer the attachment in time
 	 */
-	attach(kind, { token, stopping } = {}) {
-		const query = new URLSearchParams(token ? { kind, token } : { kind });
-		const deadline = Connection.deadline(process.env);
-
-		return new Promise((resolve, reject) => {
-			let attached = false;
-			let detached = false;
-			let reason = 'the service ended';
-
-			const stream = request(`${this.#origin}/attach?${query}`, { headers: this.#headers }, response => {
-				if (response.statusCode !== 200) {
-					response.resume();
-					return reject(new Error(`The service refused the "${kind}" attachment (HTTP ${response.statusCode})`));
-				}
-
-				response.setEncoding('utf8');
-				response.on('error', () => void 0);
-				response.on('data', chunk => {
-					const match = /event: stopping\ndata: (.*)\n/.exec(chunk);
-					if (match) reason = JSON.parse(match[1]).reason;
-				});
-				response.on('close', () => attached && !detached && stopping?.(reason));
-				response.once('data', chunk => {
-					attached = true;
-					const heartbeat = Connection.#heartbeat(chunk);
-					stream.setTimeout(heartbeat ? heartbeat * Connection.SILENCE : 0);
-					resolve({
-						detach: () => {
-							detached = true;
-							stream.destroy();
-						}
-					});
-				});
-			});
-
-			// Silence is bounded by the deadline of a first answer until the service answers, and by its
-			// heartbeat afterwards
-			stream.setTimeout(deadline);
-			stream.on('timeout', () => {
-				if (!attached) reject(new TimeoutError(this.#origin, deadline, { path: '/attach' }));
-				else reason = 'the service stopped answering';
-				stream.destroy();
-			});
-			stream.on('error', error => reject(error));
-			stream.end();
-		});
-	}
-
-	/**
-	 * The heartbeat, in milliseconds, that the `attached` event of the service announces
-	 */
-	static #heartbeat(chunk) {
-		const match = /event: attached\ndata: (.*)\n/.exec(chunk);
-		try {
-			const { heartbeat } = JSON.parse(match?.[1] ?? '{}');
-			return Number.isInteger(heartbeat) && heartbeat > 0 ? heartbeat : void 0;
-		} catch {
-			return;
-		}
+	attach(kind, options = {}) {
+		return new Attachment(this.#origin, this.#headers, Connection.deadline(process.env)).open(kind, options);
 	}
 }

@@ -18,6 +18,9 @@ export type { ITailwindSettings } from './tailwind';
  * Tailwind scans, a plugin) is watched as a dependency of the processor, so editing any of it rebuilds
  * the stylesheet; a dependency a later build no longer reads is released. Nothing is scanned outside the
  * module directory: the Tailwind sources are the ones the module manifest declares.
+ *
+ * A package compiled confined has its stylesheets resolved under its confinement: nothing outside the package
+ * is read, and no Tailwind plugin or configuration it supplies is loaded.
  */
 export /*bundle*/ class Processor extends ConditionalProcessor {
 	#dependencies: Dependencies;
@@ -59,7 +62,8 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 		const { module } = this.conditional;
 		const directory = join(module.package.path, module.spec.path ?? '');
 		const settings = <ITailwindSettings>(<{ tailwind?: ITailwindSettings }>this.spec.values).tailwind;
-		const tailwind = new Tailwind(directory, module.package.path);
+		const { confinement } = module.package;
+		const tailwind = new Tailwind(directory, module.package.path, confinement);
 		const read = new Set<string>();
 		const diagnostics: IDiagnostic[] = [];
 
@@ -75,7 +79,7 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 			const relative = input.relative.file.replace(/\\/g, '/');
 			const compiled = Tailwind.uses(input.content)
 				? await tailwind.compile(input.file, input.content, settings, relative)
-				: Sass.compile(input.file, input.content, relative);
+				: Sass.compile(input.file, input.content, relative, confinement, module.package.path);
 			if (request !== this._request) return;
 
 			compiled.read.forEach(file => read.add(file));

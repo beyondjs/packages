@@ -19,15 +19,20 @@ import { Session } from '@beyond-js/artifact-api';
 import { Deadline } from '../deadline.mjs';
 import { Declaration } from '../workspace/declaration.mjs';
 import { Attachments } from './attachments.mjs';
+import { Capabilities } from './capabilities.mjs';
 import { Description } from './description.mjs';
+import { Events } from './events.mjs';
 import { Extensions } from './extensions.mjs';
 import { Graph } from './graph.mjs';
 import { Holds } from './holds.mjs';
 import { Hosted } from './hosted.mjs';
+import { Hosts } from './hosts.mjs';
 import { Installer } from './installer.mjs';
 import { Lifetime } from './lifetime.mjs';
+import { Portable } from './portable.mjs';
 import { Processors } from './processors.mjs';
 import { InstallationRoutes } from './routes.mjs';
+import { SameOrigin } from './same-origin.mjs';
 import { Selection } from './selection.mjs';
 
 const settings = JSON.parse(process.env.BEYOND_HOST_OPTIONS);
@@ -48,6 +53,7 @@ const report = message => {
 let watchers;
 let workspace;
 let server;
+let portable;
 let ending = false;
 
 const attachments = new Attachments(settings.token);
@@ -64,6 +70,7 @@ async function end(reason, code = 0) {
 	setTimeout(() => process.exit(code), 6000).unref();
 
 	attachments.close(reason);
+	await portable?.stop().catch(error => log(`preview listener: ${error.message}`));
 	server?.closeAllConnections?.();
 	await new Promise(resolve => (server ? server.close(resolve) : resolve()));
 
@@ -109,6 +116,8 @@ try {
 	const description = new Description(settings, delivery);
 	const graph = new Graph(delivery, description.conditions);
 
+	// What the host announces on the event stream of the development extension, such as the changes of an export
+	const events = new Events();
 	const extensions = new Extensions(settings.extensions);
 	await extensions.load();
 
@@ -127,11 +136,27 @@ try {
 
 	const app = express();
 	app.disable('x-powered-by');
-	await extensions.guard(app, { workspace, settings });
+
+	// Every service refuses a request that names a host that is not its own, which refuses DNS rebinding. One that
+	// pairs browsers (the command line starts it so) then answers the cross-origin rules of its allowed origins and
+	// decides who the caller is, on its two listeners; without the setting, nothing of that exists
+	const hosts = new Hosts({ bind: settings.bind });
+	hosts.setup(app);
+	const session = () => workspace.refresh().then(() => description.session());
+	const announce = (type, data) => attachments.announce(type, data);
+	portable = settings.pairing ? new Portable(settings, { hosts, events, session, announce }) : void 0;
+	portable?.guard(app);
+
+	// A loopback service that neither pairs nor verifies delegated grants lets a page of another origin read only the
+	// compiled modules of its embed origins, and never change it or keep it alive
+	const unpaired = !portable && hosts.loopback && !process.env.BEYOND_AUTHORITY;
+	unpaired && new SameOrigin({ environment: process.env }).setup(app);
+	await extensions.guard(app, { workspace, settings, events });
 
 	// Before the routes of the compiled-module contract, whose answers any origin may read: no page of another
-	// origin reads the installation of the workspace or runs one
-	new InstallationRoutes(installer, { bind: settings.bind }).setup(app);
+	// origin reads the installation of the workspace or runs one, nor an export or a pairing
+	portable?.setup(app);
+	new InstallationRoutes(installer, { bind: settings.bind, hosts }).setup(app);
 	Routes.setup(app, delivery);
 	attachments.setup(app);
 
@@ -144,8 +169,15 @@ try {
 	);
 	selection.setup(app);
 
-	await extensions.setup(app, { workspace, settings });
+	await extensions.setup(app, { workspace, settings, events });
 	Routes.errors(app);
+	await portable?.start();
+
+	// What the service implements, read from what it mounted, for a client to decide whether it is compatible
+	const capabilities = new Capabilities();
+	capabilities.read(app);
+	portable && capabilities.add(portable.capabilities);
+	description.capabilities = capabilities.map;
 
 	/**
 	 * The service has no authentication: whoever reaches it reads the compiled sources and can attach to it.
@@ -154,7 +186,7 @@ try {
 	 */
 	const bind = settings.bind ?? '127.0.0.1';
 	const loopback = ['127.0.0.1', '::1', 'localhost'].includes(bind);
-	!loopback && log(`warning: listening on ${bind} without authentication; access must be controlled outside this service`);
+	!loopback && !portable && log(`warning: listening on ${bind} without authentication; access must be controlled outside this service`);
 
 	server = app.listen(settings.port ?? 0, bind);
 	await new Promise((resolve, reject) => {
@@ -170,8 +202,13 @@ try {
 	const origin = `http://${address}:${server.address().port}`;
 	description.origin = origin;
 
+	// A service that pairs opens its preview listener on a port of its own, beside the API one
+	const listening = await portable?.listen(app, { port: server.address().port, address });
+	description.preview = listening?.preview;
+	description.public = listening?.publics.api;
+
 	new Lifetime(settings.lifetime, attachments, reason => end(reason), holds).start();
-	log(`ready: ${origin} serving ${settings.root}`);
+	log(`ready: ${origin} serving ${settings.root}${listening ? `; previews at ${listening.preview}; browser pages pair` : ''}`);
 	report({ ready: { origin } });
 } catch (error) {
 	log(`failed: ${error.stack}`);

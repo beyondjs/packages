@@ -1,0 +1,22 @@
+{
+	"id": "exp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	"protocol": "beyond-dev-exports/1",
+	"state": "failed",
+	"created": "2026-10-10T12:00:00.000Z",
+	"expires": "2026-10-11T12:00:00.000Z",
+	"error": {
+		"code": "EXPORT_FAILED",
+		"message": "x"
+	},
+	"packages": [
+		{
+			"path": "packages/../../etc",
+			"name": "x",
+			"version": "1.0.0",
+			"manifest": {
+				"name": "x",
+				"version": "1.0.0"
+			}
+		}
+	]
+}

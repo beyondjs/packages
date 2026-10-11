@@ -1,0 +1,10 @@
+{
+	"explicit": true,
+	"packages": [
+		"@example/app",
+		"@example/shared"
+	],
+	"modules": [],
+	"externals": "cdn",
+	"unknown": []
+}

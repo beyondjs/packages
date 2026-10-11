@@ -1,7 +1,8 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { type Distribution } from '@beyond-js/packages/publication';
 import { Keyed, Toolchain, type Opened, type IPublicModule, type IAnalysisConditions, type IKeyInputs } from '@beyond-js/packages/analysis';
-import { promises as fs } from 'fs';
+import { Confinement } from '@beyond-js/packages/confinement';
+import { existsSync, promises as fs } from 'fs';
 import { join, normalize, sep } from 'path';
 import type { FormatType, IGenerated } from './types';
 import { Outputs } from './outputs';
@@ -12,16 +13,24 @@ import { Outputs } from './outputs';
  * A distribution answers with the files its manifest lists, verified against their digests. No compiler
  * runs, so the selected one is not part of their identity: their key names what the declaration of the
  * distribution says compiled it.
+ *
+ * Confined, a static file of the sources is read through no link that leaves its package
+ * (`SOURCE_CONFINED`), and the key and the provenance of every output say the generation was confined.
  */
 export /*bundle*/ class Prebuilt {
 	#opened: Opened;
 	#conditions: IAnalysisConditions;
 	#format: FormatType;
+	#confined: boolean;
 
-	constructor(opened: Opened, conditions: IAnalysisConditions, format: FormatType) {
+	/**
+	 * @param confined Whether the packages are compiled confined
+	 */
+	constructor(opened: Opened, conditions: IAnalysisConditions, format: FormatType, confined = false) {
 		this.#opened = opened;
 		this.#conditions = conditions;
 		this.#format = format;
+		this.#confined = confined === true;
 	}
 
 	#missing(): IGenerated {
@@ -41,7 +50,7 @@ export /*bundle*/ class Prebuilt {
 		const read = await distribution.outputs({ subpath: module.subpath, conditions: this.#conditions, format: this.#format });
 		if (read.diagnostics.length) return { outputs: [], diagnostics: read.diagnostics, warnings };
 
-		const described = new Toolchain(void 0, this.#conditions, this.#format).describe(this.#opened);
+		const described = new Toolchain(void 0, this.#conditions, this.#format, this.#confined).describe(this.#opened);
 		const shared = Keyed.inputs(this.#opened, module.subpath, resolution, described, 'js');
 		if (!shared) return this.#missing();
 		const outputs = new Outputs(shared);
@@ -56,7 +65,7 @@ export /*bundle*/ class Prebuilt {
 		});
 
 		const main: IKeyInputs['output'] = module.kind === 'style' || only ? 'css' : 'js';
-		const compiler = Object.assign({ distributed: true }, distribution.manifest.compiler);
+		const compiler = Object.assign({ distributed: true }, distribution.manifest.compiler, this.#confined ? { confined: true } : {});
 		const provenance = { compiler, files: read.outputs.map(({ file }) => file), inputs: outputs.inputs(main), key: outputs.key(main), ms: Date.now() - started };
 		return { outputs: outputs.list, diagnostics: [], warnings, provenance };
 	}
@@ -79,14 +88,17 @@ export /*bundle*/ class Prebuilt {
 		if (listed?.output) ({ content: bytes, media } = listed.output);
 		// A file the distribution lists must match its digest; any other file of the package is read as it is
 		else if (listed && (await this.#opened.listed(path))) return { outputs: [], diagnostics: listed.diagnostics, warnings };
-		else bytes = await fs.readFile(file).catch(() => void 0);
+		else if (this.#confined && existsSync(file) && !this.#opened.confinement?.inside(file)) {
+			return { outputs: [], diagnostics: [Confinement.source(path, `the assets of "${key}"`)], warnings };
+		} else bytes = await fs.readFile(file).catch(() => void 0);
 		if (!bytes) return fail('ASSET_NOT_FOUND', `Asset "${path}" does not exist in package "${key}"`);
 
-		const shared = Keyed.inputs(this.#opened, path, {}, Toolchain.copied, 'asset');
+		const shared = Keyed.inputs(this.#opened, path, {}, Toolchain.copy(this.#confined), 'asset');
 		if (!shared) return this.#missing();
 		const outputs = new Outputs(shared);
 		outputs.asset(path, bytes, media);
-		const provenance = { compiler: { copied: true }, files: [path], inputs: outputs.inputs('asset'), key: outputs.key('asset'), ms: Date.now() - started };
+		const compiler = this.#confined ? { copied: true, confined: true } : { copied: true };
+		const provenance = { compiler, files: [path], inputs: outputs.inputs('asset'), key: outputs.key('asset'), ms: Date.now() - started };
 		return { outputs: outputs.list, diagnostics: [], warnings, provenance };
 	}
 }

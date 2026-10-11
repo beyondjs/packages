@@ -1,0 +1,18 @@
+{
+	"export": {
+		"id": "exp_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+		"state": "ready",
+		"expires": "2026-10-11T12:00:00.000Z",
+		"capture": {
+			"id": "snp_ffffffffffffffffffffffffffffffff"
+		},
+		"transfer": {
+			"packages": [
+				{
+					"path": ".",
+					"state": "uploading"
+				}
+			]
+		}
+	}
+}

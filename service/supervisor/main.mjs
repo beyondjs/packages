@@ -15,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { appendFileSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Credential } from '../credential.mjs';
 import { Discovery } from '../discovery.mjs';
 import { Home } from '../home.mjs';
 import { Installation } from '../installation.mjs';
@@ -28,6 +29,7 @@ const home = new Home(options.home);
 const discovery = new Discovery(home, { root: options.root, toolchain: installation.id });
 const directory = home.directory('services', discovery.key);
 const log = join(directory, 'service.log');
+let credential;
 
 let implementation;
 let preparing;
@@ -57,6 +59,7 @@ async function end(code) {
 
 	await implementation?.stop();
 	discovery.remove(process.pid);
+	credential?.remove();
 	await sweep();
 	process.exit(code);
 }
@@ -97,6 +100,10 @@ try {
 	const launch = await preparing;
 	if (ending) throw new Error('The service was stopped while it was being prepared');
 
+	// A service that pairs browsers tells its local tools from anyone else by a secret only its user can read. It is
+	// written once the preparation, which lays out this directory, is done
+	credential = options.pairing ? Credential.create(directory) : void 0;
+
 	const output = openSync(log, 'a');
 	const settings = {
 		...options,
@@ -104,7 +111,8 @@ try {
 		toolchain: installation.id,
 		runtime: installation.runtime,
 		supplied: installation.supplied,
-		watchers: launch.watchers
+		watchers: launch.watchers,
+		...(credential ? { credential: credential.value } : {})
 	};
 
 	/**
@@ -163,7 +171,8 @@ try {
 			toolchain: installation.id,
 			lifetime: options.lifetime,
 			started: new Date().toISOString(),
-			log
+			log,
+			...(credential ? { credential: credential.file } : {})
 		};
 		discovery.write(record);
 		report({ ready: record });

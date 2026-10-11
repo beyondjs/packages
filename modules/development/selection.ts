@@ -18,6 +18,12 @@ export /*bundle*/ interface ISelection {
 	modules: string[];
 
 	/**
+	 * Where a preview loads what the workspace does not develop and this environment can compile: from this
+	 * environment (`environment`, the default) or from the CDN at the installed exact version (`cdn`)
+	 */
+	externals: 'environment' | 'cdn';
+
+	/**
 	 * Selected names that the workspace no longer declares. They select nothing and are kept, so that a
 	 * package that comes back with a branch is still selected.
 	 */
@@ -26,20 +32,23 @@ export /*bundle*/ interface ISelection {
 
 /**
  * Which packages and public modules of the workspace are in development, which means that a preview loads
- * them from this environment while every other dependency comes from the CDN.
+ * them from this environment while every other dependency comes from the CDN, and where a preview loads the
+ * installed packages this environment could compile itself (`externals`).
  *
  * Only a request that replaces the selection changes it. Reading, opening, editing or building a file never
- * does. It is state of the working copy, not source: it is kept under the state directory of the served
- * root, which is on the durable volume of a project environment, is ignored by Git through its own ignore
- * file, and is neither listed nor writable as a file of the contract.
+ * does. A replacement states the whole selection: what it does not name is not in development, and its
+ * externals are `environment` unless it says `cdn`. It is state of the working copy, not source: it is kept
+ * under the state directory of the served root, which is on the durable volume of a project environment, is
+ * ignored by Git through its own ignore file, and is neither listed nor writable as a file of the contract.
  */
 export /*bundle*/ class Selection {
 	static FILE = 'development/selection.json';
+	static EXTERNALS = ['environment', 'cdn'];
 
 	#directory: string;
 	#delivery: IBuildable;
 	#log: Log;
-	#stored: { packages: string[]; modules: string[] };
+	#stored: { packages: string[]; modules: string[]; externals: ISelection['externals'] };
 	#loaded: Promise<void>;
 
 	constructor(root: string, delivery: IBuildable, log: Log) {
@@ -58,10 +67,19 @@ export /*bundle*/ class Selection {
 		return [...new Set(<string[]>value)].sort();
 	}
 
+	/**
+	 * The externals a replacement names: `environment` when it names none
+	 */
+	#externals(value: unknown): ISelection['externals'] {
+		if (value === void 0) return 'environment';
+		if (Selection.EXTERNALS.includes(<string>value)) return <ISelection['externals']>value;
+		throw new DevelopmentError('SELECTION_INVALID', `"externals" must be ${Selection.EXTERNALS.map(one => `"${one}"`).join(' or ')}`, 400);
+	}
+
 	async #load() {
 		try {
-			const { packages, modules } = JSON.parse(await fs.readFile(this.#file, 'utf8'));
-			this.#stored = { packages: this.#names(packages, 'packages'), modules: this.#names(modules, 'modules') };
+			const { packages, modules, externals } = JSON.parse(await fs.readFile(this.#file, 'utf8'));
+			this.#stored = { packages: this.#names(packages, 'packages'), modules: this.#names(modules, 'modules'), externals: this.#externals(externals) };
 		} catch (error) {
 			// A selection that cannot be read is not guessed: nobody selected
 			this.#stored = void 0;
@@ -82,9 +100,9 @@ export /*bundle*/ class Selection {
 		const published = await this.#published();
 		const known = new Set(published.flatMap(module => [module.name, this.#specifier(module)]));
 
-		if (!this.#stored) return { explicit: false, packages: [...new Set(published.map(({ name }) => name))].sort(), modules: [], unknown: [] };
-		const { packages, modules } = this.#stored;
-		return { explicit: true, packages, modules, unknown: [...packages, ...modules].filter(name => !known.has(name)) };
+		if (!this.#stored) return { explicit: false, packages: [...new Set(published.map(({ name }) => name))].sort(), modules: [], externals: 'environment', unknown: [] };
+		const { packages, modules, externals } = this.#stored;
+		return { explicit: true, packages, modules, externals, unknown: [...packages, ...modules].filter(name => !known.has(name)) };
 	}
 
 	/**
@@ -95,12 +113,14 @@ export /*bundle*/ class Selection {
 	}
 
 	/**
-	 * Replaces the selection. Every name must be a package or a public module that the workspace declares.
+	 * Replaces the selection. Every name must be a package or a public module that the workspace declares, and
+	 * `externals`, when given, `environment` or `cdn`.
 	 */
-	async replace(values: { packages?: unknown; modules?: unknown }): Promise<ISelection> {
+	async replace(values: { packages?: unknown; modules?: unknown; externals?: unknown }): Promise<ISelection> {
 		if (!values || typeof values !== 'object') throw new DevelopmentError('SELECTION_INVALID', 'The selection must be an object', 400);
 		const packages = this.#names(values.packages ?? [], 'packages');
 		const modules = this.#names(values.modules ?? [], 'modules');
+		const externals = this.#externals(values.externals);
 
 		const published = await this.#published();
 		const unknown = [
@@ -112,8 +132,8 @@ export /*bundle*/ class Selection {
 			throw new DevelopmentError('SELECTION_INVALID', message, 400, { unknown });
 		}
 
-		await this.#write(JSON.stringify({ packages, modules }, null, '\t'));
-		this.#stored = { packages, modules };
+		await this.#write(JSON.stringify({ packages, modules, externals }, null, '\t'));
+		this.#stored = { packages, modules, externals };
 		return this.#announce();
 	}
 

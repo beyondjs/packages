@@ -19,20 +19,20 @@ export async function preview() {
 		context.development.files.log.subscribe(event => events.push(event));
 		const selection = async () => (await context.call('GET', '/development/selection')).body;
 
-		assert.deepEqual(await selection(), { explicit: false, packages: ['@case/app'], modules: [], unknown: [] });
+		assert.deepEqual(await selection(), { explicit: false, packages: ['@case/app'], modules: [], externals: 'environment', unknown: [] });
 		const path = '/files/content/app/main/index.ts';
 		await context.call('GET', path);
 		await context.call('PUT', path, { body: 'export const v = 2;', headers: { 'if-match': `"${revision(seed['app/main/index.ts'])}"` } });
 		await context.call('PUT', '/files/content/app/other.ts', { body: 'export {};', headers: { 'if-none-match': '*' } });
 		await until(() => events.some(({ type }) => type === 'build.ended'), 'the build of the edit');
-		assert.deepEqual(await selection(), { explicit: false, packages: ['@case/app'], modules: [], unknown: [] });
+		assert.deepEqual(await selection(), { explicit: false, packages: ['@case/app'], modules: [], externals: 'environment', unknown: [] });
 
 		const refused = await context.call('PUT', '/development/selection', { body: JSON.stringify({ packages: ['@case/missing'] }) });
 		assert.deepEqual([refused.status, refused.body.error.code, refused.body.error.unknown], [400, 'SELECTION_INVALID', ['@case/missing']]);
 		assert.equal((await selection()).explicit, false);
 
 		const replaced = await context.call('PUT', '/development/selection', { body: JSON.stringify({ modules: ['@case/app/main'] }) });
-		assert.deepEqual(replaced.body, { explicit: true, packages: [], modules: ['@case/app/main'], unknown: [] });
+		assert.deepEqual(replaced.body, { explicit: true, packages: [], modules: ['@case/app/main'], externals: 'environment', unknown: [] });
 		assert.deepEqual(events.filter(({ type }) => type === 'selection.changed').map(({ selection: announced }) => announced), [replaced.body]);
 
 		assert.ok(existsSync(context.project.file('.beyond/development/selection.json')));
@@ -57,7 +57,7 @@ export async function preview() {
 		const { Development } = await import('@beyond-js/packages/development');
 		const { Delivery } = await import('./service.mjs');
 		const again = new Development({ delivery: new Delivery(first.project), settings: { root: first.project.path } });
-		assert.deepEqual(await again.selection.read(), { explicit: true, packages: ['@case/app'], modules: [], unknown: [] });
+		assert.deepEqual(await again.selection.read(), { explicit: true, packages: ['@case/app'], modules: [], externals: 'environment', unknown: [] });
 		first.stop();
 		return stored.replace(/\s+/g, ' ').trim();
 	});

@@ -47,13 +47,22 @@ export class Root {
 		return join(dirname(file), `${TEMPORARY}${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 	}
 
+	/**
+	 * A contract path, checked: relative, with `/`, without empty, `.` or `..` segments, and through no repository
+	 * internals (`.git`) or state of the service (`.beyond`) at any depth, compared without regard to case because a
+	 * filesystem may not regard it (a nested repository's `sub/.git/config` would otherwise be writable)
+	 *
+	 * @throws DevelopmentError `PATH_INVALID` (400) or `PATH_FORBIDDEN` (403)
+	 */
 	validate(path: unknown): string {
 		const invalid = () => new DevelopmentError('PATH_INVALID', `Invalid path "${path}"`, 400);
 		if (typeof path !== 'string' || !path.length || path.includes('\\') || path.includes('\0')) throw invalid();
 		if (path.startsWith('/') || path.endsWith('/')) throw invalid();
-		if (path.split('/').some(segment => !segment || segment === '.' || segment === '..')) throw invalid();
-		if (path.split('/')[0] === '.git') throw new DevelopmentError('PATH_FORBIDDEN', 'Repository internals are not served', 403);
-		if (path.split('/')[0] === Root.STATE) throw new DevelopmentError('PATH_FORBIDDEN', 'The state of the development service is not a source file', 403);
+		const segments = path.split('/');
+		if (segments.some(segment => !segment || segment === '.' || segment === '..')) throw invalid();
+		const lower = segments.map(segment => segment.toLowerCase());
+		if (lower.includes('.git')) throw new DevelopmentError('PATH_FORBIDDEN', 'Repository internals are not served', 403);
+		if (lower.includes(Root.STATE)) throw new DevelopmentError('PATH_FORBIDDEN', 'The state of the development service is not a source file', 403);
 		return path;
 	}
 

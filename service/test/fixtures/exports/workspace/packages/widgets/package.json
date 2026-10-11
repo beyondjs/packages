@@ -1,0 +1,5 @@
+{
+	"name": "@fixture/widgets",
+	"version": "1.2.0",
+	"exports": { "./widget": "./src/widget.ts" }
+}

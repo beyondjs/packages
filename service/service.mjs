@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Connection } from './connection.mjs';
+import { Credential } from './credential.mjs';
 import { Deadline } from './deadline.mjs';
 import { Discovery } from './discovery.mjs';
 import { ServiceError } from './errors.mjs';
@@ -86,6 +87,16 @@ export class Service {
 	}
 
 	/**
+	 * The access context presented to the service of a record: the caller's, or the local credential of a service
+	 * that pairs browsers, which the record names and only this user can read
+	 */
+	#access(record) {
+		if (Object.keys(this.#headers).some(name => name.toLowerCase() === 'authorization')) return this.#headers;
+		const authorization = Credential.authorization(record?.credential);
+		return authorization ? { ...this.#headers, authorization } : this.#headers;
+	}
+
+	/**
 	 * The running compatible service, if there is one. A record that no longer leads to it is discarded.
 	 *
 	 * A service that is there and answers too late is not discarded: the `TimeoutError` of the validation
@@ -95,7 +106,7 @@ export class Service {
 		const record = this.#discovery.read();
 		if (!record) return;
 
-		const connection = await Connection.validate(record, this.#expected, this.#headers);
+		const connection = await Connection.validate(record, this.#expected, this.#access(record));
 		if (connection) return connection;
 
 		// The process of the record exists but is not this service: the record is stale, the process is not ours
@@ -103,21 +114,24 @@ export class Service {
 	}
 
 	/**
-	 * @param {{lifetime: 'owner' | 'attachments', port?: number, bind?: string, extensions?: string[]}}
-	 * options How a service started by this call ends; an explicit port; the address it listens on, which
-	 * is the loopback one unless something else controls who reaches the service, because the service has
-	 * no authentication; and the module specifiers of the extensions that add routes to its host. All of
-	 * them describe a service this call starts and are ignored when a running service is reused. A caller
-	 * that names no extensions starts the ones of `BEYOND_SERVICE_EXTENSIONS` (specifiers separated by
-	 * commas), which is how a person adds the development extension, and with it the preview of the
-	 * workspace, to the service that a command starts.
+	 * @param {{lifetime: 'owner' | 'attachments', port?: number, bind?: string, extensions?: string[], pairing?: true |
+	 * {origins?: string[], public?: string}, interface?: string}} options How a service started by this call ends; an
+	 * explicit port; the address it listens on, which is the loopback one unless something else controls who reaches
+	 * the service, because the service has no authentication; the module specifiers of the extensions that add routes to
+	 * its host; whether it pairs browsers (`beyond-dev-pairing/1`), with the interface origins allowed besides its own
+	 * and the public origin of an external server (`{port}` standing for its port); and the directory of the interface
+	 * build it serves at `/ui/` when it pairs. All of them describe a service this call starts and are ignored when a
+	 * running service is reused. A caller that names no extensions starts the ones of `BEYOND_SERVICE_EXTENSIONS`
+	 * (specifiers separated by commas), which is how a person adds the development extension, and with it the preview
+	 * of the workspace, to the service that a command starts.
 	 * @returns {Promise<{connection: Connection, started: boolean, token?: string}>}
 	 * @throws {ServiceError} `SERVICE_EXTENSIONS_MISSING` when the running service lacks an extension this call
-	 * names and is held by its owner, still in use after `Service.SETTLE`, or still ending after `Service.DEPART`:
-	 * it is not reused as if it had the extension, and it is not replaced while it is there
+	 * names, and `SERVICE_PAIRING_MISSING` when it does not pair browsers and this call asks for pairing, and it is held
+	 * by its owner, still in use after `Service.SETTLE`, or still ending after `Service.DEPART`: it is not reused as if
+	 * it had them, and it is not replaced while it is there
 	 * @throws {ContractError} `UNAVAILABLE` when the running service answers that it cannot describe itself now
 	 */
-	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env) }) {
+	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env), pairing, interface: build }) {
 		// Whoever waits for the lock waits for as long as the holder's start can last, stop and description
 		// included, and the time the holder gives a service that lacks an extension to leave, its last look
 		// included, so that a slow start is not reported to it as a failed one
@@ -126,11 +140,11 @@ export class Service {
 
 		return this.#discovery.exclusive(async () => {
 			const found = await this.find();
-			const reused = found && (await this.#reusable(found, extensions));
+			const reused = found && (await this.#reusable(found, extensions, !!pairing));
 			if (reused) return { connection: reused, started: false };
 
 			const token = randomUUID();
-			const record = await this.#start({ lifetime, port, bind, extensions, token });
+			const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build });
 			const connection = await this.#described(record);
 			return { connection, started: true, token };
 		}, { timeout });
@@ -144,7 +158,7 @@ export class Service {
 	async #described(record) {
 		let connection;
 		try {
-			connection = await Connection.validate(record, this.#expected, this.#headers);
+			connection = await Connection.validate(record, this.#expected, this.#access(record));
 		} catch (error) {
 			if (error?.code !== 'SERVICE_NOT_ANSWERING') throw error;
 			throw new ServiceError(error.message, record.log, error.code);
@@ -155,22 +169,24 @@ export class Service {
 	}
 
 	/**
-	 * The running service, when it has every extension the caller names. The extensions describe a service when
-	 * it starts, so one started without an extension never gains it. A service that ends by itself once nobody is
-	 * attached, such as the one a command that just finished started, is given `Service.SETTLE` to stop accepting
-	 * connections and `Service.DEPART` for its supervisor to end, and a service with the extensions is then
-	 * started under the same lock. One its owner holds, one still in use and one still ending are not replaced:
-	 * the caller is told which extensions are missing and how to have them, instead of receiving a service whose
-	 * routes it expects and does not find.
+	 * The running service, when it has every extension the caller names and pairs browsers when the caller asks for
+	 * pairing. Both describe a service when it starts, so one started without them never gains them. A service that
+	 * ends by itself once nobody is attached, such as the one a command that just finished started, is given
+	 * `Service.SETTLE` to stop accepting connections and `Service.DEPART` for its supervisor to end, and a service with
+	 * them is then started under the same lock. One its owner holds, one still in use and one still ending are not
+	 * replaced: the caller is told what is missing and how to have it, instead of receiving a service whose routes it
+	 * expects and does not find.
 	 *
 	 * @param {Connection} connection
 	 * @param {string[]} [requested]
+	 * @param {boolean} [pairing] Whether the caller needs a service that pairs browsers
 	 * @returns {Promise<Connection | undefined>} undefined when the service ended and another one is to be started
 	 */
-	async #reusable(connection, requested = []) {
+	async #reusable(connection, requested = [], pairing = false) {
 		const loaded = connection.session.service.extensions ?? [];
 		const missing = requested.filter(specifier => !loaded.includes(specifier));
-		if (!missing.length) return connection;
+		const unpaired = pairing && !connection.session.toJSON().capabilities?.pairing;
+		if (!missing.length && !unpaired) return connection;
 
 		// A record gone since it was found is a service that is ending
 		const record = this.#discovery.read();
@@ -179,14 +195,14 @@ export class Service {
 		const departure = leaving.lifetime === 'attachments' ? await this.#discovery.departure(leaving, bounds) : 'held';
 		if (departure === 'ended') return;
 
-		const names = missing.join(', ');
+		const names = [...missing, ...(unpaired ? ['pairing'] : [])].join(', ');
 		const where = `The development service of "${connection.session.workspace.root}" (${connection.origin})`;
 		const ending = `${where} stopped answering and is still ending: its supervisor (pid ${leaving.pid}) did not end within ${Service.DEPART}ms`;
 		const message = departure === 'ending'
 			? `${ending}. Run this command again once it ended: it then starts the service with ${names}, which this command needs`
 			: `${where} is in use without ${names}, which this command needs, and a running service is reused as it was started. ` +
 				`End the commands and applications that use it, so that it stops, and run this command again: it then starts the service with ${names}`;
-		throw new ServiceError(message, record?.log, 'SERVICE_EXTENSIONS_MISSING');
+		throw new ServiceError(message, record?.log, missing.length ? 'SERVICE_EXTENSIONS_MISSING' : 'SERVICE_PAIRING_MISSING');
 	}
 
 	/**
@@ -204,10 +220,10 @@ export class Service {
 	 * Starts the supervisor detached from this process and waits for the outcome of the start, within the
 	 * deadline of `BEYOND_START_TIMEOUT`. A supervisor that is not ready by then is stopped.
 	 */
-	#start({ lifetime, port, bind, extensions, token }) {
+	#start({ lifetime, port, bind, extensions, token, pairing, interface: build }) {
 		const deadline = Service.#deadline.read(process.env);
 		const { root, standalone } = this.#context;
-		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path };
+		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path, pairing, interface: build };
 
 		// Where the supervisor logs, which it names itself once it can: a start that fails before, or never
 		// ends, is reported with it as well

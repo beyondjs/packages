@@ -1,0 +1,8 @@
+{
+	"explicit": true,
+	"packages": [
+		"@example/app"
+	],
+	"modules": [],
+	"unknown": []
+}

@@ -6,7 +6,9 @@ import { Admission } from './admission.mjs';
  *
  * The answers are for the service's own clients, never for a page of another origin: they carry no
  * cross-origin header, a preflight is answered without one, and a request to install passes `Admission` first.
- * Mount these routes before the routes of the compiled-module contract, whose answers any origin may read.
+ * Mount these routes before the routes of the compiled-module contract, whose answers any origin may read. On a
+ * service that pairs browsers, the page of a paired interface is one of its clients: its cross-origin rules answer
+ * that page's preflight and give its answers its origin.
  */
 export class InstallationRoutes {
 	/**
@@ -21,11 +23,12 @@ export class InstallationRoutes {
 
 	/**
 	 * @param {import('./installer.mjs').Installer} installer
-	 * @param {{bind?: string}} [options] The address the service listens on, the loopback one by default
+	 * @param {{bind?: string, hosts?: import('./hosts.mjs').Hosts}} [options] The address the service listens on,
+	 * the loopback one by default, or the names requests may address, shared with the rest of the service
 	 */
-	constructor(installer, { bind } = {}) {
+	constructor(installer, { bind, hosts } = {}) {
 		this.#installer = installer;
-		this.#admission = new Admission({ bind });
+		this.#admission = new Admission({ bind, hosts });
 	}
 
 	/**

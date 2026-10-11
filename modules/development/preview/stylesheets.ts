@@ -4,6 +4,7 @@ import type { Imports } from './imports';
 import type { IPreviewModule } from './types';
 import type { IImporter } from './locator';
 import type { Instances } from './instances';
+import type { Policy } from './policy';
 import { Externals } from './externals';
 
 interface ISettings {
@@ -12,6 +13,11 @@ interface ISettings {
 	addresses: Addresses;
 	externals: Externals;
 	imports: Imports;
+
+	/**
+	 * Where the installed packages this environment could compile are loaded from, which their stylesheets follow
+	 */
+	policy: Policy;
 
 	/**
 	 * The installed graph, when the workspace is served from its execution projection
@@ -97,7 +103,8 @@ export class Stylesheets {
 			if (!module) return void report('PREVIEW_STYLESHEET_NOT_FOUND', `"${specifier}", imported by "${from}": the workspace publishes no such stylesheet`);
 
 			const { name, version, subpath } = module;
-			const url = this.#settings.selected(module) ? addresses.styles(name, version, subpath) : addresses.stylesheet(name, version, subpath, await this.#settings.registry(module));
+			const here = this.#settings.selected(module) || this.#settings.policy.kept(module);
+			const url = here ? addresses.styles(name, version, subpath) : addresses.stylesheet(name, version, subpath, await this.#settings.registry(module));
 			return url && { specifier, vspecifier: module.vspecifier, url };
 		}
 
@@ -107,7 +114,8 @@ export class Stylesheets {
 
 		const origin = (await delivery.origin?.(name, version)) ?? { registry: 'npm' };
 		if (!origin.registry) return void report('PREVIEW_SOURCE_UNSUPPORTED', `"${specifier}", imported by "${from}": ${origin.reason}`);
-		const url = (await delivery.supplies?.(name, version)) ? addresses.styles(name, version, subpath, origin.registry) : addresses.stylesheet(name, version, subpath, origin.registry);
+		const served = !this.#settings.policy.cdn && (await delivery.supplies?.(name, version));
+		const url = served ? addresses.styles(name, version, subpath, origin.registry) : addresses.stylesheet(name, version, subpath, origin.registry);
 		return url && { specifier, vspecifier: Stylesheets.#vspecifier(name, version, subpath), url };
 	}
 

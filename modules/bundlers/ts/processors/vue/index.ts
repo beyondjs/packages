@@ -6,6 +6,7 @@ import { FileData } from '@beyond-js/file/data';
 import { DynamicFile } from '@beyond-js/file/dynamic';
 import { join } from 'path';
 import { Component } from './component';
+import { Files } from './files';
 
 /**
  * Compiles the `.vue` single-file components of a public module into internal modules and stylesheets.
@@ -15,6 +16,9 @@ import { Component } from './component';
  * style output per `<style>` block. The script and the template are compiled by the Vue compiler this
  * package pins; TypeScript in `<script lang="ts">` is transpiled like any source of the module. The Vue
  * runtime is a public dependency of the module, bare as any other.
+ *
+ * A package compiled confined has the files of the types its components import read through [Files](./files.ts):
+ * nothing outside the package.
  */
 export /*bundle*/ class Processor extends ConditionalProcessor {
 	constructor(conditional: Conditional, name: string) {
@@ -33,7 +37,9 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 	}
 
 	async _build(request: IRequest, outputs: ProcessorOutputs): Promise<void> {
-		const { platform } = this.conditional;
+		const { platform, module } = this.conditional;
+		const { confinement } = module.package;
+		const files = confinement ? new Files(confinement) : void 0;
 		const analyses: Promise<void>[] = [];
 
 		for (const input of this.sources.inputs.values()) {
@@ -45,7 +51,7 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 
 			const relative = input.relative.file.replace(/\\/g, '/');
 			const scope = `data-v-${new Scope(this.conditional, input.file).hash(8)}`;
-			const compiled = await new Component(input.file, relative, platform, scope).compile(input.content);
+			const compiled = await new Component(input.file, relative, platform, scope, files).compile(input.content);
 			if (request !== this._request) return;
 
 			compiled.diagnostics.forEach(diagnostic => output.issues.push('errors', diagnostic));

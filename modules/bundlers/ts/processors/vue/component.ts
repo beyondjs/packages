@@ -1,4 +1,5 @@
 import type { IProcessorDiagnostic } from '@beyond-js/packages/sdk';
+import type { Files } from './files';
 import { Transpiler } from '@beyond-js/packages/bundlers/ts/processors/ts';
 
 /**
@@ -36,6 +37,7 @@ export class Component {
 	#relative: string;
 	#platform: string;
 	#scope: string;
+	#files?: Files;
 
 	/**
 	 * @param file The absolute path of the component
@@ -45,12 +47,15 @@ export class Component {
 	 * styles select. It must tell this component apart from every other one a page can hold, including a
 	 * component of another package or module at the same relative path, so it is derived from the identity
 	 * of the source and not from the relative path alone.
+	 * @param files What the compiler reads the files of imported types through, when the package is compiled
+	 * confined; the file system otherwise
 	 */
-	constructor(file: string, relative: string, platform: string, scope: string) {
+	constructor(file: string, relative: string, platform: string, scope: string, files?: Files) {
 		this.#file = file;
 		this.#relative = relative;
 		this.#platform = platform;
 		this.#scope = scope;
+		this.#files = files;
 	}
 
 	/**
@@ -102,7 +107,8 @@ export class Component {
 		if (descriptor.script || descriptor.scriptSetup) {
 			let compiled;
 			try {
-				compiled = sfc.compileScript(descriptor, { id: scope, inlineTemplate: false, sourceMap: true, genDefaultAs: '__component' });
+				const fs = this.#files ? { fs: this.#files } : {};
+				compiled = sfc.compileScript(descriptor, { id: scope, inlineTemplate: false, sourceMap: true, genDefaultAs: '__component', ...fs });
 			} catch (error) {
 				diagnostics.push({ code: 'VUE_SCRIPT_ERROR', message: error.message, position: this.#position(error, descriptor.scriptSetup ?? descriptor.script) });
 				return { modules, styles, diagnostics, warnings };

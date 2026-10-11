@@ -21,6 +21,13 @@ export /*bundle*/ interface IGenerationRequest {
 	 * `env:NAME`. There is no default.
 	 */
 	compiler: string;
+
+	/**
+	 * Whether the sources are compiled confined, as the analysis that produced the item was: no code a package
+	 * supplies is loaded and no file outside a package is read. It is an input of the key, so it must be what
+	 * the analysis selected, and the provenance of the outputs says it (`compiler.confined`).
+	 */
+	confined?: boolean;
 }
 
 /**
@@ -99,7 +106,7 @@ export /*bundle*/ interface IProvenance {
 	 * ran with and the transformation of a `system` output. Where the compiler is installed and how it was
 	 * selected are not reported: nothing in a provenance depends on the machine that produced it. A
 	 * distribution reports what its declaration says compiled it and `distributed: true`; a static file
-	 * reports `copied: true`.
+	 * reports `copied: true`. Every output of a confined generation reports `confined: true`.
 	 */
 	compiler: Record<string, unknown>;
 

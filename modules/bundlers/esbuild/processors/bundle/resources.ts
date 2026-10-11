@@ -40,6 +40,14 @@ export /*bundle*/ class Resources implements Plugin {
 	}
 
 	#root: string;
+
+	/**
+	 * The root of the package, by its real location
+	 */
+	get root(): string {
+		return this.#root;
+	}
+
 	#prefix: string;
 
 	#found: Map<string, IResource> = new Map();

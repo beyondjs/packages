@@ -5,8 +5,8 @@ export class ServiceError extends Error {
 	/**
 	 * @param {string} message
 	 * @param {string} [log] The log of the service
-	 * @param {string} [code] `SERVICE_START_FAILED`, `SERVICE_START_TIMEOUT`, `SERVICE_NOT_ANSWERING` or
-	 * `SERVICE_EXTENSIONS_MISSING`
+	 * @param {string} [code] `SERVICE_START_FAILED`, `SERVICE_START_TIMEOUT`, `SERVICE_NOT_ANSWERING`,
+	 * `SERVICE_EXTENSIONS_MISSING` or `SERVICE_PAIRING_MISSING`
 	 */
 	constructor(message, log, code = 'SERVICE_START_FAILED') {
 		super(message);

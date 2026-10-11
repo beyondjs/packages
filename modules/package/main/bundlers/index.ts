@@ -1,5 +1,6 @@
 import type { IDiagnostic, BundlersSettingsType } from '@beyond-js/packages/types';
 import type { Config } from '@beyond-js/config/main';
+import type { Confinement } from '@beyond-js/packages/confinement';
 import { Bundler } from './bundler';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
@@ -31,10 +32,16 @@ export class Bundlers extends DynamicProcessor(Map<string, Bundler>) {
 
 	#config: Config;
 
-	constructor(config: Config) {
+	/**
+	 * The rules of a confined compilation of the package, which every bundler it registers follows
+	 */
+	#confinement: Confinement | undefined;
+
+	constructor(config: Config, confinement?: Confinement) {
 		super();
 
 		this.#config = <Config>config.get('bundlers');
+		this.#confinement = confinement;
 		super.setup(new Map([['config', { child: this.#config }]]));
 	}
 
@@ -91,7 +98,7 @@ export class Bundlers extends DynamicProcessor(Map<string, Bundler>) {
 				continue;
 			}
 
-			const bs = new Bundler(name, this.#config.path);
+			const bs = new Bundler(name, this.#config.path, this.#confinement);
 			bs.config(values);
 			updated.set(name, bs);
 		}

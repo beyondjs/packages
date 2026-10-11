@@ -1,0 +1,19 @@
+{
+	"name": "@portable/app",
+	"version": "1.0.0",
+	"description": "Portable connections validation: a browser entry and a module for Node and browsers",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./text": "./text/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

@@ -38,6 +38,8 @@ Implement real semantic TypeScript Diagnostics through bundlers for premium CDN 
 
 Workers must be safely interruptible at CDN hard deadlines, with verified completed outputs reusable on retry. Do not claim esbuild pause/resume. Packages supplies bounded generation units and provenance; CDN owns fair scheduling, isolated workers, recovery, usage/credit and stage events. Preparation has separate limits from generation turns.
 
+Sources a preparation does not trust are compiled confined: the analysis and every generation of its items set `confined: true`, so no code a package supplies is loaded and no file outside a package is read, and the keys and provenance of the outputs say so ([confined compilation](cdn-outputs.md#confined-compilation), executed by `tests/confinement`). Confinement is the toolchain's own resolution, in the caller's process; the operating-system isolation of that process (its own unprivileged user, no network beyond what it needs) stays CDN's.
+
 Backend targets produce a delivery closure usable by an external execution environment; CDN v1 does not launch or administer backend hosts. Engine remains the implementation bootstrap until an independent Packages distribution is actually produced and validated. Do not substitute Engine target compilation for Packages acceptance.
 
 ## Acceptance required before CDN integration is complete

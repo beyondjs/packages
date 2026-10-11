@@ -1,0 +1,12 @@
+{
+	"capture": {
+		"id": "snp_ffffffffffffffffffffffffffffffff"
+	},
+	"grants": [
+		{
+			"path": ".",
+			"upload": "https://snapshots.example/upload?package=.",
+			"token": "grant-token"
+		}
+	]
+}

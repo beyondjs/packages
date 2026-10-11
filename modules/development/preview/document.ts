@@ -62,9 +62,14 @@ export class Document {
 			...(module.stylesheets ?? [])
 		]);
 
-		// A stylesheet that several modules select, or that a module owns and another selects, is linked once
+		// A stylesheet that several modules select, or that a module owns and another selects, is linked once; one
+		// on the CDN carries the integrity of the digest the CDN answered for it
 		const linked = new Map(sheets.map(sheet => [sheet.url, sheet]));
-		return [...linked.values()].map(({ vspecifier, url }) => `<link rel="stylesheet" data-beyond-styles="${this.#text(vspecifier)}" href="${this.#text(url)}">`);
+		const integrity = this.#description.importmap.integrity ?? {};
+		return [...linked.values()].map(({ vspecifier, url }) => {
+			const pinned = integrity[url] ? ` integrity="${this.#text(integrity[url])}" crossorigin="anonymous"` : '';
+			return `<link rel="stylesheet" data-beyond-styles="${this.#text(vspecifier)}" href="${this.#text(url)}"${pinned}>`;
+		});
 	}
 
 	get html(): string {

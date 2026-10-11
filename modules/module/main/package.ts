@@ -1,6 +1,7 @@
 import type { DynamicProcessorImplementation } from '@beyond-js/dynamic-processor/main';
 import type { WatcherClient } from '@beyond-js/watchers/client';
 import type { IDiagnostic } from '@beyond-js/packages/types';
+import type { Confinement } from '@beyond-js/packages/confinement';
 
 // Package interface is duplicated here to avoid a circular dependency
 // between @beyond-js/packages/package and @beyond-js/packages/modules
@@ -10,6 +11,11 @@ export interface Package extends DynamicProcessorImplementation {
 	get version(): string;
 	get vname(): string;
 	get identity(): string;
+
+	/**
+	 * The rules of a confined compilation of the package, or undefined when it is not compiled confined
+	 */
+	get confinement(): Confinement | undefined;
 	get description(): string;
 	get keywords(): string[];
 	get license(): string;

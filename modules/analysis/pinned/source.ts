@@ -1,5 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { Package } from '@beyond-js/packages/package';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { existsSync, realpathSync } from 'fs';
 import { join, posix } from 'path';
 import type { IAnalysisConditions } from '../types';
@@ -19,6 +20,11 @@ import { Specifier } from '../specifier';
  * declared it is compiled with: its processors, its composition and its runtime are part of the package's
  * contract and not of the consumer's choice of compiler. A module that selects none, or the packaging
  * bundler, is compiled by the compiler the consumer selects.
+ *
+ * Compiled confined, the package is read with its confinement: a bundler it names that the toolchain does not
+ * ship, or one that does not compose confined, is refused (`PLUGIN_REFUSED`) and its module answers that
+ * refusal instead of being compiled by another compiler, and a module whose directory or entry point is
+ * outside the package is `SOURCE_CONFINED`.
  */
 export /*bundle*/ class SourcePackage extends Opened {
 	#pkg: Package;
@@ -46,7 +52,7 @@ export /*bundle*/ class SourcePackage extends Opened {
 	 */
 	async #specs() {
 		const identity = JSON.stringify([this.key, this.integrity ?? null]);
-		this.#pkg = this.#pkg ?? new Package(realpathSync(this.root), { identity });
+		this.#pkg = this.#pkg ?? new Package(realpathSync(this.root), { identity, confined: !!this.confinement });
 		await this.#pkg.ready;
 		await this.#pkg.modules.ready;
 		return this.#pkg.modules;
@@ -66,12 +72,20 @@ export /*bundle*/ class SourcePackage extends Opened {
 
 		const values = <Record<string, any>>spec.values;
 
+		// Confined, a bundler that was refused or could not be imported compiles nothing, and no other compiler
+		// takes its place
+		const refused = this.confinement && this.#refused(spec.bundler);
+		if (refused) return { diagnostics: refused };
+
 		/**
 		 * A module composed by a bundler of its package has no entry point here: which source starts it, and
 		 * which sources the requested conditions exclude, is what that bundler decides from the manifest. A
 		 * module compiled by the selected compiler is entered at the one file its manifest names.
 		 */
 		const composed = Composition.declared(this.#pkg, subpath);
+		if (composed && this.confinement && !Confinement.COMPOSERS.includes(composed.specifier)) {
+			return { diagnostics: [Confinement.plugin('bundler', composed.specifier)] };
+		}
 		if (!composed && !spec.entry) return fail('MODULE_ENTRY_MISSING', `Module "${label}" does not define its entry point`);
 
 		const platforms: string[] = [].concat(values.platforms ?? []).map(platform => (platform === 'web' ? 'browser' : platform));
@@ -81,8 +95,15 @@ export /*bundle*/ class SourcePackage extends Opened {
 
 		const directory = join(this.root, spec.path ?? '');
 		const entry = spec.entry && join(directory, spec.entry);
+		const confinement = this.confinement;
+		if (confinement && (!confinement.contains(directory) || (entry && !confinement.contains(entry)))) {
+			return { diagnostics: [Confinement.source(posix.join(spec.path ?? '', spec.entry ?? ''), `the manifest of "${label}"`)] };
+		}
 		if (entry && !existsSync(entry)) {
 			return fail('MODULE_ENTRY_MISSING', `The entry point of "${label}" does not exist: ${posix.join(spec.path ?? '', spec.entry)}`);
+		}
+		if (confinement && ((existsSync(directory) && !confinement.inside(directory)) || (entry && !confinement.inside(entry)))) {
+			return { diagnostics: [Confinement.source(posix.join(spec.path ?? '', spec.entry ?? ''), `the manifest of "${label}"`)] };
 		}
 
 		const list = (value: unknown): string[] => (value instanceof Array ? value.filter(one => typeof one === 'string') : []);
@@ -95,6 +116,14 @@ export /*bundle*/ class SourcePackage extends Opened {
 			dynamic: list(values.dynamic)
 		};
 		return { module, diagnostics };
+	}
+
+	/**
+	 * The diagnostics of the bundler a module selects, when it is registered and is not valid
+	 */
+	#refused(name: string): IDiagnostic[] | undefined {
+		const bundler = (<{ get(name: string): { valid: boolean; errors: IDiagnostic[] } | undefined }>(<unknown>this.#pkg.bundlers))?.get(name);
+		return bundler && !bundler.valid ? bundler.errors : void 0;
 	}
 
 	async entries(conditions: IAnalysisConditions, except: string): Promise<Map<string, string>> {

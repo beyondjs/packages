@@ -2,7 +2,9 @@ import type { IBuildable, IPublishedModule } from '../builds';
 import { Addresses } from './addresses';
 import type { Externals } from './externals';
 import type { ILocated } from './locator';
+import { Policy } from './policy';
 import type { Records } from './records';
+import { Redaction } from './redaction';
 import type { IPreviewModule } from './types';
 
 type Delivered = Awaited<ReturnType<IBuildable['module']>>['delivered'];
@@ -18,6 +20,11 @@ interface ISettings {
 	 * Whether the walk reaches the nodes of an installed graph, all of which this environment serves
 	 */
 	installed: boolean;
+
+	/**
+	 * Where the installed packages this environment could compile are loaded from
+	 */
+	policy: Policy;
 }
 
 /**
@@ -28,6 +35,10 @@ interface ISettings {
  * package the workspace does not contain comes from where its importer located it: the environment when it serves
  * that installation, the CDN otherwise; one without an exact version or without a registry address is reported and
  * has no address. An address is never invented: without a CDN origin a module that is not served here has none.
+ *
+ * Under the `cdn` externals policy an installed package this environment serves is asked of the CDN at its
+ * installed version instead, and a package the toolchain supplies stays here whatever the selection says, with
+ * the reason on its record ([Policy](./policy.ts)).
  */
 export class Routing {
 	static #WEB = { platform: 'web', environment: 'development' };
@@ -68,15 +79,16 @@ export class Routing {
 	 * The record of a module of the workspace; one in development is listed for the runtime of the page
 	 */
 	async workspace(module: IPublishedModule): Promise<IPreviewModule> {
-		const { addresses, records, installed } = this.#settings;
+		const { addresses, records, installed, policy } = this.#settings;
 		const specifier = Routing.#specifier(module);
 		const { name, version, subpath } = module;
 		const entry: IPreviewModule = { specifier, source: 'environment', version };
 
 		const selected = this.#settings.selected(module);
+		const kept = policy.kept(module);
 		if (selected) records.update(specifier, { package: name, vspecifier: module.vspecifier, path: addresses.path(name, version, subpath) });
-		if (!selected && !installed) return this.#published(entry, name, version, subpath, await this.registry(module));
-		return Object.assign(entry, { vspecifier: module.vspecifier, url: addresses.environment(name, version, subpath) });
+		if (!selected && !installed && !kept) return this.#published(entry, name, version, subpath, await this.registry(module));
+		return Object.assign(entry, { vspecifier: module.vspecifier, url: addresses.environment(name, version, subpath) }, kept ? { reason: Policy.SUPPLIED } : {});
 	}
 
 	/**
@@ -124,7 +136,8 @@ export class Routing {
 			return { module: this.#unresolved(module, code, located.reason, from), code };
 		}
 		if (!registry) return { module: this.#unresolved(module, 'PREVIEW_SOURCE_UNSUPPORTED', located.unsupported, from), code: 'PREVIEW_SOURCE_UNSUPPORTED' };
-		if (!located.served) return { module: this.#published(module, name, version, subpath, registry) };
+		// An installed package this environment compiles is asked of the CDN at its installed version under `cdn`
+		if (!located.served || this.#settings.policy.cdn) return { module: this.#published(module, name, version, subpath, registry) };
 
 		const vspecifier = subpath === '.' ? `${name}@${version}` : `${name}@${version}/${subpath.slice(2)}`;
 		const url = this.#settings.addresses.environment(name, version, subpath, registry);
@@ -147,6 +160,6 @@ export class Routing {
 
 	#unresolved(module: IPreviewModule, code: string, reason: string, from: string): IPreviewModule {
 		this.#settings.records.report(code, `"${module.specifier}", imported by "${from}": ${reason}`);
-		return Object.assign(module, { source: 'unresolved', reason });
+		return Object.assign(module, { source: 'unresolved', reason: Redaction.text(reason) });
 	}
 }

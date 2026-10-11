@@ -1,0 +1,45 @@
+{
+	"id": "exp_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+	"protocol": "beyond-dev-exports/1",
+	"state": "ready",
+	"created": "2026-10-10T12:00:00.000Z",
+	"expires": "2026-10-11T12:00:00.000Z",
+	"capture": {
+		"id": "snp_ffffffffffffffffffffffffffffffff"
+	},
+	"packages": [
+		{
+			"path": "packages/widgets",
+			"name": "@example/widgets",
+			"version": "1.2.0",
+			"manifest": {
+				"name": "@example/widgets",
+				"version": "1.2.0"
+			},
+			"digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+			"bytes": 2048,
+			"files": [
+				"package.json"
+			],
+			"excluded": {
+				"ignored": [],
+				"secrets": [],
+				"links": [],
+				"members": [],
+				"internal": []
+			}
+		}
+	],
+	"transfer": {
+		"packages": [
+			{
+				"path": "packages/widgets",
+				"state": "unknown",
+				"error": {
+					"code": "UPLOAD_TIMEOUT",
+					"message": "Snapshots did not answer within 120000 ms: whether it stored the package is unknown"
+				}
+			}
+		]
+	}
+}

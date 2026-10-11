@@ -1,0 +1,37 @@
+{
+	"id": "exp_eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+	"protocol": "beyond-dev-exports/1",
+	"state": "ready",
+	"created": "2026-10-10T12:00:00.000Z",
+	"expires": "2026-10-11T12:00:00.000Z",
+	"packages": [
+		{
+			"path": ".",
+			"name": "@example/root",
+			"version": "1.0.0",
+			"manifest": {
+				"name": "@example/root",
+				"version": "1.0.0"
+			},
+			"digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			"bytes": 3072,
+			"files": [],
+			"excluded": {
+				"ignored": [],
+				"secrets": [],
+				"links": [],
+				"members": [],
+				"internal": []
+			}
+		}
+	],
+	"transfer": {
+		"packages": [
+			{
+				"path": ".",
+				"state": "queued",
+				"token": "grant-token"
+			}
+		]
+	}
+}

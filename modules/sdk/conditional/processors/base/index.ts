@@ -4,6 +4,7 @@ import type { IProcessorsSetup } from '../../../conditional/main';
 import { IDiagnostic } from '@beyond-js/packages/types';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
 import { equal } from '@beyond-js/equal/main';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { importer } from './importer';
 
 interface IDone {
@@ -20,6 +21,9 @@ interface IDone {
  * and the new one imported, so an alias never keeps an implementation that the configuration no longer
  * names. A configuration that fails destroys every processor, because a conditional with configuration
  * errors has no valid processors to build with.
+ *
+ * A package compiled confined imports only the processors the toolchain ships: a specifier its manifests name
+ * otherwise is `PLUGIN_REFUSED` and is never imported.
  */
 export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<string, ConditionalProcessor>) {
 	get dp() {
@@ -115,6 +119,10 @@ export /*bundle*/ class ConditionalProcessors extends DynamicProcessor(Map<strin
 			}
 
 			const { module } = this.#conditional;
+			if (module.package.confinement && !Confinement.PROCESSORS.includes(specifier)) {
+				errors.push(Confinement.plugin('processor', specifier));
+				continue;
+			}
 
 			// The diagnostics of a processor that could not be imported are added to the ones already
 			// collected, so configuring several processors reports every failure

@@ -1,0 +1,11 @@
+{
+	"pairings": [
+		{
+			"id": "prg_0123456789ab",
+			"origin": "https://packages.example",
+			"created": "2026-10-10T12:00:00.000Z",
+			"used": "2026-10-10T12:05:00.000Z",
+			"expires": "2026-10-11T00:00:00.000Z"
+		}
+	]
+}

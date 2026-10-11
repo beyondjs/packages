@@ -1,5 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { type IPublication, type IDistributedModule } from '@beyond-js/packages/publication';
+import { Confinement } from '@beyond-js/packages/confinement';
 import type { IAnalysisConditions, IGraphNode } from '../types';
 
 /**
@@ -94,13 +95,27 @@ export /*bundle*/ abstract class Opened {
 		return this.#node.version;
 	}
 
-	constructor(key: string, root: string, node: IGraphNode, manifest: Record<string, any>, publication: IPublication, integrity?: string) {
+	#confinement?: Confinement;
+
+	/**
+	 * The rules of a confined compilation of the package, rooted at its extracted root; undefined when it is
+	 * not compiled confined
+	 */
+	get confinement(): Confinement | undefined {
+		return this.#confinement;
+	}
+
+	/**
+	 * @param confined Whether the package is compiled confined
+	 */
+	constructor(key: string, root: string, node: IGraphNode, manifest: Record<string, any>, publication: IPublication, integrity?: string, confined = false) {
 		this.#integrity = node.integrity ?? integrity;
 		this.#key = key;
 		this.#root = root;
 		this.#node = node;
 		this.#manifest = manifest;
 		this.#publication = publication;
+		this.#confinement = confined ? new Confinement([root]) : void 0;
 	}
 
 	/**

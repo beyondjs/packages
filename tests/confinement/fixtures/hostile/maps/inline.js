@@ -1,0 +1,2 @@
+export const inline = "inline";
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4uLy4uL291dHNpZGUvc2VjcmV0LnR4dCJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSJ9

@@ -19,7 +19,7 @@ Expected: `10/10 steps passed`.
 The workspace is a temporary copy of [`fixture/`](fixture) (see [its README](fixture/README.md)) plus the sources of the development runtime: a browser-only application module (`platforms: ["web"]`) that renders a custom element with a stateful internal module and an adopted stylesheet, and a shared module it imports by bare specifier. The host of the development service runs with the development extension in **delegated** mode, with the public test authority of the contract fixtures. Two stand-ins are part of the driver and are named as such:
 
 - The **gateway** publishes the service under a path prefix and adds the grant of a visitor (`events.subscribe`, `artifacts.read`, and not `session.read`) to every request, as the authenticating proxy of a Workspace administration would. The browser never holds a grant.
-- The **origin** answers one path of the compiled-module contract with a module that says `[cdn]`, with the cross-origin header a browser requires. It is not CDN delivery.
+- The **origin** answers one path of the compiled-module contract with a module that says `[cdn]`, with the cross-origin header a browser requires and the strong `sha256` entity tag of the bytes, to `GET` and to `HEAD`. It is not CDN delivery. `tests/development/preview-externals.test.mjs` and `preview-composition.test.mjs` use the same stand-in (`browser.mjs`) for the `cdn` externals, giving it answers a CDN of the contract would not give: no entity tag, another media type, a redirect, or silence.
 
 | Step | Established |
 | --- | --- |

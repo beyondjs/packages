@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Admission } from '../host/admission.mjs';
+import { Hosts } from '../host/hosts.mjs';
+import { Caller } from '../host/pairing/caller.mjs';
 import { Stand } from './support/installation.mjs';
 import { mount } from './support/routes.mjs';
 
@@ -92,4 +95,34 @@ test('no answer about the installation can be read by a page of another origin, 
 	assert.equal(preflight.status, 204);
 	assert.equal(preflight.headers['access-control-allow-origin'], undefined, 'so a browser never sends the request');
 	assert.equal(preflight.headers.allow, 'GET, POST');
+});
+
+/**
+ * A request as Admission reads it: its headers, the local port it arrived on, and the caller a service that pairs
+ * browsers left on it
+ */
+const incoming = (headers, caller) => {
+	const request = { headers: { 'content-type': 'application/json', host: '127.0.0.1:4000', ...headers }, socket: { localPort: 4000 } };
+	caller?.attach(request);
+	return request;
+};
+
+test('on a service that pairs browsers, the page of a paired interface installs from its own origin', () => {
+	const admission = new Admission({ bind: '127.0.0.1' });
+	const ui = 'https://ui.example';
+	assert.equal(admission.refusal(incoming({ origin: ui }, new Caller('paired', { pairing: { id: 'prg_1', origin: ui } }))), undefined);
+	assert.equal(admission.refusal(incoming({ origin: ui }, new Caller('visitor'))).error.code, 'ORIGIN_REFUSED');
+	assert.equal(admission.refusal(incoming({ origin: ui })).error.code, 'ORIGIN_REFUSED', 'a service that does not pair is as it was');
+	assert.equal(admission.refusal(incoming({ origin: ui, 'content-type': 'text/plain' }, new Caller('paired'))).error.code, 'CONTENT_TYPE_UNSUPPORTED', 'a paired page sends JSON as well');
+	assert.equal(admission.refusal(incoming({ origin: ui, host: 'evil.example:4000' }, new Caller('paired'))).error.code, 'HOST_REFUSED');
+});
+
+test('the public host of an external server is a host a request to install may name', () => {
+	const hosts = new Hosts({ bind: '127.0.0.1' });
+	const admission = new Admission({ hosts });
+	const host = 'space-4000.forward.example';
+	assert.equal(admission.refusal(incoming({ host })).error.code, 'HOST_REFUSED');
+	hosts.expose(4000, `https://${host}`);
+	assert.equal(admission.refusal(incoming({ host })), undefined);
+	assert.equal(admission.refusal(incoming({ host, origin: `https://${host}` })), undefined, 'its own page, through the forwarder');
 });

@@ -9,7 +9,8 @@
 		"reason": "BEYOND_CDN_ORIGIN is not set: modules that are not in development have no address"
 	},
 	"selection": {
-		"explicit": false
+		"explicit": false,
+		"externals": "environment"
 	},
 	"modules": [
 		{

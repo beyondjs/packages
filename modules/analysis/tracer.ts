@@ -45,7 +45,7 @@ export /*bundle*/ class Tracer {
 
 	#items: Map<string, IItem> = new Map();
 	#edges: Map<string, IEdge[]> = new Map();
-	#assets = new Assets();
+	#assets: Assets;
 	#pending: IPending[] = [];
 
 	readonly unknown: IUnknown[] = [];
@@ -54,6 +54,7 @@ export /*bundle*/ class Tracer {
 
 	constructor(pinned: Pinned, compiler: Compiler, toolchain: Toolchain, declared: Record<string, string[]> = {}) {
 		this.#pinned = pinned;
+		this.#assets = new Assets(pinned.confined);
 		this.#compiled = new Compiled(pinned, compiler);
 		this.#toolchain = toolchain;
 		this.#declared = declared;

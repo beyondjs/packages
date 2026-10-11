@@ -3,6 +3,7 @@
  * validation that runs an installed toolchain uses it from a plain Node process.
  */
 import { createServer } from 'node:http';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -11,27 +12,54 @@ const listening = server => new Promise(done => server.listen(0, '127.0.0.1', ()
 
 /**
  * Stands in for the CDN: it answers the paths of the compiled-module contract it was given, with the
- * cross-origin header a browser requires of a module of another origin. It is not CDN delivery.
+ * cross-origin header a browser requires of a module of another origin and the strong entity tag
+ * (`sha256-<hex>` of the bytes) the CDN answers, to `GET` and to `HEAD`. It is not CDN delivery.
+ *
+ * `requests` lists what was retrieved and `checked` what was asked with `HEAD`. While `silent` is set it answers
+ * nothing, as a CDN that does not respond; its pending requests end when it stops. A path can be given an answer a
+ * CDN of the contract would not give, to see it refused: without the entity tag (`untagged`), with another media
+ * type (`type`), or as a redirect (`redirect`).
  */
 export class Origin {
 	#server;
 	#modules = new Map();
+	#answers = new Map();
 
 	origin;
 	requests = [];
+	checked = [];
+	silent = false;
 
-	module(path, code) {
+	/**
+	 * @param answer What the path answers instead of the contract's answer: `{untagged: true}`, `{type}` or `{redirect}`
+	 */
+	module(path, code, answer = {}) {
 		this.#modules.set(path, code);
+		this.#answers.set(path, answer);
+		return this;
+	}
+
+	/**
+	 * Stops answering for a path, as a CDN that does not hold its output
+	 */
+	forget(path) {
+		this.#modules.delete(path);
 		return this;
 	}
 
 	async start() {
 		this.#server = createServer((incoming, outgoing) => {
 			const { pathname, search } = new URL(incoming.url, 'http://cdn');
-			this.requests.push(`${pathname}${search}`);
+			(incoming.method === 'HEAD' ? this.checked : this.requests).push(`${pathname}${search}`);
+			if (this.silent) return;
+
 			const code = this.#modules.get(pathname);
-			const headers = { 'access-control-allow-origin': '*', 'content-type': 'application/javascript; charset=utf-8' };
-			code === void 0 ? outgoing.writeHead(404, headers).end() : outgoing.writeHead(200, headers).end(code);
+			const answer = this.#answers.get(pathname) ?? {};
+			const headers = { 'access-control-allow-origin': '*', 'content-type': answer.type ?? 'application/javascript; charset=utf-8' };
+			if (code === void 0) return void outgoing.writeHead(404, headers).end();
+			if (answer.redirect) return void outgoing.writeHead(302, { ...headers, location: answer.redirect }).end();
+			!answer.untagged && (headers.etag = `"sha256-${createHash('sha256').update(code).digest('hex')}"`);
+			incoming.method === 'HEAD' ? outgoing.writeHead(200, headers).end() : outgoing.writeHead(200, headers).end(code);
 		});
 		this.origin = await listening(this.#server);
 		return this;

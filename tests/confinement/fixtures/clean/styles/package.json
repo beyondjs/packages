@@ -1,0 +1,12 @@
+{
+	"name": "@fixture/clean-styles",
+	"version": "1.0.0",
+	"private": true,
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts",
+		"publication": { "protocol": "beyond-publication/1", "form": "source" }
+	},
+	"bundlers": { "ts": "@beyond-js/packages/bundlers/ts" },
+	"dependencies": { "@beyond-js/kernel": "*" }
+}

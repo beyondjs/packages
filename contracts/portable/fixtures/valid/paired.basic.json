@@ -1,0 +1,12 @@
+{
+	"token": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+	"expires": "2026-10-11T00:00:00.000Z",
+	"pairing": {
+		"id": "prg_0123456789ab",
+		"origin": "https://packages.example",
+		"created": "2026-10-10T12:00:00.000Z"
+	},
+	"session": {
+		"protocol": "beyond-dev-session/1"
+	}
+}

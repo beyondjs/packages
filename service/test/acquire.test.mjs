@@ -37,11 +37,12 @@ const supervisor = (t, life) => {
 /**
  * A running service as a client finds it: a stand-in that describes itself as the service of a workspace, with
  * the extensions a case gives it, and the discovery record that names it in a temporary home, with its lifetime
- * and the pid of its supervisor (this process unless the case gives another). The `status` of each description
+ * and the pid of its supervisor (this process unless the case gives another), and the capabilities it describes,
+ * when the case gives them. The `status` of each description
  * is the case's (200 by default), and after `answers` descriptions the stand-in stops accepting connections, as a
  * service that ended.
  */
-const running = async (t, extensions, { lifetime = 'owner', answers = Infinity, status = () => 200, pid = process.pid } = {}) => {
+const running = async (t, extensions, { lifetime = 'owner', answers = Infinity, status = () => 200, pid = process.pid, capabilities } = {}) => {
 	const home = realpathSync(mkdtempSync(join(tmpdir(), 'beyond-acquire-')));
 	t.after(() => rmSync(home, { recursive: true, force: true }));
 
@@ -57,7 +58,7 @@ const running = async (t, extensions, { lifetime = 'owner', answers = Infinity, 
 		if (code !== 200) return { status: code, body: { error: { code: 'UNAVAILABLE', message: 'The workspace is being reloaded' } } };
 		const described = { pid, toolchain, origin, ...(extensions ? { extensions } : {}) };
 		const body = { protocol: Session.PROTOCOL, workspace: { root: context.root, standalone: false }, service: described,
-			options: 'target=node', runtime: { packages: [], base: 'file:///installed/package.json' }, modules: {} };
+			options: 'target=node', runtime: { packages: [], base: 'file:///installed/package.json' }, modules: {}, ...(capabilities ? { capabilities } : {}) };
 		return { status: 200, body };
 	};
 	const server = await new AnsweringServer({ [`GET ${Session.PATH}`]: session }).listen();
@@ -192,4 +193,39 @@ test('the extensions of the environment are the ones a caller that names none ne
 	t.after(() => (previous === void 0 ? delete process.env.BEYOND_SERVICE_EXTENSIONS : (process.env.BEYOND_SERVICE_EXTENSIONS = previous)));
 
 	await assert.rejects(service.acquire({ lifetime: 'attachments' }), { code: 'SERVICE_EXTENSIONS_MISSING' });
+});
+
+test('a service its owner holds that does not pair browsers is refused to a caller that asks for pairing', async t => {
+	configured(t, 'SETTLE', 60000);
+	const { service, origin } = await running(t, [DEVELOPMENT], { capabilities: { state: 1 } });
+
+	const refused = await failure(service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: { origins: [] } }));
+	assert.equal(refused.name, 'ServiceError');
+	assert.equal(refused.code, 'SERVICE_PAIRING_MISSING');
+	assert.match(refused.message, /is in use without pairing, which this command needs/);
+	assert.ok(refused.message.includes(origin));
+
+	// Without its extension as well, the extension is what is reported first
+	const both = await failure(service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT, 'file:///guard.mjs'], pairing: true }));
+	assert.equal(both.code, 'SERVICE_EXTENSIONS_MISSING');
+	assert.match(both.message, /without file:\/\/\/guard\.mjs, pairing/);
+});
+
+test('a service that pairs browsers is reused by a caller that asks for pairing, and by one that does not', async t => {
+	const { service, origin } = await running(t, [DEVELOPMENT], { capabilities: { state: 1, pairing: 1 } });
+	const paired = await service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true });
+	assert.deepEqual([paired.started, paired.connection.origin], [false, origin]);
+	const plain = await service.acquire({ lifetime: 'attachments', extensions: [] });
+	assert.equal(plain.started, false);
+});
+
+test('a service that ends with its clients and does not pair is replaced for a caller that asks for pairing', async t => {
+	configured(t, 'SETTLE', 5000);
+	configured(t, 'DEPART', 5000);
+	configured(t, 'SUPERVISOR', DEPARTING);
+	const leaving = supervisor(t, 300);
+	const { service } = await running(t, [DEVELOPMENT], { lifetime: 'attachments', answers: 1, pid: leaving.pid });
+
+	const replaced = await failure(service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true }));
+	assert.equal(replaced.code, 'SERVICE_START_FAILED', 'a service was started in its place (the stand-in fails as one)');
 });

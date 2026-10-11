@@ -10,10 +10,19 @@ import { PreviewRoutes } from './http/preview';
 import { Guard } from './http/guard';
 
 /**
+ * The events of the hosting service, which this module appends to its event log so that a client follows them on
+ * `GET /events` in order with its own: `export.changed` of the source exports of a service that pairs browsers
+ */
+export /*bundle*/ interface IHostEvents {
+	subscribe(listener: (type: string, data: Record<string, unknown>) => void): () => void;
+}
+
+/**
  * What the hosting service gives an extension
  */
 export /*bundle*/ interface IHostContext {
 	delivery: IBuildable;
+	events?: IHostEvents;
 	settings: {
 		root: string;
 		conditions?: { platform: string };
@@ -62,8 +71,11 @@ export /*bundle*/ class Development {
 
 	#routes: Routes;
 	#previews: PreviewRoutes;
+	#events?: IHostEvents;
+	#unsubscribe?: () => void;
 
-	constructor({ delivery, settings }: IHostContext, access = Access.from(process.env)) {
+	constructor({ delivery, settings, events }: IHostContext, access = Access.from(process.env)) {
+		this.#events = events;
 		this.#access = access;
 		this.#files = new Files(settings.root);
 		this.#builds = new Builds(delivery, this.#files, settings.conditions);
@@ -81,12 +93,14 @@ export /*bundle*/ class Development {
 	async setup(app: Application) {
 		await this.#files.start();
 		this.#builds.watch();
+		this.#unsubscribe = this.#events?.subscribe((type, data) => void this.#files.log.append(type, data));
 		// Mounted first: the routes of the contract end with the handler that answers the refusals of both
 		this.#previews.setup(app);
 		this.#routes.setup(app);
 	}
 
 	stop() {
+		this.#unsubscribe?.();
 		this.#routes.stream.close();
 		this.#builds.stop();
 		this.#files.stop();

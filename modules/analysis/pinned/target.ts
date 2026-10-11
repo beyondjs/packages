@@ -1,5 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { Bundle, type Compiler, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { Keyed } from '../keyed';
 import type { Pinned } from './';
 import type { Opened, IPublicModule } from './opened';
@@ -18,6 +19,9 @@ import { NpmPackage } from './npm';
  * It is also where the boundary of an ordinary npm package is decided, because two of its public subpaths
  * may share internal files that hold state: the module the plan makes a carrier bundles the subpaths it
  * contains, and each of those is delivered as a facade over it.
+ *
+ * A package compiled confined is compiled confined by either: the selected compiler reads nothing outside
+ * the package, and the declared bundler runs under the confinement of the package it reads.
  */
 export /*bundle*/ class Target {
 	#pinned: Pinned;
@@ -63,7 +67,12 @@ export /*bundle*/ class Target {
 		const { conditions } = this.#pinned;
 
 		// A module composed by a bundler of its package is compiled by that bundler, whatever the consumer selected
-		if (await this.composed()) {
+		const composed = await this.composed();
+		if (composed) {
+			// Confined, only a bundler that keeps the compilation inside the package composes it
+			if (this.#opened.confinement && !Confinement.COMPOSERS.includes(composed.specifier)) {
+				return { diagnostics: [Confinement.plugin('bundler', composed.specifier)] };
+			}
 			const pkg = await (<SourcePackage>this.#opened).read();
 			return await new Composition(pkg, Keyed.declared(this.#module.subpath), conditions).run();
 		}
@@ -86,7 +95,8 @@ export /*bundle*/ class Target {
 			environment: conditions.environment,
 			conditions: this.#module.conditions,
 			mode,
-			minify
+			minify,
+			confined: !!this.#opened.confinement
 		}).run();
 	}
 }

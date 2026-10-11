@@ -5,10 +5,12 @@ import type { Access } from '../access';
 /**
  * The event stream, `text/event-stream`. The identifier of every message is its cursor, so a client returns
  * with `Last-Event-ID` or `?cursor=` and receives exactly the later events, or `resync` first when the
- * server cannot replay them. The stream ends with the grant that opened it.
+ * server cannot replay them. The stream ends with the grant that opened it, or with the pairing of the page that
+ * opened it on a service that pairs browsers (`access.ended`, with the reason).
  *
- * Source events name files and who changed them, so a grant without `files.read` does not receive them: a
- * preview visitor subscribes to learn about builds, and must not learn about the source tree through it.
+ * Source events name files and who changed them, and the events of exports name packages and captures, so a
+ * subscriber without `files.read` receives neither (`file.*`, `batch.*`, `export.*`): a preview visitor subscribes
+ * to learn about builds, and must not learn about the source tree through it.
  */
 export class Stream {
 	static HEARTBEAT = 20000;
@@ -29,9 +31,9 @@ export class Stream {
 		const replay = cursor ? this.#log.since(cursor) : { events: [] as IDevelopmentEvent[] };
 
 		response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
-		const sources = !claims || claims.cap.includes('files.read');
+		const sources = this.#access.includes(request, claims, 'files.read');
 		const send = (event: IDevelopmentEvent) => {
-			if (!sources && /^(file|batch)\./.test(event.type)) return;
+			if (!sources && /^(file|batch|export)\./.test(event.type)) return;
 			response.write(`id: ${event.cursor}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
 		};
 
@@ -45,7 +47,7 @@ export class Stream {
 		const release = this.#access.stream(claims, reason => {
 			send({ cursor: this.#log.cursor, type: 'access.ended', reason });
 			response.end();
-		});
+		}, request);
 
 		this.#open.add(response);
 		response.on('close', () => {

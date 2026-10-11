@@ -1,0 +1,11 @@
+{
+	"cursor": "k3v9q2:61",
+	"type": "export.changed",
+	"export": {
+		"id": "exp_0123456789abcdef0123456789abcdef",
+		"state": "ready",
+		"expires": "2026-10-11T19:00:00.000Z",
+		"capture": { "id": "cap_A1b2C3d4" },
+		"transfer": { "packages": [{ "path": "web", "state": "stored" }] }
+	}
+}

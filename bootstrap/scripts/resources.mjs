@@ -21,7 +21,10 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const utilities = resolve(process.env.BEYOND_UTILITIES || join(root, '../../utils'));
+// Inside the suite the Packages repository is `packages/core` (its utilities three levels up) or, in the earlier
+// layout, `packages` (two levels up)
+const sibling = ['../../../utils', '../../utils'].map(path => join(root, path)).find(path => existsSync(join(path, 'watchers')));
+const utilities = resolve(process.env.BEYOND_UTILITIES || sibling || join(root, '../../utils'));
 
 // Each carried package: where its checkout is, and the file that proves the copy is the right one
 const carried = [

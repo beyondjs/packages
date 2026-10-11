@@ -1,0 +1,26 @@
+{
+	"id": "exp_dddddddddddddddddddddddddddddddd",
+	"protocol": "beyond-dev-exports/1",
+	"state": "failed",
+	"created": "2026-10-10T12:00:00.000Z",
+	"expires": "2026-10-11T12:00:00.000Z",
+	"error": {
+		"code": "EXPORT_TOO_LARGE",
+		"message": "The archive of a package is at most 52428800 bytes"
+	},
+	"packages": [
+		{
+			"path": ".",
+			"name": "@example/root",
+			"version": "1.0.0",
+			"manifest": {
+				"name": "@example/root",
+				"version": "1.0.0"
+			},
+			"error": {
+				"code": "EXPORT_TOO_LARGE",
+				"message": "The archive of a package is at most 52428800 bytes"
+			}
+		}
+	]
+}

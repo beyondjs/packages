@@ -1,5 +1,6 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import { Media } from '@beyond-js/packages/publication';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { promises as fs } from 'fs';
 import { join, posix } from 'path';
 import type { IItem } from './types';
@@ -12,6 +13,16 @@ import { Keyed } from './keyed';
  * package, which is the path of its `/assets/` address. A static file is the same for every condition.
  */
 export /*bundle*/ class Assets {
+	#confined: boolean;
+
+	/**
+	 * @param confined Whether the packages are compiled confined: a file whose real location is outside its
+	 * package (a symbolic link) is then `SOURCE_CONFINED` instead of an item
+	 */
+	constructor(confined = false) {
+		this.#confined = confined === true;
+	}
+
 	#items: Map<string, IItem> = new Map();
 	get items(): IItem[] {
 		return [...this.#items.values()];
@@ -47,8 +58,13 @@ export /*bundle*/ class Assets {
 			this.#diagnostics.push({ code: 'ASSET_NOT_FOUND', message: `Asset "${normalized}" does not exist in package "${opened.key}"` });
 			return;
 		}
+		// A distribution lists its files with their digests; a file of the sources is read through no link that leaves the package
+		if (this.#confined && !(await opened.listed(normalized)) && !opened.confinement?.inside(join(opened.root, normalized))) {
+			this.#diagnostics.push(Confinement.source(normalized, `the assets of "${opened.key}"`));
+			return;
+		}
 
-		const item = Keyed.asset(opened, normalized, Media.of(normalized));
+		const item = Keyed.asset(opened, normalized, Media.of(normalized), this.#confined);
 		if (!item) return;
 		if (declared) item.declared = true;
 		this.#items.set(id, item);

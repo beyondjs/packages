@@ -3,6 +3,7 @@ import type { IProcessorStrategy } from './types';
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { DynamicProcessorImplementation, IRequest } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { ProcessorSources } from './sources';
 import { ProcessorSettings } from './settings';
 import { ProcessorSpec } from './spec';
@@ -156,17 +157,22 @@ export /*bundle*/ abstract class ConditionalProcessor extends DynamicProcessor()
 
 	async _process(request: IRequest) {
 		const outputs = new ProcessorOutputs({ delegates: this.#delegates });
+
+		// What a confined compilation refused to take as input is reported, and nothing is built without it
+		const by = `the inputs of the "${this.name}" processor`;
+		const refused = (this.#sources?.inputs?.refused ?? []).map(name => Confinement.source(name, by));
+
 		// A build that throws would leave the readiness of this processor, and of its conditional, unsettled: it
 		// is a diagnostic of the processor instead
 		let failure: IDiagnostic;
 		try {
-			await this._build(request, outputs);
+			!refused.length && (await this._build(request, outputs));
 		} catch (exc) {
 			failure = { code: 'PROCESSOR_FAILED', message: `The "${this.name}" processor failed: ${exc instanceof Error ? exc.message : exc}` };
 		}
 		if (request !== this._request) return;
 
-		this.#errors = failure ? [failure] : [];
+		this.#errors = failure ? [failure] : refused;
 		this.#outputs = outputs;
 	}
 

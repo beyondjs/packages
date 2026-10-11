@@ -1,3 +1,4 @@
+import { Redaction } from './redaction';
 import type { IPreviewDiagnostic, IPreviewModule, IPreviewUpdatable } from './types';
 
 /**
@@ -60,10 +61,11 @@ export class Records {
 	}
 
 	/**
-	 * Adds a diagnostic of the graph, once
+	 * Adds a diagnostic of the graph, once, without the locations of this machine: a preview page reads it
 	 */
 	report(code: string, message: string): void {
-		!this.#diagnostics.some(one => one.code === code && one.message === message) && this.#diagnostics.push({ code, message });
+		const text = Redaction.text(message);
+		!this.#diagnostics.some(one => one.code === code && one.message === text) && this.#diagnostics.push({ code, message: text });
 	}
 
 	/**

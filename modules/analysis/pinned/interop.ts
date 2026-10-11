@@ -1,3 +1,4 @@
+import type { Confinement } from '@beyond-js/packages/confinement';
 import * as lexer from 'cjs-module-lexer';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { dirname, extname, join, relative, sep } from 'path';
@@ -10,21 +11,27 @@ import { dirname, extname, join, relative, sep } from 'path';
  * itself uses, following `module.exports = require('./file')` re-exports through every environment branch,
  * and a generated entry re-exports them together with the default, which is the value of `module.exports`.
  * A name that only one environment defines is `undefined` in the other, never a build error.
+ *
+ * Compiled confined, a re-export whose file is outside the package is not followed: nothing outside the
+ * package is read, and the build reports the `require` that names it.
  */
 export /*bundle*/ class Interop {
 	#file: string;
 	#type?: string;
 	#via: string[];
+	#confinement?: Confinement;
 
 	/**
 	 * @param file The resolved entry point file
 	 * @param type The `type` field of the package manifest
 	 * @param via The conditions or manifest field that selected the file
+	 * @param confinement The rules of a confined compilation of the package
 	 */
-	constructor(file: string, type: string | undefined, via: string[]) {
+	constructor(file: string, type: string | undefined, via: string[], confinement?: Confinement) {
 		this.#file = file;
 		this.#type = type;
 		this.#via = via;
+		this.#confinement = confinement;
 	}
 
 	/**
@@ -43,8 +50,10 @@ export /*bundle*/ class Interop {
 
 	#locate(from: string, request: string): string | undefined {
 		const base = join(dirname(from), request);
+		if (this.#confinement && !this.#confinement.contains(base)) return;
 		const candidates = [base, `${base}.js`, `${base}.cjs`, join(base, 'index.js')];
-		return candidates.find(candidate => existsSync(candidate) && statSync(candidate).isFile());
+		const found = candidates.find(candidate => existsSync(candidate) && statSync(candidate).isFile());
+		return found && (!this.#confinement || this.#confinement.inside(found)) ? found : void 0;
 	}
 
 	#names(file: string, visited: Set<string>, names: Set<string>): void {

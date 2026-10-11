@@ -2,6 +2,7 @@ import type { IDiagnostic, BundlerSettingsType } from '@beyond-js/packages/types
 import type { BaseModule } from '@beyond-js/packages/module';
 import type { IRequest } from '@beyond-js/dynamic-processor/main';
 import { DynamicProcessor } from '@beyond-js/dynamic-processor/main';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { equal } from '@beyond-js/equal/main';
 import { importer } from './importer';
 
@@ -74,11 +75,18 @@ export class Bundler extends DynamicProcessor() {
 		return !this.#errors.length;
 	}
 
-	constructor(name: string, path: string) {
+	/**
+	 * The rules of a confined compilation of the package, under which only the bundlers the toolchain ships
+	 * are imported
+	 */
+	#confinement: Confinement | undefined;
+
+	constructor(name: string, path: string, confinement?: Confinement) {
 		super();
 
 		this.#name = name;
 		this.#path = path;
+		this.#confinement = confinement;
 	}
 
 	config(config: BundlerSettingsType): void {
@@ -123,6 +131,12 @@ export class Bundler extends DynamicProcessor() {
 			const code = 'BUNDLER_SPECIFIER_INVALID';
 			const message = `Bundler "${name}" does not have a valid specifier`;
 			return done({ errors: [{ code, message }] });
+		}
+
+		// A confined compilation imports no bundler the package names but the ones the toolchain ships: the
+		// specifier is a program of the package's choosing (`data:`, `file:`, an address) otherwise
+		if (this.#confinement && !Confinement.BUNDLERS.includes(specifier)) {
+			return done({ errors: [Confinement.plugin('bundler', specifier)] });
 		}
 
 		let Module: ModuleConstructor<BaseModule>, path: string;

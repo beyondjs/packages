@@ -35,6 +35,8 @@ export /*bundle*/ interface ILanding {
  * It resolves public specifiers the only way they may be resolved here: along the edges of the graph, into
  * the directories that were already fetched. It downloads nothing and selects no version. Whoever creates
  * it destroys it, which releases the packages it opened.
+ *
+ * Whoever creates it also says whether the packages are compiled confined, which every package it opens is.
  */
 export /*bundle*/ class Pinned {
 	#graph: Graph;
@@ -50,7 +52,20 @@ export /*bundle*/ class Pinned {
 
 	#opened: Map<string, Promise<{ opened?: Opened; diagnostics: IDiagnostic[] }>> = new Map();
 
-	constructor(graph: IGraph, sources: SourcesType, conditions: IAnalysisConditions) {
+	#confined: boolean;
+
+	/**
+	 * Whether the packages are compiled confined: no code they supply is loaded, no file outside them is read
+	 */
+	get confined(): boolean {
+		return this.#confined;
+	}
+
+	/**
+	 * @param confined Whether the packages are compiled confined, which only whoever prepares them selects
+	 */
+	constructor(graph: IGraph, sources: SourcesType, conditions: IAnalysisConditions, confined = false) {
+		this.#confined = confined === true;
 		this.#graph = new Graph(graph);
 		// What a fetch answers is accepted as it is: a list of packages, each with its key
 		const listed = sources instanceof Array ? sources.map(fetched => <[string, IFetched]>[fetched.key, fetched]) : Object.entries(sources ?? {});
@@ -90,7 +105,7 @@ export /*bundle*/ class Pinned {
 
 		const Form = { source: SourcePackage, distribution: DistributedPackage, npm: NpmPackage }[publication.form];
 		const integrity = typeof fetched === 'string' ? void 0 : fetched.integrity;
-		return { opened: new Form(key, root, node, manifest, publication, integrity), diagnostics: [] };
+		return { opened: new Form(key, root, node, manifest, publication, integrity, this.#confined), diagnostics: [] };
 	}
 
 	/**

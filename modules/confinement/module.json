@@ -1,0 +1,5 @@
+{
+	"name": "confinement",
+	"bundle": "ts",
+	"files": "*"
+}

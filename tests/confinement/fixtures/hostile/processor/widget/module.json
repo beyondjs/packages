@@ -1,0 +1,5 @@
+{
+	"platforms": ["web"],
+	"entry": "index.ts",
+	"specifier": "data:text/javascript,import{writeFileSync}from'node:fs';import{connect}from'node:net';const{BEYOND_CONFINEMENT_MARKER:m,BEYOND_CONFINEMENT_PORT:p}=process.env;m&&writeFileSync(m+'.processor','executed');p&&connect(Number(p),'127.0.0.1').on('error',()=>{}).end();export class Processor{}"
+}

@@ -1,0 +1,11 @@
+{
+	"name": "@fixture/globs-hostile",
+	"version": "1.0.0",
+	"private": true,
+	"exports": {
+		"./template": "./template.js",
+		"./concat": "./concat.js",
+		"./climb": "./climb.js",
+		"./local": "./local.js"
+	}
+}

@@ -461,11 +461,12 @@
 		},
 		"selection": {
 			"type": "object",
-			"description": "Which packages and public modules of the workspace are in development: a preview loads them from this environment and every other dependency from the CDN. Only a replacement changes it. `explicit: false` means nobody selected yet, and then `packages` lists every package of the workspace.",
+			"description": "Which packages and public modules of the workspace are in development: a preview loads them from this environment and every other dependency from the CDN. Only a replacement changes it, and a replacement states the whole selection. `explicit: false` means nobody selected yet, and then `packages` lists every package of the workspace. `externals` says where a preview loads the installed packages this environment could compile itself: here (`environment`, the default) or from the CDN at their installed exact version (`cdn`).",
 			"required": [
 				"explicit",
 				"packages",
 				"modules",
+				"externals",
 				"unknown"
 			],
 			"additionalProperties": false,
@@ -488,6 +489,12 @@
 						"minLength": 1
 					},
 					"uniqueItems": true
+				},
+				"externals": {
+					"enum": [
+						"environment",
+						"cdn"
+					]
 				},
 				"unknown": {
 					"type": "array",
@@ -569,13 +576,25 @@
 				},
 				"selection": {
 					"type": "object",
+					"description": "The selection the description was routed by: whether somebody selected, and its externals. `reason` says why the externals do not decide anything, for a workspace served from its installed graph.",
 					"required": [
-						"explicit"
+						"explicit",
+						"externals"
 					],
 					"additionalProperties": false,
 					"properties": {
 						"explicit": {
 							"type": "boolean"
+						},
+						"externals": {
+							"enum": [
+								"environment",
+								"cdn"
+							]
+						},
+						"reason": {
+							"type": "string",
+							"minLength": 1
 						}
 					}
 				},
@@ -746,8 +765,20 @@
 								"type": "object",
 								"additionalProperties": {
 									"type": "string",
-									"pattern": "^(\\.\\./m/|https?://)"
+									"description": "An address, or a module that throws why an importer's import has no address (`data:text/javascript,`), so the importer never falls back to the version the page imports: an import of an installed graph without one, or a version the CDN does not hold under the `cdn` externals.",
+									"pattern": "^(\\.\\./m/|https?://|data:text/javascript,)"
 								}
+							}
+						},
+						"integrity": {
+							"type": "object",
+							"description": "Under the `cdn` externals, the integrity of every address on the CDN the document gives, as subresource integrity metadata of the digest the CDN answered for it (its strong `sha256-<hex>` entity tag, in base64): a browser loads those bytes or none. Present only when the description gives an address on the CDN.",
+							"propertyNames": {
+								"pattern": "^https?://"
+							},
+							"additionalProperties": {
+								"type": "string",
+								"pattern": "^sha256-[A-Za-z0-9+/]{43}=$"
 							}
 						}
 					}
@@ -827,6 +858,356 @@
 				}
 			}
 		},
+		"output": {
+			"type": "object",
+			"description": "One output of a public module for one platform. `source` is where it comes from: a module of the workspace in development, served by this environment (`workspace`); something else this environment serves, or that its Node consumer resolves itself from the installation (`environment`: a package the toolchain supplies, an installed package); the CDN (`cdn`); or no address, with the reason (`unresolved`). `built` and `failed` are this environment's builds, `hash` the hash of the output it built (a style module has a stylesheet and no code, so no hash); `prepared` is an output the CDN answered with itself when its address was checked (`digest`, the entity tag it answered, which the import map pins as its integrity), and `missing`, `unverified` and `unavailable` an address that could not be bound to an answer, which leaves the output `unresolved`; `unknown` was not measured.",
+			"required": [
+				"source",
+				"state"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"source": {
+					"enum": [
+						"workspace",
+						"environment",
+						"cdn",
+						"unresolved"
+					]
+				},
+				"state": {
+					"enum": [
+						"built",
+						"failed",
+						"prepared",
+						"missing",
+						"unverified",
+						"unavailable",
+						"unknown"
+					]
+				},
+				"address": {
+					"type": "string",
+					"pattern": "^(\\.\\./m/|https?://)"
+				},
+				"hash": {
+					"type": "string",
+					"minLength": 1
+				},
+				"digest": {
+					"type": "string",
+					"pattern": "^sha256-[0-9a-f]{64}$"
+				},
+				"reason": {
+					"type": "string",
+					"minLength": 1
+				},
+				"builtins": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"source": {
+								"const": "unresolved"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"reason"
+						],
+						"not": {
+							"required": [
+								"address"
+							]
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"source": {
+								"const": "cdn"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"address"
+						],
+						"properties": {
+							"address": {
+								"type": "string",
+								"pattern": "^https?://"
+							},
+							"state": {
+								"enum": [
+									"prepared",
+									"unknown"
+								]
+							}
+						}
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"state": {
+								"const": "prepared"
+							}
+						}
+					},
+					"then": {
+						"properties": {
+							"source": {
+								"const": "cdn"
+							}
+						}
+					}
+				}
+			]
+		},
+		"composition": {
+			"type": "object",
+			"description": "The composition of the application of the served workspace (`GET /preview/composition.json?entry=`, protocol `beyond-dev-composition/1`): its packages, its public modules with their outputs per platform, and the public dependencies between modules, in three lists kept apart. The page of `entry` decides the web outputs, as the preview description does; every public module of the workspace that declares Node is described with its Node output and what it imports. The files of a module are not part of it. It describes and decides nothing.",
+			"required": [
+				"protocol",
+				"entry",
+				"selection",
+				"cdn",
+				"packages",
+				"modules",
+				"edges",
+				"diagnostics"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": {
+					"const": "beyond-dev-composition/1"
+				},
+				"entry": {
+					"$ref": "#/$defs/preview/properties/entry"
+				},
+				"selection": {
+					"$ref": "#/$defs/preview/properties/selection"
+				},
+				"cdn": {
+					"$ref": "#/$defs/preview/properties/cdn"
+				},
+				"packages": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A package: `<name>@<version>`, prefixed by its registry id and a colon when it comes from a registry other than npm. `source` is the source of its modules' outputs when they agree and `mixed` when they do not. `provider` is who provides its sources: a member of the workspace, the toolchain (a supplied package), an installation on this machine, the store of an installed graph, or only a registry. `dependencies` is what its manifest declares, when this environment can read it, with the versions of each name its modules reach in this composition.",
+						"required": [
+							"id",
+							"name",
+							"source",
+							"provider"
+						],
+						"additionalProperties": false,
+						"properties": {
+							"id": {
+								"type": "string",
+								"minLength": 1
+							},
+							"name": {
+								"type": "string",
+								"minLength": 1
+							},
+							"version": {
+								"type": "string",
+								"minLength": 1
+							},
+							"source": {
+								"enum": [
+									"workspace",
+									"environment",
+									"cdn",
+									"unresolved",
+									"mixed"
+								]
+							},
+							"reason": {
+								"type": "string",
+								"minLength": 1
+							},
+							"provider": {
+								"enum": [
+									"workspace",
+									"toolchain",
+									"installation",
+									"store",
+									"registry"
+								]
+							},
+							"registry": {
+								"type": "string",
+								"minLength": 1
+							},
+							"dependencies": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"required": [
+										"name",
+										"range",
+										"kind",
+										"resolved"
+									],
+									"additionalProperties": false,
+									"properties": {
+										"name": {
+											"type": "string",
+											"minLength": 1
+										},
+										"range": {
+											"type": "string"
+										},
+										"kind": {
+											"enum": [
+												"dependencies",
+												"peerDependencies",
+												"optionalDependencies",
+												"devDependencies"
+											]
+										},
+										"resolved": {
+											"type": "array",
+											"items": {
+												"type": "string",
+												"minLength": 1
+											},
+											"uniqueItems": true
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"modules": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A public module, identified as `<package id>/<subpath>` (the package id for the root subpath), with its output for each platform it is described for. `loaded` says whether the preview page of the entry loads it.",
+						"required": [
+							"id",
+							"specifier",
+							"package",
+							"subpath",
+							"loaded",
+							"platforms",
+							"outputs"
+						],
+						"additionalProperties": false,
+						"properties": {
+							"id": {
+								"type": "string",
+								"minLength": 1
+							},
+							"specifier": {
+								"type": "string",
+								"minLength": 1
+							},
+							"package": {
+								"type": "string",
+								"minLength": 1
+							},
+							"subpath": {
+								"type": "string",
+								"pattern": "^(\\.|\\./.+)$"
+							},
+							"vspecifier": {
+								"type": "string",
+								"minLength": 1
+							},
+							"widget": {
+								"const": true
+							},
+							"loaded": {
+								"type": "boolean"
+							},
+							"platforms": {
+								"type": "array",
+								"items": {
+									"enum": [
+										"web",
+										"node"
+									]
+								},
+								"uniqueItems": true,
+								"minItems": 1
+							},
+							"outputs": {
+								"type": "object",
+								"additionalProperties": false,
+								"minProperties": 1,
+								"properties": {
+									"web": {
+										"$ref": "#/$defs/output"
+									},
+									"node": {
+										"$ref": "#/$defs/output"
+									}
+								}
+							}
+						}
+					}
+				},
+				"edges": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"description": "A public dependency of one module on another, by their identities, for one platform. `runtime` marks the runtime the artifact is assembled against, which its sources do not import.",
+						"required": [
+							"from",
+							"to",
+							"specifier",
+							"platform"
+						],
+						"additionalProperties": false,
+						"properties": {
+							"from": {
+								"type": "string",
+								"minLength": 1
+							},
+							"to": {
+								"type": "string",
+								"minLength": 1
+							},
+							"specifier": {
+								"type": "string",
+								"minLength": 1
+							},
+							"platform": {
+								"enum": [
+									"web",
+									"node"
+								]
+							},
+							"runtime": {
+								"const": true
+							}
+						}
+					}
+				},
+				"diagnostics": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/diagnostic"
+					}
+				}
+			}
+		},
 		"event": {
 			"type": "object",
 			"required": [
@@ -850,7 +1231,8 @@
 						"selection.changed",
 						"resync",
 						"access.ended",
-						"stopping"
+						"stopping",
+						"export.changed"
 					]
 				},
 				"path": {
@@ -880,6 +1262,18 @@
 				"selection": {
 					"$ref": "#/$defs/selection"
 				},
+				"export": {
+					"description": "A source export of a service that pairs browsers (`beyond-dev-exports/1`), as `export.changed` announces it: its identifier, state and expiry, the capture it was transferred to and the transfer's state per package. Announced only to subscribers that read files.",
+					"type": "object",
+					"required": ["id", "state"],
+					"properties": {
+						"id": { "type": "string", "pattern": "^exp_[0-9a-f]{32}$" },
+						"state": { "type": "string" },
+						"expires": { "type": "string" },
+						"capture": { "type": "object" },
+						"transfer": { "type": "object" }
+					}
+				},
 				"reason": {
 					"enum": [
 						"EPOCH",
@@ -888,6 +1282,8 @@
 						"WATCHER",
 						"GRANT_EXPIRED",
 						"GRANT_REVOKED",
+						"PAIRING_EXPIRED",
+						"PAIRING_REVOKED",
 						"SHUTDOWN"
 					]
 				}
@@ -960,6 +1356,20 @@
 					"then": {
 						"required": [
 							"selection"
+						]
+					}
+				},
+				{
+					"if": {
+						"properties": {
+							"type": {
+								"const": "export.changed"
+							}
+						}
+					},
+					"then": {
+						"required": [
+							"export"
 						]
 					}
 				},

@@ -1,25 +1,17 @@
 import type { IBuildable, IModuleDependency, IPublishedModule } from '../builds';
 import type { Addresses } from './addresses';
-import type { Externals } from './externals';
 import { Holders } from './holders';
 import { Imports } from './imports';
-import type { Instances } from './instances';
-import type { IImporter, ILocated, ILocator } from './locator';
+import type { IGraphSettings, IImporter, ILocated, ILocator, IPending } from './locator';
+import type { Policy } from './policy';
 import { Records } from './records';
 import { Routing } from './routing';
 import { Stylesheets } from './stylesheets';
+import { Trace } from './trace';
 import type { IPreviewDiagnostic, IPreviewModule, IPreviewUpdatable } from './types';
 
 const WEB = { platform: 'web', environment: 'development' };
 
-/**
- * A module of the workspace waiting to be walked, with who imported it and by which specifier
- */
-interface IPending {
-	module: IPublishedModule;
-	specifier: string;
-	importer?: IImporter;
-}
 
 /**
  * The public modules that a preview of one entry module loads, each with the place it comes from.
@@ -40,9 +32,11 @@ export class Graph {
 	#selected: (module: IPublishedModule) => boolean;
 	#addresses: Addresses;
 	#locator: ILocator;
+	#policy: Policy;
 	#routing: Routing;
 	#records = new Records();
 	#holders = new Holders();
+	#trace = new Trace();
 	#imports: Imports;
 	#stylesheets: Stylesheets;
 
@@ -73,31 +67,41 @@ export class Graph {
 		return this.#records.updatable;
 	}
 
-	/**
-	 * The runtime modules that the artifacts of the graph are assembled against
-	 */
+	/** The runtime modules that the artifacts of the graph are assembled against */
 	get runtimes(): string[] {
 		return this.#records.runtimes;
 	}
 
-	/**
-	 * @param selected Whether a public module of the workspace is in development
-	 * @param instances The installed graph the locator reads, when the workspace is served from one
-	 */
-	constructor(delivery: IBuildable, selected: (module: IPublishedModule) => boolean, addresses: Addresses, externals: Externals, locator: ILocator, instances?: Instances) {
+	/** What the walks reached, by record: the package of each record and the public dependencies between them */
+	get trace(): Trace {
+		return this.#trace;
+	}
+
+	/** Every record of the graph with its id */
+	entries(): IterableIterator<[string, IPreviewModule]> {
+		return this.#records.entries();
+	}
+
+	constructor({ delivery, selected, addresses, externals, locator, policy, instances }: IGraphSettings) {
 		this.#delivery = delivery;
 		this.#selected = selected;
 		this.#addresses = addresses;
 		this.#locator = locator;
+		this.#policy = policy;
 
 		const records = this.#records;
 		const report = (code: string, message: string) => records.report(code, message);
-		this.#routing = new Routing({ delivery, selected, addresses, externals, records, installed: locator.installed });
+		this.#routing = new Routing({ delivery, selected, addresses, externals, records, installed: locator.installed, policy });
 		this.#imports = new Imports(report);
 
 		const known = () => this.#known;
 		const registry = (module: IPublishedModule) => this.#routing.registry(module);
-		this.#stylesheets = new Stylesheets({ delivery, selected, addresses, externals, imports: this.#imports, instances, known, registry, report });
+		this.#stylesheets = new Stylesheets({ delivery, selected, addresses, externals, imports: this.#imports, policy, instances, known, registry, report });
+	}
+
+	/** Adds a diagnostic of the graph, once */
+	report(code: string, message: string): void {
+		this.#records.report(code, message);
 	}
 
 	static specifier({ specifier, name, subpath }: IPublishedModule): string {
@@ -124,6 +128,8 @@ export class Graph {
 		const id = registry ? `${registry}:${name}@${version}/${subpath}` : `${specifier}\n${version ?? ''}`;
 		const from = Graph.specifier(importer.module);
 		const { module, known, delivered: compiled } = await this.#routing.record(id, specifier, located, from);
+		const provider = this.#locator.installed ? 'store' : located.served ? 'installation' : 'registry';
+		this.#trace.node(id, { name, version, subpath, registry, provider, path: located.location });
 
 		// In an installed graph an import without an address fails with its reason, never taking another importer's
 		if (this.#locator.installed && !module.url) {
@@ -132,18 +138,23 @@ export class Graph {
 		}
 		this.#place(specifier, module.url, importer);
 
-		// On the disk an installation resolves what it imports the same way for every importer
-		if ((known && !this.#locator.installed) || module.source !== 'environment') return { id, module };
+		// On the disk an installation resolves what it imports the same way for every importer. What an installed
+		// package imports is known because this environment can compile it, also when the CDN delivers it (`cdn`)
+		const here = module.source === 'environment';
+		const walked = here || (module.source === 'cdn' && !!located.served);
+		if ((known && !this.#locator.installed) || !walked) return { id, module };
 
 		const nested = await this.#locator.nested(located, importer, module.url);
+		nested.path && this.#trace.node(id, { name, version, subpath, registry, provider, path: nested.path });
 		const visit = `${id}\n${nested.chain?.join('\n') ?? ''}`;
 		if (this.#visited.has(visit)) return { id, module };
 		this.#visited.add(visit);
 
 		const request = { name, version, subpath, vspecifier: `${name}@${version}` };
 		const { delivered } = compiled ? { delivered: compiled } : await this.#delivery.module(request, WEB);
-		delivered?.styles && !known && (module.styles = this.#addresses.styles(name, version, subpath, registry));
-		this.#place(`${specifier}.css`, module.styles, importer);
+		const sheet = delivered?.styles && (here ? this.#addresses.styles(name, version, subpath, registry) : this.#addresses.stylesheet(name, version, subpath, registry));
+		here && sheet && !known && (module.styles = sheet);
+		this.#place(`${specifier}.css`, here ? module.styles : sheet, importer);
 		await this.#stylesheets.select(module, delivered?.stylesheets, nested);
 		if (nested.cycle) return { id, module };
 
@@ -160,11 +171,13 @@ export class Graph {
 		const located = await this.#locator.locate(dependency.specifier, importer, runtime, dependency.vspecifier, this.#known);
 		if (located.local) {
 			this.#holders.link(from, located.local.vspecifier);
+			this.#trace.edge(from, located.local.vspecifier, dependency.specifier, runtime);
 			this.#queue.push({ module: located.local, specifier: dependency.specifier, importer });
 			return;
 		}
 		const { id } = await this.#external(dependency.specifier, located, importer);
 		this.#holders.link(from, id);
+		this.#trace.edge(from, id, dependency.specifier, runtime);
 	}
 
 	/**
@@ -211,7 +224,7 @@ export class Graph {
 	 */
 	#global(widget: IPublishedModule): void {
 		const global = this.#known.find(one => one.name === widget.name && one.version === widget.version && one.subpath === './global');
-		if (!global || !this.#selected(global)) return;
+		if (!global || !(this.#selected(global) || this.#policy.kept(global))) return;
 		const specifier = Graph.specifier(global);
 		const { name, version, subpath } = global;
 		this.#records.update(specifier, { package: name, vspecifier: global.vspecifier, path: this.#addresses.path(name, version, subpath) });
@@ -230,6 +243,8 @@ export class Graph {
 			const id = module.vspecifier;
 			const known = this.#records.get(id);
 			const entry = known ?? this.#records.add(id, await this.#routing.workspace(module));
+			const { name, version, subpath, vspecifier, path } = module;
+			this.#trace.node(id, { name, version, subpath, vspecifier, path, provider: module.supplied ? 'toolchain' : 'workspace' });
 			// On the disk a module of the workspace is one specifier with one address, given once to the document
 			this.#place(pending.specifier, entry.url, this.#locator.installed ? importer : void 0);
 

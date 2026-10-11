@@ -9,7 +9,8 @@
 		"origin": "https://cdn.example.test"
 	},
 	"selection": {
-		"explicit": true
+		"explicit": true,
+		"externals": "environment"
 	},
 	"modules": [
 		{

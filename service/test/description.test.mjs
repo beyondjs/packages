@@ -64,6 +64,19 @@ const described = (delivery, extra) => {
 	return description;
 };
 
+test('the session says what the service implements, and the public origin of an external server', async () => {
+	const description = described(hosted());
+	description.capabilities = { state: 1, installation: 1, files: 1, pairing: 1 };
+	const session = await description.session();
+	assert.deepEqual(session.capabilities, { state: 1, installation: 1, files: 1, pairing: 1 });
+	assert.equal(session.service.public, undefined, 'only an external server has one');
+	assert.deepEqual(new Session(session).capabilities, session.capabilities);
+
+	description.public = 'https://space-4000.forward.example';
+	assert.equal((await description.session()).service.public, 'https://space-4000.forward.example');
+	assert.deepEqual((await described(hosted()).session()).capabilities, {}, 'before the service read its routes');
+});
+
 test('the session lists the extensions of the service and stays a valid session description', async () => {
 	const session = await described(hosted(), { extensions: [DEVELOPMENT] }).session();
 	assert.deepEqual(session.service.extensions, [DEVELOPMENT]);

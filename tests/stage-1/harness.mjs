@@ -4,6 +4,7 @@
  */
 import { spawn } from 'node:child_process';
 import { readFile, writeFile, mkdtemp, cp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
  * The permanent scenario this validation compiles. Stage 1 compiles and edits a temporary copy of it
  * (`copy.mjs`); other validations import this location and copy it themselves. Nothing writes it.
  */
-export const testbed = resolve(process.env.BEYOND_TESTBED || resolve(here, '../../../testbed'), 'module-updates');
+export const testbed = resolve(process.env.BEYOND_TESTBED || ([resolve(here, '../../../../testbed'), resolve(here, '../../../testbed')].find(path => existsSync(path)) ?? resolve(here, '../../../../testbed')), 'module-updates');
 export const conditions = { platform: 'node' };
 
 /**

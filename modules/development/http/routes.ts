@@ -11,6 +11,10 @@ import { Stream } from './stream';
 /**
  * The HTTP mapping of the development contract. Standard preconditions carry the expected revision:
  * `If-None-Match: *` creates, `If-Match: "<revision>"` edits or deletes, and a write without either is refused.
+ *
+ * A body is parsed only when it is sent as `Content-Type: application/json`, and a request without a body that a
+ * form could send (`POST /builds`) is refused with a form or text type: a page of another site can send those to any
+ * origin without asking first, never a JSON document (`415 CONTENT_TYPE_UNSUPPORTED`).
  */
 export class Routes {
 	#files: Files;
@@ -44,6 +48,23 @@ export class Routes {
 			chunks.push(chunk);
 		}
 		return Buffer.concat(chunks);
+	}
+
+	/**
+	 * The media type a request declares, without its parameters
+	 */
+	static #type(request: Request): string {
+		return String(request.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+	}
+
+	/**
+	 * Refuses a body that is not declared as JSON; `optional` lets a request without a declared type through
+	 */
+	static #json(request: Request, optional = false) {
+		const type = Routes.#type(request);
+		if (type === 'application/json' || (optional && !type)) return;
+		const message = `This request is sent as Content-Type: application/json (it was ${type ? `"${type}"` : 'sent without one'})`;
+		throw new DevelopmentError('CONTENT_TYPE_UNSUPPORTED', message, 415);
 	}
 
 	#actor(request: Request, capability: string) {
@@ -85,7 +106,14 @@ export class Routes {
 
 		app.post('/files/operations', route(async (request, response) => {
 			const actor = this.#actor(request, 'files.write');
-			const body = JSON.parse((await this.#body(request, 4 * Mutations.LIMIT)).toString('utf8') || '{}');
+			Routes.#json(request);
+			let body: { mutations: Parameters<Files['batch']>[0] };
+			try {
+				body = JSON.parse((await this.#body(request, 4 * Mutations.LIMIT)).toString('utf8') || '{}');
+			} catch (error) {
+				if (error instanceof DevelopmentError) throw error;
+				throw new DevelopmentError('BODY_INVALID', 'The body of a batch is a JSON document', 400);
+			}
 			response.json(await this.#files.batch(body.mutations, actor));
 		}));
 
@@ -93,6 +121,7 @@ export class Routes {
 
 		app.post('/builds', route((request, response) => {
 			this.#access.require(request, 'build.control');
+			Routes.#json(request, true);
 			response.status(202).json(this.#builds.start());
 		}));
 		app.get('/builds/:id', route((request, response) => {
@@ -101,6 +130,7 @@ export class Routes {
 		}));
 		app.post('/builds/:id/cancel', route((request, response) => {
 			this.#access.require(request, 'build.control');
+			Routes.#json(request, true);
 			response.json(this.#builds.cancel(request.params.id));
 		}));
 

@@ -16,19 +16,33 @@ import { Compatibility } from './compatibility';
  *
  * A module composed by a bundler of its own package is described by that bundler and by the revision of the
  * composition this implementation produces, because the selected compiler never ran for it.
+ *
+ * A confined compilation is part of every configuration it describes (`confined: true`): an output prepared
+ * confined never stands for one prepared without it, which may have run code or read files that confinement
+ * refuses. An unconfined description is unchanged by it.
  */
 export /*bundle*/ class Toolchain {
 	#compiler?: Compiler;
 	#conditions: IAnalysisConditions;
 	#format: 'esm' | 'system';
+	#confined: boolean;
 
 	/**
 	 * @param compiler The selected compiler; none is needed to describe a distribution, which is only read
+	 * @param confined Whether the packages are compiled confined
 	 */
-	constructor(compiler: Compiler | undefined, conditions: IAnalysisConditions, format: 'esm' | 'system') {
+	constructor(compiler: Compiler | undefined, conditions: IAnalysisConditions, format: 'esm' | 'system', confined = false) {
 		this.#compiler = compiler;
 		this.#conditions = conditions;
 		this.#format = format;
+		this.#confined = confined === true;
+	}
+
+	/**
+	 * What a confined compilation adds to a configuration: nothing when the compilation is not confined
+	 */
+	get #confinement(): { confined?: true } {
+		return this.#confined ? { confined: true } : {};
 	}
 
 	/**
@@ -85,13 +99,13 @@ export /*bundle*/ class Toolchain {
 		if (opened.form === 'distribution') {
 			const { name, version } = opened.publication.compiler;
 			const conditions = [platform, environment].filter(Boolean).sort();
-			return { compiler: { name, version, configuration: Compatibility.digest({ distributed: true }) }, conditions, format: this.#format };
+			return { compiler: { name, version, configuration: Compatibility.digest({ distributed: true, ...this.#confinement }) }, conditions, format: this.#format };
 		}
 
 		const options = this.options(opened);
 		const { version, assigned, provenance } = this.#compiler.identity;
 		const sharing = opened.form === 'npm' ? Toolchain.SHARING : void 0;
-		const configuration = { options, assigned, revision: provenance?.revision, sharing, system: this.#format === 'system' ? Toolchain.system : void 0 };
+		const configuration = { options, assigned, revision: provenance?.revision, sharing, system: this.#format === 'system' ? Toolchain.system : void 0, ...this.#confinement };
 		const conditions = [...new Set([options.platform, ...options.conditions])].sort();
 		return { compiler: { name: 'esbuild', version, configuration: Compatibility.digest(configuration) }, conditions, format: this.#format };
 	}
@@ -103,7 +117,7 @@ export /*bundle*/ class Toolchain {
 	#composed(composed: { name: string; specifier: string }): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
 		const { platform, environment } = this.#conditions;
 		const system = this.#format === 'system' ? Toolchain.system : void 0;
-		const configuration = Compatibility.digest({ composed: true, bundler: composed.specifier, system });
+		const configuration = Compatibility.digest({ composed: true, bundler: composed.specifier, system, ...this.#confinement });
 		const conditions = [platform === 'browser' ? 'web' : platform, environment].filter(Boolean).sort();
 		return { compiler: { name: composed.specifier, version: Toolchain.COMPOSITION, configuration }, conditions, format: this.#format };
 	}
@@ -112,7 +126,15 @@ export /*bundle*/ class Toolchain {
 	 * A static file is the same for every compiler, condition and format
 	 */
 	static get copied(): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
-		const compiler = { name: '@beyond-js/packages/generation', version: '1', configuration: Compatibility.digest({ copied: true }) };
+		return Toolchain.copy();
+	}
+
+	/**
+	 * How a static file is described: copied, and read confined when the packages are compiled confined
+	 */
+	static copy(confined = false): Pick<IKeyInputs, 'compiler' | 'conditions' | 'format'> {
+		const configuration = Compatibility.digest(confined ? { copied: true, confined: true } : { copied: true });
+		const compiler = { name: '@beyond-js/packages/generation', version: '1', configuration };
 		return { compiler, conditions: [], format: 'none' };
 	}
 }

@@ -1,6 +1,7 @@
 import type { IDiagnostic } from '@beyond-js/packages/types';
 import type { Compiler } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
 import { Exports } from '@beyond-js/packages/publication';
+import { Confinement } from '@beyond-js/packages/confinement';
 import { existsSync, realpathSync, statSync } from 'fs';
 import { extname, join } from 'path';
 import type { IAnalysisConditions } from '../types';
@@ -47,7 +48,8 @@ export /*bundle*/ class NpmPackage extends Opened {
 			platform,
 			environment,
 			conditions: settings.conditions,
-			mode: settings.mode
+			mode: settings.mode,
+			confined: !!this.confinement
 		});
 	}
 
@@ -73,10 +75,17 @@ export /*bundle*/ class NpmPackage extends Opened {
 		if (!resolved.target) return { diagnostics: resolved.diagnostics };
 
 		const label = Specifier.of(this.name, subpath);
+		const confinement = this.confinement;
+		if (confinement && !confinement.contains(join(this.root, resolved.target))) {
+			return { diagnostics: [Confinement.source(resolved.target, `the exports of "${label}"`)] };
+		}
 		const entry = this.#file(resolved.target);
 		if (!entry) {
 			const message = `"${label}" resolves to "${resolved.target}", which does not exist in package "${this.key}"`;
 			return { diagnostics: <IDiagnostic[]>[{ code: 'EXPORT_TARGET_MISSING', message }] };
+		}
+		if (confinement && !confinement.inside(entry)) {
+			return { diagnostics: [Confinement.source(resolved.target, `the exports of "${label}"`)] };
 		}
 
 		const supported = ['.js', '.mjs', '.cjs', '.json', '.css', '.ts', '.tsx', '.jsx', '.mts', '.cts'];
@@ -92,7 +101,7 @@ export /*bundle*/ class NpmPackage extends Opened {
 			kind: style ? <const>'style' : <const>'module',
 			entry,
 			directory,
-			facade: style ? void 0 : await new Interop(entry, this.manifest.type, resolved.via).facade(directory),
+			facade: style ? void 0 : await new Interop(entry, this.manifest.type, resolved.via, confinement).facade(directory),
 			assets: [],
 			dynamic: []
 		}, NpmPackage.settings(conditions));

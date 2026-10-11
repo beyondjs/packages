@@ -1,4 +1,8 @@
-import type { IPublishedModule } from '../builds';
+import type { IBuildable, IPublishedModule } from '../builds';
+import type { Addresses } from './addresses';
+import type { Externals } from './externals';
+import type { Instances } from './instances';
+import type { Policy } from './policy';
 
 /**
  * Who imports a module: the public module of the workspace the walk came from, the package prefix of its address
@@ -104,4 +108,28 @@ export interface ILocator {
 	 * (`<runtime>/main`), when the workspace contains it
 	 */
 	coordinator(specifier: string, published: IPublishedModule[]): IPublishedModule | undefined;
+}
+
+/**
+ * What a graph is walked with: the delivery of the host, whether a module of the workspace is in development, the
+ * addresses, the resolution of installed versions, the locator of imports, the externals policy and, for an
+ * installed workspace, its installed graph
+ */
+export interface IGraphSettings {
+	delivery: IBuildable;
+	selected: (module: IPublishedModule) => boolean;
+	addresses: Addresses;
+	externals: Externals;
+	locator: ILocator;
+	policy: Policy;
+	instances?: Instances;
+}
+
+/**
+ * A module of the workspace waiting to be walked, with who imported it and by which specifier
+ */
+export interface IPending {
+	module: IPublishedModule;
+	specifier: string;
+	importer?: IImporter;
 }

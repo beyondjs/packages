@@ -1,8 +1,10 @@
 import type { IProcessorDiagnostic } from '@beyond-js/packages/sdk';
-import { compileString, type FileImporter } from 'sass';
+import type { Confinement } from '@beyond-js/packages/confinement';
+import { compileString, type FileImporter, type StringOptions } from 'sass';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, resolve } from 'path';
 import { existsSync } from 'fs';
+import { Importer } from './importer';
 
 export interface ICompiledStyle {
 	code?: string;
@@ -24,6 +26,9 @@ export interface ICompiledStyle {
  * becomes a dependency of the module, which the processor watches. The `url()` references are left as
  * written: a stylesheet is delivered beside its module, and a path relative to the source stays valid when
  * the asset is declared and served with the package.
+ *
+ * A package compiled confined resolves every load through [Importer](./importer.ts), which reads nothing
+ * outside the package and reports what it refused as `SOURCE_CONFINED`.
  */
 export class Sass {
 	/**
@@ -34,7 +39,11 @@ export class Sass {
 		return /(^|[\\/])_[^\\/]*$/.test(file);
 	}
 
-	static compile(file: string, content: string, relative: string): ICompiledStyle {
+	/**
+	 * @param confinement The rules of a confined compilation, when the package is compiled confined
+	 * @param root The root of the package, which names a refused file
+	 */
+	static compile(file: string, content: string, relative: string, confinement?: Confinement, root?: string): ICompiledStyle {
 		const read = new Set<string>();
 		const importer: FileImporter<'sync'> = {
 			findFileUrl(url) {
@@ -46,6 +55,10 @@ export class Sass {
 			}
 		};
 
+		// Confined, the importer of the stylesheet is the only resolver: no load path and no other importer
+		const confined = confinement && new Importer(confinement, root);
+		const loading: Partial<StringOptions<'sync'>> = confined ? { importer: confined } : { importers: [importer], loadPaths: [dirname(file)] };
+
 		try {
 			const syntax = file.endsWith('.scss') ? 'scss' : file.endsWith('.sass') ? 'indented' : 'css';
 			const result = compileString(content, {
@@ -53,8 +66,7 @@ export class Sass {
 				url: pathToFileURL(file),
 				sourceMap: true,
 				sourceMapIncludeSources: false,
-				importers: [importer],
-				loadPaths: [dirname(file)],
+				...loading,
 				quietDeps: true
 			});
 
@@ -77,6 +89,9 @@ export class Sass {
 		} catch (error) {
 			const span = error.span;
 			const position = span ? { line: (span.start?.line ?? 0) + 1, column: (span.start?.column ?? 0) + 1 } : void 0;
+			const refused = confined?.refused ?? [];
+			if (refused.length) return { read: [...read], diagnostics: refused.map(diagnostic => ({ ...diagnostic, position })) };
+
 			const message = error.sassMessage ?? error.message;
 			return { read: [...read], diagnostics: [{ code: 'STYLE_ERROR', message, position }] };
 		}

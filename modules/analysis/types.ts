@@ -106,6 +106,14 @@ export /*bundle*/ interface ITraceRequest {
 	 * The module format the outputs will have, which is an input of their keys. `esm` when omitted.
 	 */
 	format?: 'esm' | 'system';
+
+	/**
+	 * Whether the sources are compiled confined, which whoever prepares sources it does not trust selects: no
+	 * code a package supplies is loaded and no file outside a package is read ([Confinement](../confinement/index.ts)).
+	 * It is an input of every key, so an output prepared confined is never one prepared without it. A
+	 * generation of the inventory's items must select it too, or its keys are not the inventory's.
+	 */
+	confined?: boolean;
 }
 
 /**

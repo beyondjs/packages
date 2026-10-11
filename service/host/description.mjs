@@ -10,6 +10,9 @@ export class Description {
 	#settings;
 	#delivery;
 	#origin;
+	#preview;
+	#public;
+	#capabilities = {};
 	#options = new Options(Options.development);
 
 	// The hash last observed for each module, which is what makes the revision advance
@@ -37,6 +40,34 @@ export class Description {
 	}
 
 	/**
+	 * The origin of the preview listener of a service that pairs browsers, as a browser reaches it
+	 * (`service.preview` of the session)
+	 *
+	 * @param {string | undefined} value
+	 */
+	set preview(value) {
+		this.#preview = value;
+	}
+
+	/**
+	 * The origin an external server is reached through, when it has one (`service.public` of the session)
+	 *
+	 * @param {string | undefined} value
+	 */
+	set public(value) {
+		this.#public = value;
+	}
+
+	/**
+	 * What the service implements: a capability name and the major version of it (`capabilities` of the session)
+	 *
+	 * @param {Record<string, number>} value
+	 */
+	set capabilities(value) {
+		this.#capabilities = { ...value };
+	}
+
+	/**
 	 * The session description of the contract (`GET /session`)
 	 */
 	async session() {
@@ -58,11 +89,13 @@ export class Description {
 		}
 
 		const { root, standalone, toolchain, versions, extensions = [] } = this.#settings;
+		const external = { ...(this.#preview ? { preview: this.#preview } : {}), ...(this.#public ? { public: this.#public } : {}) };
 		return {
 			protocol: Session.PROTOCOL,
 			contract: Schema.version,
 			workspace: { root, standalone },
-			service: { pid: process.ppid, toolchain, versions, origin: this.#origin, extensions },
+			service: { pid: process.ppid, toolchain, versions, origin: this.#origin, extensions, ...external },
+			capabilities: { ...this.#capabilities },
 			options: this.#options.query,
 			runtime: this.#runtime(),
 			revision: this.#revision,
