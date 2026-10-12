@@ -1,0 +1,16 @@
+{
+	"name": "@sources/lib",
+	"version": "1.0.0",
+	"description": "A library published as Beyond sources, as Widgets and its framework controllers are: its modules are composed by the ts bundler on the runtime its bundler names, which it does not declare",
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/1", "form": "source" },
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": { "specifier": "@beyond-js/packages/bundlers/ts", "runtime": "@sources/runtime/bundle" }
+	},
+	"dependencies": {
+		"tone": "^1.0.0"
+	}
+}

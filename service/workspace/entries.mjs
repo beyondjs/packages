@@ -15,9 +15,10 @@ import { Paths } from './paths.mjs';
  *   version?}` objects naming one directory by its path relative to the root), each list with npm's pattern
  *   semantics. A pattern match is an entry only when it holds a `package.json`, and a pattern that yields
  *   none is reported.
- * - `beyond-json`: the `packages` of `beyond.json`, as Packages has always read them: literal paths relative
- *   to the root, each a directory or its `package.json`, never absolute nor outside the root; the root alone
- *   when there are none.
+ * - `beyond-json`: the non-empty `packages` of `beyond.json`, as Packages has always read them: literal paths
+ *   relative to the root, each a directory or its `package.json`, never absolute nor outside the root. A
+ *   `beyond.json` without `packages` holds other declarations and leaves the members to the manifest: those it
+ *   declares (`npm`), or the root alone (`standalone`).
  * - `standalone`: the root itself.
  *
  * Problems of the configuration are recorded in the diagnostics it is given.
@@ -44,7 +45,22 @@ export class Entries {
 
 		const { kind } = configuration;
 		if (configuration.conflict) return void this.#conflict();
+		kind === 'npm' && configuration.unreadable && this.#beside();
 		kind === 'beyond-json' ? this.#file() : kind === 'npm' ? this.#npm() : this.#add('.', 'standalone', true);
+	}
+
+	/**
+	 * A `beyond.json` beside the members a manifest declares holds other declarations of the workspace, such as its
+	 * applications. One that cannot be read leaves untold whether it also names `packages`, which would be a conflict,
+	 * so it is reported; the members stay the ones the manifest declares, which a transient edit of the file keeps
+	 */
+	#beside() {
+		const { file } = this.#configuration;
+		const { error } = this.#configuration.read();
+		const message =
+			`The workspace configuration "${file}" cannot be read: ${error}. The members are the ones its package.json ` +
+			`declares; whether it also declares "packages", which would conflict with them, cannot be told until it is corrected`;
+		this.#diagnostics.warning('WORKSPACE_CONFIG_INVALID', message, [file]);
 	}
 
 	#conflict() {
@@ -146,13 +162,14 @@ export class Entries {
 		const { value, error } = this.#configuration.read();
 		if (error) return void this.#invalid(`The workspace configuration "${file}" cannot be used: ${error}`, file);
 
+		// A beyond-json root names its members in a non-empty `packages` (`Configuration.kind`)
 		const { packages } = value;
-		if (packages && !Array.isArray(packages)) {
+		if (!Array.isArray(packages)) {
 			return void this.#invalid(`"packages" of "${file}" must be an array of strings`, file);
 		}
 
 		const skipped = message => this.#diagnostics.warning('INVALID_PACKAGE_PATH', message, [file]);
-		for (const entry of packages || ['.']) {
+		for (const entry of packages) {
 			if (typeof entry !== 'string' || !entry) {
 				skipped(`Each package path of "${file}" must be a non-empty string. Found: ${JSON.stringify(entry)}`);
 				continue;

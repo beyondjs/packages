@@ -1,0 +1,11 @@
+{
+	"name": "@sources/unreadable",
+	"version": "1.0.0",
+	"description": "A publication declaration of a protocol this implementation does not read: it selects no form, so its plain JavaScript is not compiled as an ordinary npm package either",
+	"exports": {
+		"./main": "./main/index.js"
+	},
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/9", "form": "source" }
+	}
+}

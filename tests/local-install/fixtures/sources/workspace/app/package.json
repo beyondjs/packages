@@ -1,0 +1,22 @@
+{
+	"name": "@sources/app",
+	"version": "1.0.0",
+	"description": "The application: its page imports the library published as Beyond sources, and it declares the runtime it is composed on, as an application declares the development runtime",
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/1", "form": "source" },
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": { "specifier": "@beyond-js/packages/bundlers/ts", "runtime": "@sources/runtime/bundle" }
+	},
+	"dependencies": {
+		"@sources/runtime": "^1.0.0",
+		"@sources/lib": "^1.0.0",
+		"extra": "^1.0.0",
+		"@sources/refused": "^1.0.0",
+		"@sources/unregistered": "^1.0.0",
+		"@sources/unreadable": "^1.0.0",
+		"@sources/undeclared": "^1.0.0"
+	}
+}

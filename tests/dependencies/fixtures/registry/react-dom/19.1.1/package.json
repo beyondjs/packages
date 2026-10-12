@@ -1,0 +1,11 @@
+{
+	"name": "react-dom",
+	"version": "19.1.1",
+	"main": "index.js",
+	"dependencies": {
+		"scheduler": "^0.26.0"
+	},
+	"peerDependencies": {
+		"react": "^19.1.1"
+	}
+}

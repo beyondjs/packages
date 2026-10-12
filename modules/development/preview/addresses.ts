@@ -8,6 +8,12 @@ import { Identity, ModulePath, Options, ResourcePath } from '@beyond-js/artifact
  * publishes the service under a path prefix. Every other module is addressed on the CDN, whose origin is
  * configured with `BEYOND_CDN_ORIGIN`. The path and the query are those of the compiled-module contract,
  * written by its codec: a service changes the origin and nothing else.
+ *
+ * The origin is read from the environment at each use, so a change of the variable while the service runs (the
+ * `cdn.origin` setting of the host writes it) applies to the next description without a restart. An empty variable
+ * is no origin; a variable the environment no longer names leaves the origin this object was created with. A
+ * description that is being built while the variable changes may hold addresses of both origins; the next one
+ * holds only the new one.
  */
 export class Addresses {
 	static VARIABLE = 'BEYOND_CDN_ORIGIN';
@@ -16,13 +22,15 @@ export class Addresses {
 	#published = new Options({ target: 'browser', format: 'esm' });
 	#node = new Options(Options.development);
 
-	#cdn: string;
+	#environment: NodeJS.ProcessEnv;
+	#started: string | undefined;
 
 	/**
-	 * The configured origin of the CDN, undefined when the environment names none
+	 * The configured origin of the CDN, read now, undefined when the environment names none
 	 */
-	get cdn() {
-		return this.#cdn;
+	get cdn(): string | undefined {
+		const given = this.#environment[Addresses.VARIABLE];
+		return given === void 0 ? this.#started : Addresses.#origin(given);
 	}
 
 	/**
@@ -33,13 +41,22 @@ export class Addresses {
 	}
 
 	constructor(environment: NodeJS.ProcessEnv = process.env) {
-		const configured = environment[Addresses.VARIABLE]?.trim().replace(/\/+$/, '');
-		if (!configured) return;
-
+		this.#environment = environment;
 		// A service that cannot say where the other modules come from does not start with a guess
+		this.#started = Addresses.#origin(environment[Addresses.VARIABLE]);
+	}
+
+	/**
+	 * The origin a value of the variable names
+	 *
+	 * @throws Error when it is neither empty nor an http or https origin
+	 */
+	static #origin(value: string | undefined): string | undefined {
+		const configured = value?.trim().replace(/\/+$/, '');
+		if (!configured) return;
 		const valid = URL.canParse(configured) && ['http:', 'https:'].includes(new URL(configured).protocol);
 		if (!valid) throw new Error(`${Addresses.VARIABLE} must be an http or https origin, and it is "${configured}"`);
-		this.#cdn = configured;
+		return configured;
 	}
 
 	/**
@@ -79,7 +96,8 @@ export class Addresses {
 	 * @returns undefined when no CDN origin is configured
 	 */
 	published(name: string, version: string, subpath: string, registry?: string): string | undefined {
-		return this.#cdn && `${this.#cdn}${this.path(name, version, subpath, registry)}?${this.#published.query}`;
+		const cdn = this.cdn;
+		return cdn && `${cdn}${this.path(name, version, subpath, registry)}?${this.#published.query}`;
 	}
 
 	/**
@@ -87,7 +105,8 @@ export class Addresses {
 	 */
 	stylesheet(name: string, version: string, subpath: string, registry = 'npm'): string | undefined {
 		const path = ResourcePath.format({ kind: 'style', identity: new Identity({ registry, name, version, subpath }) });
-		return this.#cdn && `${this.#cdn}${path}?${this.#published.query}`;
+		const cdn = this.cdn;
+		return cdn && `${cdn}${path}?${this.#published.query}`;
 	}
 
 	/**

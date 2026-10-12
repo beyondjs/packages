@@ -1,0 +1,16 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 4,
+	"application": { "id": "composition", "title": "Composition" },
+	"declared": { "id": "web", "kind": "frontend", "package": "@testbed/composition-web", "entry": "./main", "specifier": "@testbed/composition-web/main", "environment": "browser", "diagnostics": [] },
+	"entry": {
+		"specifier": "@testbed/composition-web/main",
+		"vspecifier": "@testbed/composition-web@0.1.0/main",
+		"package": { "name": "@testbed/composition-web", "version": "0.1.0", "source": "workspace", "selected": true }
+	},
+	"environment": "browser",
+	"build": { "platform": "web", "state": "built", "hash": "51da37fdb351b8110298f31424df43bf" },
+	"composition": { "packages": { "workspace": 3, "environment": 2 }, "modules": { "workspace": 6, "environment": 3 } },
+	"open": { "preview": "/preview/?entry=%40testbed%2Fcomposition-web%2Fmain" },
+	"diagnostics": []
+}

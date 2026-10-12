@@ -1,0 +1,6 @@
+{
+	"title": "Edge worker",
+	"targets": {
+		"worker": { "kind": "backend", "package": "@scope/worker", "entry": "./worker", "runtime": "deno>=2" }
+	}
+}

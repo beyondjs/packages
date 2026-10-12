@@ -1,0 +1,12 @@
+{
+	"name": "@testbed/react-hello",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The declarations of the suite's testbed/react-hello/app, without its modules",
+	"dependencies": {
+		"@beyond-js/widgets": "^1.1.0",
+		"@beyond-js/react-19-widgets": "^1.0.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	}
+}

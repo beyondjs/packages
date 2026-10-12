@@ -1,0 +1,7 @@
+{
+	"name": "source-lib",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts"
+	}
+}

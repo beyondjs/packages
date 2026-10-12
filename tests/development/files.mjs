@@ -131,6 +131,30 @@ export async function files() {
 		finish(context);
 	});
 
+	await step('transient-events-are-never-kept: a burst of notifications evicts no stored event and changes no replay', async () => {
+		const log = new Log(3);
+		const seen = [];
+		log.subscribe(event => seen.push(event));
+		const first = log.append('file.changed', { path: 'a.ts' }).cursor;
+		log.append('file.changed', { path: 'b.ts' });
+		const before = log.since(first);
+		const notified = Array.from({ length: 50 }, (value, index) => log.notify('launch.output', { launch: { id: 'lch_x' }, next: index }));
+
+		assert.deepEqual(log.since(first), before, 'the replay after a cursor is the one before the burst');
+		assert.deepEqual(before.events.map(({ path }) => path), ['b.ts']);
+		assert.equal(log.changed(first), true, 'a source change after the cursor is still seen');
+		const current = log.cursor;
+		assert.equal(log.changed(current), false, 'notifications are no source change');
+		assert.deepEqual(log.since(current), { events: [] }, 'and nothing is replayed after the current cursor');
+		assert.ok(notified.every(({ cursor }) => cursor === current), 'a notification carries the cursor of the last stored event');
+
+		// The open subscriber received them in order with the stored events, the last of which follows the burst
+		log.append('file.changed', { path: 'c.ts' });
+		assert.deepEqual(seen.map(({ type, path, next }) => path ?? next), ['a.ts', 'b.ts', ...notified.map((value, index) => index), 'c.ts']);
+		assert.deepEqual(log.since(current).events.map(({ path }) => path), ['c.ts']);
+		return `${notified.length} notifications, the replay of 3 stored events unchanged`;
+	});
+
 	await step('scan-finds-missed-changes and duplicate-observation', async () => {
 		const context = await start({ 'a.ts': 'one', 'gone.ts': 'x' });
 		context.files.observer.pause();

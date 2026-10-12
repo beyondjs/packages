@@ -3,6 +3,7 @@
 import { Selection, type Workspace } from '@beyond-js/packages/workspace';
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import type { Execution } from '@beyond-js/packages/execution';
+import type { Package } from '@beyond-js/packages/package';
 import { Conditions } from '@beyond-js/packages/module';
 import { Compilation } from './compilation';
 import { Dependencies } from './dependencies';
@@ -48,7 +49,8 @@ export /*bundle*/ class Delivery {
 
 	/**
 	 * The installed packages this environment compiles for browsers: what the workspace imports and does
-	 * not contain, resolved from its packages, the ones the toolchain supplies and the toolchain itself
+	 * not contain, resolved from its packages, the ones the toolchain supplies and the toolchain itself, or
+	 * the nodes of its installed graph, each compiled as its package declares
 	 */
 	get installed() {
 		return this.#installed;
@@ -70,6 +72,14 @@ export /*bundle*/ class Delivery {
 		this.#resources = new Resources(workspace, this.#selection, this.#dependencies, this.#installed);
 	}
 
+
+	/**
+	 * Releases what this delivery opened beyond the workspace: the packages of the installed graph it compiled by
+	 * the bundlers they declare. The workspace is its creator's to destroy.
+	 */
+	destroy(): void {
+		this.#installed.destroy();
+	}
 
 	/**
 	 * Whether an installed package at an exact version can be delivered to a browser by this environment
@@ -171,39 +181,48 @@ export /*bundle*/ class Delivery {
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
 
 		const { selected, errors } = await this.#selection.resolve(`${name}@${version}${path}`);
-		if (!selected) {
-			const [{ code, message }] = errors;
+		if (selected) return this.#compile(selected.package, subpath, conditions, selected.vspecifier);
 
-			// A package the workspace does not contain is delivered from its installation, for browsers
-			if (this.#installed.serves(code, request, conditions)) {
-				const installed = await this.#installed.module({ name, version, subpath }, conditions);
-				if (installed.module) return { delivered: Delivery.#delivered(installed.module) };
-				const failure = installed.failure;
-				const known = ['PACKAGE_NOT_FOUND', 'VERSION_MISMATCH', 'MODULE_NOT_FOUND', 'BUILD_FAILED'].includes(failure.code);
-				// A code of its own (a missing source, one version claimed twice) stays readable in the diagnostics
-				const diagnostics = (<{ diagnostics?: IDiagnostic[] }>failure).diagnostics ?? (known ? void 0 : [failure]);
-				return { failure: { code: known ? <IDeliveryFailure['code']>failure.code : 'BUILD_FAILED', message: failure.message, diagnostics } };
-			}
-
+		const [{ code, message }] = errors;
+		if (!this.#installed.serves(code, request, conditions)) {
 			const known = ['PACKAGE_NOT_FOUND', 'VERSION_MISMATCH', 'MODULE_NOT_FOUND'].includes(code);
 			return { failure: { code: known ? <IDeliveryFailure['code']>code : 'BUILD_FAILED', message, diagnostics: errors } };
 		}
 
-		const compilation = new Compilation(selected.package, subpath, new Conditions(conditions), this.#dependencies);
+		// A package the workspace does not contain is delivered from its installation, for browsers. One published as
+		// Beyond sources whose module a bundler of its own composes is compiled by that bundler, as a member is
+		const installed = await this.#installed.module({ name, version, subpath }, conditions);
+		if (installed.composed) return this.#compile(installed.composed, subpath, conditions, `${installed.composed.vname}${path}`);
+		if (installed.module) return { delivered: Delivery.#delivered(installed.module) };
+		const failure = installed.failure;
+		const known = ['PACKAGE_NOT_FOUND', 'VERSION_MISMATCH', 'MODULE_NOT_FOUND', 'BUILD_FAILED'].includes(failure.code);
+		// A code of its own (a missing source, one version claimed twice) stays readable in the diagnostics
+		const diagnostics = (<{ diagnostics?: IDiagnostic[] }>failure).diagnostics ?? (known ? void 0 : [failure]);
+		return { failure: { code: known ? <IDeliveryFailure['code']>failure.code : 'BUILD_FAILED', message: failure.message, diagnostics } };
+	}
+
+	/**
+	 * Compiles a public module of a package with the bundler it declares: a package of the workspace, or one of the
+	 * installed graph published as Beyond sources
+	 *
+	 * @param vspecifier The versioned identity of the module, such as `@example/app@1.0.0/main`
+	 */
+	async #compile(pkg: Package, subpath: string, conditions: IConditions, vspecifier: string): Promise<{ delivered?: IDelivered; failure?: IDeliveryFailure }> {
+		const compilation = new Compilation(pkg, subpath, new Conditions(conditions), this.#dependencies);
 		await compilation.run();
 		// A style module builds its stylesheet and no code: the module exists, and this output of it does not
 		if (!compilation.valid && compilation.styles) {
 			return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: compilation.errors[0].message, diagnostics: compilation.errors, styles: compilation.styles.hash } };
 		}
 		if (!compilation.valid) {
-			const message = `Module "${selected.specifier}" does not build: ${compilation.errors[0].message}`;
+			const message = `Module "${compilation.specifier}" does not build: ${compilation.errors[0].message}`;
 			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
 		}
 
 		const { conditional } = compilation;
 		return {
 			delivered: {
-				vspecifier: selected.vspecifier,
+				vspecifier,
 				hash: conditional.output.hash,
 				key: compilation.key,
 				dependencies: compilation.dependencies,

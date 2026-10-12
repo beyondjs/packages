@@ -68,11 +68,18 @@ export class Delivery {
 	}
 }
 
-export const serve = async (seed, access) => {
+/**
+ * The extension over a temporary root and a stand-in delivery, mounted on an allocated port
+ *
+ * @param {object} seed The files of the root
+ * @param {object} [access] The access of the extension, local without it
+ * @param {{subscribe: Function}} [events] The events of a hosting service, which the extension follows
+ */
+export const serve = async (seed, access, events) => {
 	const project = new Project(seed);
 	// The runtime of the stub artifacts is the Kernel installed with this repository, as a service describes it
 	const runtime = { base: new URL('../../package.json', import.meta.url).href };
-	const development = new Development({ delivery: new Delivery(project), settings: { root: project.path, runtime } }, access);
+	const development = new Development({ delivery: new Delivery(project), settings: { root: project.path, runtime }, events }, access);
 	const app = express();
 	development.guard(app);
 	// Stand-ins for routes the hosting service mounts itself, which the guard covers

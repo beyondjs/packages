@@ -1,0 +1,25 @@
+{
+	"name": "@production/web",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Production validation: the page of the site, with a route, a lazy module, a stylesheet and an external package",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./lazy": "./lazy/index.ts"
+	},
+	"dependencies": {
+		"@production/art": "1.0.0",
+		"@production/shared": "1.0.0",
+		"tiny": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

@@ -16,8 +16,11 @@
  * | `selection` | `GET /development/selection` |
  * | `preview` | `GET /preview` |
  * | `composition` | `GET /preview/composition.json` |
+ * | `applications` | `GET /applications` |
+ * | `types` | `GET /types` |
  *
- * The features of the host itself (`pairing`, `exports`, `ui`) are added by whoever mounted them.
+ * The features of the host itself (`pairing`, `exports`, `ui`, `operations`, and those of `Features`: `settings`,
+ * `launch`, `dependencies`, `production`) are added by whoever mounted them, each only when it is enabled.
  */
 export class Capabilities {
 	static BASE = Object.freeze({ state: 1, installation: 1 });
@@ -29,7 +32,9 @@ export class Capabilities {
 		['declarations', 'get', '/declarations/*'],
 		['selection', 'get', '/development/selection'],
 		['preview', 'get', '/preview'],
-		['composition', 'get', '/preview/composition.json']
+		['composition', 'get', '/preview/composition.json'],
+		['applications', 'get', '/applications'],
+		['types', 'get', '/types']
 	]);
 
 	#map = { ...Capabilities.BASE };

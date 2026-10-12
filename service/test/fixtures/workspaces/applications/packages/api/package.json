@@ -1,0 +1,5 @@
+{
+	"name": "@fixture/api",
+	"version": "1.0.0",
+	"description": "The backend package of the applications fixture"
+}

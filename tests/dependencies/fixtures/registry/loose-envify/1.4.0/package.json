@@ -1,0 +1,8 @@
+{
+	"name": "loose-envify",
+	"version": "1.4.0",
+	"main": "index.js",
+	"dependencies": {
+		"js-tokens": "^3.0.0 || ^4.0.0"
+	}
+}

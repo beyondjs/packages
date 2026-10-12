@@ -115,7 +115,8 @@ export class Service {
 
 	/**
 	 * @param {{lifetime: 'owner' | 'attachments', port?: number, bind?: string, extensions?: string[], pairing?: true |
-	 * {origins?: string[], public?: string}, interface?: string}} options How a service started by this call ends; an
+	 * {origins?: string[], public?: string}, interface?: string, launch?: object, exclusive?: boolean}} options How a
+	 * service started by this call ends; an
 	 * explicit port; the address it listens on, which is the loopback one unless something else controls who reaches
 	 * the service, because the service has no authentication; the module specifiers of the extensions that add routes to
 	 * its host; whether it pairs browsers (`beyond-dev-pairing/1`), with the interface origins allowed besides its own
@@ -123,7 +124,10 @@ export class Service {
 	 * build it serves at `/ui/` when it pairs. All of them describe a service this call starts and are ignored when a
 	 * running service is reused. A caller that names no extensions starts the ones of `BEYOND_SERVICE_EXTENSIONS`
 	 * (specifiers separated by commas), which is how a person adds the development extension, and with it the preview
-	 * of the workspace, to the service that a command starts.
+	 * of the workspace, to the service that a command starts. `launch` enables the launch of execution targets in a
+	 * service this call starts (`{node: {register, launcher}}`, see the launches feature of the host), which only the
+	 * command line's `beyond run` gives. `exclusive` starts a service of its own that no other caller finds or reuses,
+	 * and that reuses none, as a headless build needs: it never attaches to a person's running service.
 	 * @returns {Promise<{connection: Connection, started: boolean, token?: string}>}
 	 * @throws {ServiceError} `SERVICE_EXTENSIONS_MISSING` when the running service lacks an extension this call
 	 * names, and `SERVICE_PAIRING_MISSING` when it does not pair browsers and this call asks for pairing, and it is held
@@ -131,7 +135,9 @@ export class Service {
 	 * it had them, and it is not replaced while it is there
 	 * @throws {ContractError} `UNAVAILABLE` when the running service answers that it cannot describe itself now
 	 */
-	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env), pairing, interface: build }) {
+	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env), pairing, interface: build, launch, exclusive = false }) {
+		if (exclusive) return this.#exclusive({ lifetime, port, bind, extensions, pairing, interface: build, launch });
+
 		// Whoever waits for the lock waits for as long as the holder's start can last, stop and description
 		// included, and the time the holder gives a service that lacks an extension to leave, its last look
 		// included, so that a slow start is not reported to it as a failed one
@@ -140,14 +146,26 @@ export class Service {
 
 		return this.#discovery.exclusive(async () => {
 			const found = await this.find();
-			const reused = found && (await this.#reusable(found, extensions, !!pairing));
+			const reused = found && (await this.#reusable(found, extensions, !!pairing, !!launch));
 			if (reused) return { connection: reused, started: false };
 
 			const token = randomUUID();
-			const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build });
+			const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch });
 			const connection = await this.#described(record);
 			return { connection, started: true, token };
 		}, { timeout });
+	}
+
+	/**
+	 * Starts a service of its own, under a discovery record keyed also by an identifier of this start, so it neither
+	 * reuses a running service nor is found by another caller; it ends with its lifetime like any other
+	 */
+	async #exclusive({ lifetime, port, bind, extensions, pairing, interface: build, launch }) {
+		const token = randomUUID();
+		const exclusive = randomUUID();
+		const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch, exclusive });
+		const connection = await this.#described(record);
+		return { connection, started: true, token };
 	}
 
 	/**
@@ -180,13 +198,16 @@ export class Service {
 	 * @param {Connection} connection
 	 * @param {string[]} [requested]
 	 * @param {boolean} [pairing] Whether the caller needs a service that pairs browsers
+	 * @param {boolean} [launch] Whether the caller needs a service that launches execution targets
 	 * @returns {Promise<Connection | undefined>} undefined when the service ended and another one is to be started
 	 */
-	async #reusable(connection, requested = [], pairing = false) {
+	async #reusable(connection, requested = [], pairing = false, launch = false) {
 		const loaded = connection.session.service.extensions ?? [];
 		const missing = requested.filter(specifier => !loaded.includes(specifier));
-		const unpaired = pairing && !connection.session.toJSON().capabilities?.pairing;
-		if (!missing.length && !unpaired) return connection;
+		const capabilities = connection.session.toJSON().capabilities ?? {};
+		const unpaired = pairing && !capabilities.pairing;
+		const unlaunched = launch && !capabilities.launch;
+		if (!missing.length && !unpaired && !unlaunched) return connection;
 
 		// A record gone since it was found is a service that is ending
 		const record = this.#discovery.read();
@@ -195,14 +216,15 @@ export class Service {
 		const departure = leaving.lifetime === 'attachments' ? await this.#discovery.departure(leaving, bounds) : 'held';
 		if (departure === 'ended') return;
 
-		const names = [...missing, ...(unpaired ? ['pairing'] : [])].join(', ');
+		const names = [...missing, ...(unpaired ? ['pairing'] : []), ...(unlaunched ? ['the launch of execution targets'] : [])].join(', ');
 		const where = `The development service of "${connection.session.workspace.root}" (${connection.origin})`;
 		const ending = `${where} stopped answering and is still ending: its supervisor (pid ${leaving.pid}) did not end within ${Service.DEPART}ms`;
 		const message = departure === 'ending'
 			? `${ending}. Run this command again once it ended: it then starts the service with ${names}, which this command needs`
 			: `${where} is in use without ${names}, which this command needs, and a running service is reused as it was started. ` +
 				`End the commands and applications that use it, so that it stops, and run this command again: it then starts the service with ${names}`;
-		throw new ServiceError(message, record?.log, missing.length ? 'SERVICE_EXTENSIONS_MISSING' : 'SERVICE_PAIRING_MISSING');
+		const code = missing.length ? 'SERVICE_EXTENSIONS_MISSING' : unpaired ? 'SERVICE_PAIRING_MISSING' : 'SERVICE_LAUNCH_MISSING';
+		throw new ServiceError(message, record?.log, code);
 	}
 
 	/**
@@ -220,14 +242,15 @@ export class Service {
 	 * Starts the supervisor detached from this process and waits for the outcome of the start, within the
 	 * deadline of `BEYOND_START_TIMEOUT`. A supervisor that is not ready by then is stopped.
 	 */
-	#start({ lifetime, port, bind, extensions, token, pairing, interface: build }) {
+	#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch, exclusive }) {
 		const deadline = Service.#deadline.read(process.env);
 		const { root, standalone } = this.#context;
-		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path, pairing, interface: build };
+		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path, pairing, interface: build, ...(launch ? { launch } : {}), ...(exclusive ? { exclusive } : {}) };
 
 		// Where the supervisor logs, which it names itself once it can: a start that fails before, or never
-		// ends, is reported with it as well
-		const log = join(this.#home.directory('services', this.#discovery.key), 'service.log');
+		// ends, is reported with it as well. An exclusive service keeps its own directory
+		const key = exclusive ? new Discovery(this.#home, { root, toolchain: this.#installation.id, exclusive }).key : this.#discovery.key;
+		const log = join(this.#home.directory('services', key), 'service.log');
 
 		const child = spawn(process.execPath, [Service.SUPERVISOR], {
 			detached: true,

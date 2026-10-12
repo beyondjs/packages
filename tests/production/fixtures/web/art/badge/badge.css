@@ -1,0 +1,6 @@
+/* The stylesheet of the badge: its size, which the validation reads */
+.badge {
+	width: 24px;
+	height: 24px;
+	display: block;
+}

@@ -1,0 +1,1 @@
+{ "site": { "targets": { "1web": { "kind": "frontend", "package": "@scope/site", "entry": "./main" } } } }

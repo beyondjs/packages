@@ -1,0 +1,8 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 7,
+	"document": { "path": "config/applications.json", "branch": "file", "exists": false, "reference": "config/applications.json" },
+	"following": { "live": true, "watchers": "ready", "events": true },
+	"applications": [],
+	"diagnostics": [{ "code": "APPLICATIONS_FILE_MISSING", "message": "The applications are declared in \"config/applications.json\", which does not exist", "severity": "error" }]
+}

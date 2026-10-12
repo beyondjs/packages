@@ -1,0 +1,16 @@
+{
+	"composition": {
+		"title": "Composition",
+		"targets": {
+			"web": { "title": "Web page", "kind": "frontend", "package": "@testbed/composition-web", "entry": "./main" },
+			"api": {
+				"title": "Backend API",
+				"kind": "backend",
+				"package": "@testbed/composition-api",
+				"entry": "./server",
+				"runtime": "node",
+				"readiness": { "output": "composition API listening" }
+			}
+		}
+	}
+}

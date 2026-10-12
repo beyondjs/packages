@@ -1,0 +1,7 @@
+{
+	"name": "extra",
+	"version": "1.0.0",
+	"description": "An ordinary npm package the application depends on and the library does not",
+	"type": "module",
+	"exports": "./index.js"
+}

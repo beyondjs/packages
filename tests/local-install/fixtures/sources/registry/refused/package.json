@@ -1,0 +1,13 @@
+{
+	"name": "@sources/refused",
+	"version": "1.0.0",
+	"description": "Intentionally hostile: published as Beyond sources with a bundler that is a program of its own, which would mark the process if it ran. The toolchain does not ship it, so it never runs",
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/1", "form": "source" },
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": { "specifier": "data:text/javascript,globalThis.sourcesRefusedRan=true;export class Module{}" }
+	}
+}

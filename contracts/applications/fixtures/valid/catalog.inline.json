@@ -1,0 +1,35 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 4,
+	"document": { "path": "beyond.json", "branch": "inline", "exists": true, "revision": "sha256-8d61a86b812cd86c1a2e29d763c382eebc46bac2ec250f2ad327baec815162bb" },
+	"following": { "live": true, "watchers": "ready", "events": true },
+	"applications": [
+		{
+			"id": "composition",
+			"title": "Composition",
+			"targets": [
+				{
+					"id": "web",
+					"title": "Web page",
+					"kind": "frontend",
+					"package": "@testbed/composition-web",
+					"entry": "./main",
+					"specifier": "@testbed/composition-web/main",
+					"environment": "browser",
+					"diagnostics": []
+				},
+				{
+					"id": "api",
+					"kind": "backend",
+					"package": "@testbed/composition-api",
+					"entry": "./server",
+					"specifier": "@testbed/composition-api/server",
+					"runtime": "bun",
+					"diagnostics": [{ "code": "TARGET_RUNTIME_UNSUPPORTED", "message": "The Core launches backend targets in Node or Deno", "severity": "warning", "field": "runtime" }]
+				}
+			],
+			"diagnostics": []
+		}
+	],
+	"diagnostics": []
+}

@@ -1,0 +1,10 @@
+{
+	"error": {
+		"code": "APPLICATION_INVALID",
+		"message": "The application \"Bad_Id\" is not valid",
+		"diagnostics": [
+			{ "code": "APPLICATION_ID_INVALID", "message": "\"Bad_Id\" is not an application identifier", "severity": "error" },
+			{ "code": "TARGET_KIND_INVALID", "message": "The kind of a target is \"frontend\" or \"backend\", not \"mobile\"", "severity": "error", "field": "kind", "target": "web" }
+		]
+	}
+}

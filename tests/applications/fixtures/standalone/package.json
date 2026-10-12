@@ -1,0 +1,12 @@
+{
+	"name": "@standalone/site",
+	"version": "1.0.0",
+	"description": "Applications validation: a standalone package, without dependencies, that declares its first application",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	}
+}

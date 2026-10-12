@@ -1,0 +1,11 @@
+{
+	"applications": {
+		"site": {
+			"title": "Site",
+			"targets": {
+				"web": { "title": "Web page", "kind": "frontend", "package": "@fixture/site", "entry": "./main" },
+				"api": { "title": "Backend API", "kind": "backend", "package": "@fixture/api", "entry": "./server", "runtime": "node" }
+			}
+		}
+	}
+}

@@ -1,0 +1,8 @@
+{
+	"name": "old-widget",
+	"version": "1.0.0",
+	"main": "index.js",
+	"dependencies": {
+		"react": "^18.3.1"
+	}
+}

@@ -8,12 +8,20 @@ import type { Access } from '../access';
  * server cannot replay them. The stream ends with the grant that opened it, or with the pairing of the page that
  * opened it on a service that pairs browsers (`access.ended`, with the reason).
  *
- * Source events name files and who changed them, and the events of exports name packages and captures, so a
- * subscriber without `files.read` receives neither (`file.*`, `batch.*`, `export.*`): a preview visitor subscribes
- * to learn about builds, and must not learn about the source tree through it.
+ * Source events name files and who changed them, the events of exports name packages and captures, and the events of
+ * the hosting service's features describe the workspace (applications, operations, launches with their output,
+ * settings, reloads), so a subscriber without `files.read` receives none of them (`Stream.SOURCES`): a preview visitor
+ * subscribes to learn about builds, and must not learn about the source tree or the workspace through it.
  */
 export class Stream {
 	static HEARTBEAT = 20000;
+
+	/**
+	 * The events only a subscriber that reads sources receives: the source tree and its batches, the exports, and what
+	 * the features of the hosting service announce about the workspace (its applications, operations, launches and their
+	 * output, settings and reloads)
+	 */
+	static SOURCES = /^(file|batch|export|applications|operation|launch|settings|workspace)\./;
 
 	#log: Log;
 	#access: Access;
@@ -33,7 +41,7 @@ export class Stream {
 		response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
 		const sources = this.#access.includes(request, claims, 'files.read');
 		const send = (event: IDevelopmentEvent) => {
-			if (!sources && /^(file|batch|export)\./.test(event.type)) return;
+			if (!sources && Stream.SOURCES.test(event.type)) return;
 			response.write(`id: ${event.cursor}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
 		};
 

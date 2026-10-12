@@ -109,13 +109,13 @@ test('a root manifest that cannot be read is a configuration error, and a member
 	);
 	assert.deepEqual(found(standalone, 'WORKSPACE_CONFIG_INVALID').paths, [join(solo, 'package.json')]);
 
-	// The root of a beyond.json workspace is its only member by default
+	// A beyond.json without packages declares no member: the package is on its own, its manifest reported
 	writeFileSync(join(base, 'classic/beyond.json'), '{}');
 	writeFileSync(join(base, 'classic/package.json'), '{ "dependencies": ');
 	const classic = Declaration.read(join(base, 'classic'));
 	assert.deepEqual(
 		[classic.kind, ids(classic), codes(classic)],
-		['beyond-json', ['.'], ['WORKSPACE_CONFIG_INVALID', 'MEMBER_MANIFEST_INVALID']]
+		['standalone', ['.'], ['WORKSPACE_CONFIG_INVALID', 'MEMBER_MANIFEST_INVALID']]
 	);
 
 	// Recovery: the manifest of the fixture again

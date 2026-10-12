@@ -1,0 +1,10 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 4,
+	"application": { "id": "composition" },
+	"declared": { "id": "api", "kind": "backend", "package": "@testbed/nothing", "entry": "./server", "specifier": "@testbed/nothing/server", "environment": "node", "diagnostics": [] },
+	"entry": { "specifier": "@testbed/nothing/server" },
+	"environment": "node",
+	"launch": { "supported": false, "reason": "TARGET_PACKAGE_NOT_FOUND" },
+	"diagnostics": [{ "code": "TARGET_PACKAGE_NOT_FOUND", "message": "The workspace has no package \"@testbed/nothing\"", "severity": "error", "field": "package" }]
+}

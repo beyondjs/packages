@@ -21,7 +21,7 @@ test('the session describes both listeners and what the service implements, and 
 	const { service, capabilities } = served.session;
 	assert.match(service.preview, /^http:\/\/127\.0\.0\.1:\d+$/);
 	assert.notEqual(service.preview, served.origin);
-	for (const name of ['state', 'installation', 'files', 'events', 'builds', 'declarations', 'selection', 'preview', 'pairing', 'exports']) {
+	for (const name of ['state', 'installation', 'files', 'events', 'builds', 'declarations', 'selection', 'preview', 'pairing', 'exports', 'operations']) {
 		assert.equal(capabilities[name], 1, name);
 	}
 	assert.equal(capabilities.ui, undefined, 'no interface build was given');

@@ -35,8 +35,24 @@ export class Description {
 		this.#delivery = delivery;
 	}
 
+	/**
+	 * The origin of the API listener, as local clients reach it, once the service listens
+	 *
+	 * @returns {string | undefined}
+	 */
+	get origin() {
+		return this.#origin;
+	}
+
 	set origin(value) {
 		this.#origin = value;
+	}
+
+	/**
+	 * @returns {string | undefined}
+	 */
+	get preview() {
+		return this.#preview;
 	}
 
 	/**

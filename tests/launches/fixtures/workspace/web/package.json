@@ -1,0 +1,18 @@
+{
+	"name": "@launches/web",
+	"version": "1.0.0",
+	"description": "Launch validation: a frontend entry, which is opened as a document and never launched",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

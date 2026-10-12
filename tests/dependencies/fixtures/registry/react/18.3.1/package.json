@@ -1,0 +1,8 @@
+{
+	"name": "react",
+	"version": "18.3.1",
+	"main": "index.js",
+	"dependencies": {
+		"loose-envify": "^1.1.0"
+	}
+}

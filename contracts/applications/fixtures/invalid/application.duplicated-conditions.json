@@ -1,0 +1,1 @@
+{ "targets": { "web": { "kind": "frontend", "package": "@scope/site", "entry": "./main", "conditions": ["browser", "browser"] } } }

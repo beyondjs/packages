@@ -1,0 +1,8 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 1,
+	"document": { "path": "beyond.json", "branch": "inline", "exists": false },
+	"following": { "live": true, "watchers": "starting", "events": false },
+	"applications": [],
+	"diagnostics": []
+}

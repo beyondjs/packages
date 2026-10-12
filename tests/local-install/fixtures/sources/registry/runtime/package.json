@@ -1,0 +1,20 @@
+{
+	"name": "@sources/runtime",
+	"version": "1.0.0",
+	"description": "A stand-in development runtime published as Beyond sources, as the development runtime is: TypeScript entry points of the packaging bundler",
+	"exports": {
+		"./bundle": "./bundle/index.ts",
+		"./core": "./core/index.ts"
+	},
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/1", "form": "source" },
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": { "bundle": { "compiler": "env:BEYOND_ESBUILD_COMPILER" } }
+		}
+	}
+}

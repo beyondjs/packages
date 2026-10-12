@@ -1,0 +1,18 @@
+{
+	"name": "@npm/web",
+	"version": "1.0.0",
+	"description": "Applications validation: the browser entry of an npm workspace's application",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

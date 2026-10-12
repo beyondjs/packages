@@ -23,16 +23,21 @@ import { Capabilities } from './capabilities.mjs';
 import { Description } from './description.mjs';
 import { Events } from './events.mjs';
 import { Extensions } from './extensions.mjs';
+import { Features, Services } from './features.mjs';
 import { Graph } from './graph.mjs';
 import { Holds } from './holds.mjs';
 import { Hosted } from './hosted.mjs';
 import { Hosts } from './hosts.mjs';
 import { Installer } from './installer.mjs';
 import { Lifetime } from './lifetime.mjs';
+import { Operations } from './operations/operations.mjs';
+import { OperationRoutes } from './operations/routes.mjs';
 import { Portable } from './portable.mjs';
 import { Processors } from './processors.mjs';
+import { Reloads } from './reloads.mjs';
 import { InstallationRoutes } from './routes.mjs';
 import { SameOrigin } from './same-origin.mjs';
+import { Startup } from './settings/startup.mjs';
 import { Selection } from './selection.mjs';
 
 const settings = JSON.parse(process.env.BEYOND_HOST_OPTIONS);
@@ -54,6 +59,7 @@ let watchers;
 let workspace;
 let server;
 let portable;
+let features;
 let ending = false;
 
 const attachments = new Attachments(settings.token);
@@ -70,6 +76,8 @@ async function end(reason, code = 0) {
 	setTimeout(() => process.exit(code), 6000).unref();
 
 	attachments.close(reason);
+	// What the features own, such as the processes of launched execution targets, ends with the service
+	await features?.stop().catch(error => log(`features: ${error.message}`));
 	await portable?.stop().catch(error => log(`preview listener: ${error.message}`));
 	server?.closeAllConnections?.();
 	await new Promise(resolve => (server ? server.close(resolve) : resolve()));
@@ -108,7 +116,9 @@ try {
 	// What the routes deliver: the Packages workspace of the root, reloaded when its manifests change. Reading
 	// it is bounded, at the start and at every reload: a workspace that never becomes ready fails the start
 	// instead of holding it, and a reload that never does is answered as unavailable
-	const reading = new Deadline('BEYOND_WORKSPACE_TIMEOUT', 120000).read(process.env);
+	// The environment the service started with, completed with the stored settings that apply at a start (a person
+	// changed workspace.timeout in the Packages interface): a variable of the environment still wins
+	const reading = new Deadline('BEYOND_WORKSPACE_TIMEOUT', 120000).read(new Startup(settings.root).environment(process.env));
 	workspace = new Hosted(settings, log, { deadline: reading });
 	await workspace.start();
 
@@ -120,6 +130,12 @@ try {
 	const events = new Events();
 	const extensions = new Extensions(settings.extensions);
 	await extensions.load();
+
+	// What the development extension shares with the features of the host, and the long operations those features run:
+	// durable records under .beyond/operations, announced on the event stream as operation.changed
+	const services = new Services();
+	const operations = new Operations({ root: settings.root, events, holds });
+	await operations.start();
 
 	// The selection answers a browser module with the address of its preview, which the development extension serves
 	const selection = new Selection(delivery, graph, { previews: extensions.has(Selection.DEVELOPMENT) });
@@ -151,12 +167,22 @@ try {
 	// compiled modules of its embed origins, and never change it or keep it alive
 	const unpaired = !portable && hosts.loopback && !process.env.BEYOND_AUTHORITY;
 	unpaired && new SameOrigin({ environment: process.env }).setup(app);
-	await extensions.guard(app, { workspace, settings, events });
+	await extensions.guard(app, { workspace, settings, events, services });
 
 	// Before the routes of the compiled-module contract, whose answers any origin may read: no page of another
 	// origin reads the installation of the workspace or runs one, nor an export or a pairing
 	portable?.setup(app);
 	new InstallationRoutes(installer, { bind: settings.bind, hosts }).setup(app);
+
+	// The features of the host: settings, the launch of execution targets, dependency management and production. Each
+	// claims its capabilities only when it is enabled for this service
+	const { token, credential, ...visible } = settings;
+	// The origins are known once the service listens: a feature reads them when it needs them (a launched consumer's BEE_URL)
+	const origins = { api: () => description.origin, preview: () => description.preview };
+	features = new Features({ root: settings.root, settings: visible, workspace, events, holds, operations, services, log, origins, environment: process.env });
+	await features.load();
+	new OperationRoutes(operations).setup(app);
+	features.setup(app);
 	Routes.setup(app, delivery);
 	attachments.setup(app);
 
@@ -169,7 +195,8 @@ try {
 	);
 	selection.setup(app);
 
-	await extensions.setup(app, { workspace, settings, events });
+	await extensions.setup(app, { workspace, settings, events, services });
+	new Reloads({ workspace, events, log, deadline: reading }).start(services.get('log'));
 	Routes.errors(app);
 	await portable?.start();
 
@@ -177,6 +204,8 @@ try {
 	const capabilities = new Capabilities();
 	capabilities.read(app);
 	portable && capabilities.add(portable.capabilities);
+	capabilities.add({ operations: 1 });
+	capabilities.add(features.capabilities);
 	description.capabilities = capabilities.map;
 
 	/**

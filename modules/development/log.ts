@@ -15,6 +15,11 @@ type Listener = (event: IDevelopmentEvent) => void;
  * The ordered event log of one service run. A cursor is `<epoch>:<seq>`; the epoch changes whenever the
  * server cannot vouch for continuity, and a subscriber that returns with a cursor either receives exactly
  * the later events or is told to resynchronize against a scanned tree.
+ *
+ * A transient event (`notify`) reaches the subscribers that are open, in order with the stored ones, and is never
+ * kept: it carries the cursor of the last stored event, takes no number of its own and is not replayed, so a burst of
+ * them (the output of a launched process) never pushes stored events out of the retention, and `since()` and
+ * `changed()` answer what they answered before it. Whoever announces one says how a returning subscriber recovers it.
  */
 export /*bundle*/ class Log {
 	#epoch = '';
@@ -38,11 +43,24 @@ export /*bundle*/ class Log {
 		this.#events = [];
 	}
 
+	/**
+	 * Stores an event with the next number and delivers it to the open subscribers
+	 */
 	append(type: string, data: Record<string, unknown> = {}): IDevelopmentEvent {
 		this.#sequence++;
 		const event = { cursor: this.cursor, type, ...data };
 		this.#events.push(event);
 		if (this.#events.length > this.#retention) this.#events.shift();
+		this.#listeners.forEach(listener => listener(event));
+		return event;
+	}
+
+	/**
+	 * Delivers a transient event to the open subscribers without storing it: it carries the current cursor, takes no
+	 * number and is never replayed
+	 */
+	notify(type: string, data: Record<string, unknown> = {}): IDevelopmentEvent {
+		const event = { cursor: this.cursor, type, ...data };
 		this.#listeners.forEach(listener => listener(event));
 		return event;
 	}

@@ -1,0 +1,7 @@
+{
+	"name": "applications-npm",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Applications validation: npm workspaces name the members, beyond.json holds only the applications",
+	"workspaces": ["packages/*", "runtime"]
+}

@@ -1,0 +1,25 @@
+{
+	"name": "@types-fixture/app",
+	"version": "1.0.0",
+	"description": "Type browsing validation: modules whose declaration the ts bundler generates, one that does not check, and a style module",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./text": "./text/index.ts",
+		"./broken": "./broken/index.ts",
+		"./theme": "./theme.css"
+	},
+	"dependencies": {
+		"typed-lib": "1.0.0",
+		"conditioned": "2.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

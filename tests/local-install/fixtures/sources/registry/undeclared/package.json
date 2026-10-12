@@ -1,0 +1,15 @@
+{
+	"name": "@sources/undeclared",
+	"version": "1.0.0",
+	"description": "Names a Beyond bundler and no publication form, so it is read as an ordinary npm package, as the preparation for delivery reads it; its TypeScript entry point is not code a browser can be given",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": { "specifier": "@beyond-js/packages/bundlers/ts", "runtime": "@sources/runtime/bundle" }
+	}
+}

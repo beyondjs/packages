@@ -1,0 +1,6 @@
+{
+	"name": "typed-lib",
+	"version": "2.0.0",
+	"main": "./index.js",
+	"typings": "./index.d.ts"
+}

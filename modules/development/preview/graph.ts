@@ -158,8 +158,12 @@ export class Graph {
 		await this.#stylesheets.select(module, delivered?.stylesheets, nested);
 		if (nested.cycle) return { id, module };
 
-		const dependencies = delivered?.dependencies?.filter(dependency => dependency.source !== 'builtin') ?? [];
-		for (const dependency of dependencies) await this.#import(id, dependency, nested, false);
+		// A package of the graph composed by a bundler of its own imports the runtime of the page, as a member does
+		const runtime = delivered?.runtime;
+		runtime && this.#records.runtime(runtime);
+		const imported = [...(runtime ? [{ specifier: runtime, source: 'runtime' }] : []), ...(delivered?.dependencies ?? [])];
+		const dependencies = (<IModuleDependency[]>imported).filter(dependency => dependency.source !== 'builtin');
+		for (const dependency of dependencies) await this.#import(id, dependency, nested, dependency.source === 'runtime');
 		return { id, module };
 	}
 

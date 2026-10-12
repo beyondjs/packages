@@ -1,0 +1,9 @@
+{
+	"name": "tiny",
+	"version": "1.0.0",
+	"description": "An installed package the page imports: compiled by this environment, or referenced on the CDN",
+	"type": "module",
+	"exports": {
+		".": { "types": "./index.d.ts", "default": "./index.js" }
+	}
+}

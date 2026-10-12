@@ -1,0 +1,21 @@
+{
+	"name": "@applications/api",
+	"version": "1.0.0",
+	"description": "Applications validation: the Node entry of the backend target",
+	"exports": {
+		"./server": "./server/index.ts"
+	},
+	"dependencies": {
+		"@applications/shared": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

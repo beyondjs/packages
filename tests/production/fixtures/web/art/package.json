@@ -1,0 +1,23 @@
+{
+	"name": "@production/art",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Production validation: a module compiled in the esbuild packaging mode, with its stylesheet and a declared asset",
+	"exports": {
+		"./badge": "./badge/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}

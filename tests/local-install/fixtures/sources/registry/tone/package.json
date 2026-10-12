@@ -1,0 +1,7 @@
+{
+	"name": "tone",
+	"version": "1.0.0",
+	"description": "An ordinary npm package that a library published as Beyond sources depends on",
+	"type": "module",
+	"exports": "./index.js"
+}

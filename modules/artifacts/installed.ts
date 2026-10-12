@@ -1,12 +1,12 @@
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import type { Execution } from '@beyond-js/packages/execution';
-import { Bundle, Compiler, Located, type IBundled } from '@beyond-js/packages/bundlers/esbuild/processors/bundle';
-import { Exports } from '@beyond-js/packages/publication';
-import { Interop, Sharing } from '@beyond-js/packages/analysis';
-import { ConditionalOutput } from '@beyond-js/packages/module/output';
-import { existsSync, readFileSync, realpathSync, statSync } from 'fs';
-import { extname, join } from 'path';
+import type { Package } from '@beyond-js/packages/package';
+import type { ConditionalOutput } from '@beyond-js/packages/module/output';
+import { readFileSync, statSync } from 'fs';
+import { join } from 'path';
 import { Instances, type IInstance } from './instances';
+import { Authored, type IAuthoredModule } from './authored';
+import { Packaging } from './packaging';
 
 /**
  * A public module of an installed package, compiled for a browser
@@ -34,24 +34,52 @@ export /*bundle*/ interface IInstalledModule {
 }
 
 /**
+ * What compiling a public module of an installed package answers
+ */
+export /*bundle*/ interface IInstalledResult {
+	/**
+	 * The module packaged by this environment: a subpath of an ordinary npm package, or a module of a package published
+	 * as Beyond sources that no bundler of its own composes
+	 */
+	module?: IInstalledModule;
+
+	/**
+	 * With an execution, for a package published as Beyond sources whose module a bundler of its own composes: the
+	 * package to compile it from, as a member of the workspace is compiled
+	 */
+	composed?: Package;
+
+	failure?: IDiagnostic;
+}
+
+/**
  * The installed packages that a browser needs and the workspace does not contain: the frameworks and
  * libraries the modules import by bare specifier, such as `react` or `vue`.
  *
  * A Node consumer resolves them itself from the package that imports them. A browser cannot, and in
  * development there is no CDN to ask, so this environment compiles them: each public subpath of an
  * installed package is one ES module, produced by the esbuild packaging path with its bare references
- * kept and its CommonJS shape adapted, exactly as the CDN generation does. Only the exact version that was
- * requested is served, and nothing is served that is not installed.
+ * kept and its CommonJS shape adapted, exactly as the CDN generation does ([Packaging](./packaging.ts)). Only the
+ * exact version that was requested is served, and nothing is served that is not installed.
  *
  * With the execution projection of an installed graph, a package is a node of that graph, compiled from the
  * canonical location of its sources; which node an importer reaches is decided by serving, from the
  * instances that reached the importer. Without one, a package is found where Node finds it for the packages of
  * the workspace, the ones the toolchain supplies and the toolchain itself ([Instances](./instances.ts)).
+ *
+ * With an execution, a node is also compiled as its package declares (`beyond-publication/1`): one published as
+ * Beyond sources by the bundlers it declares ([Authored](./authored.ts)), one whose declaration cannot be read not at
+ * all. Without one, every installed package is compiled by the packaging path from its `exports`.
  */
 export /*bundle*/ class Installed {
 	#instances: Instances;
-	#compiled: Map<string, Promise<{ module?: IInstalledModule; failure?: IDiagnostic }>> = new Map();
-	#sharing = new Sharing();
+	#compiled: Map<string, Promise<IInstalledResult>> = new Map();
+	#packaging = new Packaging();
+
+	/**
+	 * With an execution: the nodes published as Beyond sources, opened to be compiled by the bundlers they declare
+	 */
+	#authored: Authored | undefined;
 
 	/**
 	 * @param bases The directories to resolve installed packages from without an execution
@@ -59,6 +87,7 @@ export /*bundle*/ class Installed {
 	 */
 	constructor(bases: () => string[], execution?: Execution) {
 		this.#instances = new Instances(bases, execution);
+		this.#authored = execution ? new Authored() : void 0;
 	}
 
 	/**
@@ -73,7 +102,7 @@ export /*bundle*/ class Installed {
 	 * `BEYOND_ESBUILD_COMPILER`, or the `esbuild` installed with Packages
 	 */
 	static get compiler(): string {
-		return process.env.BEYOND_ESBUILD_COMPILER ? 'env:BEYOND_ESBUILD_COMPILER' : 'esbuild';
+		return Packaging.compiler;
 	}
 
 	/**
@@ -120,9 +149,10 @@ export /*bundle*/ class Installed {
 	 * compiled from stays where it is and unchanged: a name and version do not identify bytes in development,
 	 * where reinstalling from another registry, a patched copy or a new link replaces the files under the same
 	 * version, so the installation located now — its real location and when its manifest was written — is
-	 * part of what the result is kept under, and a replaced one is compiled again.
+	 * part of what the result is kept under, and a replaced one is compiled again. A module a bundler of its
+	 * package composes is answered with that package (`composed`), whose compilations keep their own outputs.
 	 */
-	module(request: { name: string; version: string; subpath: string; key?: string }, conditions: IConditions) {
+	module(request: { name: string; version: string; subpath: string; key?: string }, conditions: IConditions): Promise<IInstalledResult> {
 		const instance = this.#instances.locate(request.name, request.version, request.key);
 		const root = instance.location;
 		// The node is part of what a result is kept under: one location could hold another node after an install
@@ -150,86 +180,37 @@ export /*bundle*/ class Installed {
 		}
 	}
 
-	#file(root: string, target: string): string | undefined {
-		const base = join(root, target);
-		const candidates = [base, `${base}.js`, `${base}.mjs`, `${base}.cjs`, join(base, 'index.js')];
-		const found = candidates.find(candidate => existsSync(candidate) && statSync(candidate).isFile());
-		return found && realpathSync(found);
-	}
-
-	async #compile({ name, version, subpath }: { name: string; version: string; subpath: string }, conditions: IConditions, instance: IInstance) {
+	async #compile(request: { name: string; version: string; subpath: string }, conditions: IConditions, instance: IInstance): Promise<IInstalledResult> {
 		const root = instance.location;
 		if (!root) return { failure: instance.failure };
-
 		const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-		const exports = new Exports(manifest);
-		const { platform, environment } = conditions;
-		const mode = environment ?? 'production';
-		const resolved = exports.resolve(subpath, platform, mode);
-		if (!resolved.target) return { failure: resolved.diagnostics[0] };
+		const module = { ...request, key: instance.key };
 
-		const entry = this.#file(root, resolved.target);
-		if (!entry) return { failure: { code: 'MODULE_NOT_FOUND', message: `"${name}${subpath.slice(1)}" resolves to "${resolved.target}", which does not exist` } };
-		if (!['.js', '.mjs', '.cjs', '.json', '.css'].includes(extname(entry))) {
-			return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `"${name}${subpath.slice(1)}" resolves to "${resolved.target}", which is not code or a stylesheet` } };
+		// With an installed graph the package says how it is compiled; a declaration that cannot be read selects nothing
+		const form = this.#authored?.form(instance, manifest, String(Installed.#written(root)));
+		const declared = form?.publication.diagnostics ?? [];
+		if (form && !form.publication.form) {
+			const message = `"${request.name}@${request.version}" declares no publication form that can be read: ${declared[0]?.message}`;
+			return { failure: <IDiagnostic>{ code: 'BUILD_FAILED', message, diagnostics: declared } };
+		}
+		if (form?.opened) {
+			const authored: IAuthoredModule = await this.#authored.module(form.opened, request.subpath, conditions);
+			if (authored.failure) return { failure: authored.failure };
+			return authored.composed ? { composed: authored.composed } : this.#packaging.entry(module, conditions, authored.packaged);
 		}
 
-		const compiler = await Compiler.load(Installed.compiler, process.cwd());
-		if (compiler.error) return { failure: compiler.error };
-
-		// The other public subpaths of the package stay references, so two modules never carry one state
-		const entries = new Map<string, string>();
-		exports.subpaths.forEach(other => {
-			const target = other !== subpath && exports.resolve(other, platform, mode).target;
-			const file = target && !target.endsWith('.json') && this.#file(root, target);
-			file && file !== entry && !entries.has(file) && entries.set(file, other === '.' ? name : `${name}/${other.slice(2)}`);
-		});
-
-		// Except the subpaths whose graphs share files: a carrier bundles them and each is a facade over it
-		const settings = { platform: platform === 'browser' ? 'web' : platform, environment, conditions: Exports.conditions(platform, mode), mode };
-		const subpaths = exports.subpaths;
-		const resolve = (one: string) => exports.resolve(one, platform, mode);
-		const plan = await this.#sharing.plan({ ...settings, root, name, manifest, subpaths, resolve, compiler, file: target => this.#file(root, target) });
-		const role = plan.role(subpath);
-		const facade =
-			role.kind === 'facade' ? plan.facade(subpath) : role.kind === 'carrier' ? plan.union(subpath) : extname(entry) === '.css' ? void 0 : await new Interop(entry, manifest.type, resolved.via).facade(root);
-		const { bundled, diagnostics } = await new Bundle(compiler, {
-			...settings,
-			root,
-			entry,
-			facade,
-			entries: plan.externals(subpath, entries),
-			package: { root, subpath },
-			minify: environment === 'production'
-		}).run();
-		if (!bundled) return { failure: { code: 'BUILD_FAILED', message: diagnostics[0]?.message ?? `"${name}" could not be compiled`, diagnostics } };
-
-		// Its maps are delivered inline: every source is named by its absolute path in the installation
-		const located = new Located(root, root);
-		Object.assign(bundled, { map: located.map(bundled.map), cssmap: located.map(bundled.cssmap) });
-		return { module: Installed.#describe(name, version, subpath, bundled, instance.key) };
+		// A manifest that names Beyond modules without the source form is read as an ordinary npm package: a failure says so
+		const answer = await this.#packaging.exports(module, conditions, root, manifest);
+		if (!answer.failure || !declared.length) return answer;
+		const diagnostics = (<{ diagnostics?: IDiagnostic[] }>answer.failure).diagnostics ?? [answer.failure];
+		return { failure: <IDiagnostic>{ ...answer.failure, diagnostics: [...diagnostics, ...declared] } };
 	}
 
-	static #describe(name: string, version: string, subpath: string, bundled: IBundled, key?: string): IInstalledModule {
-		const output = new ConditionalOutput();
-		output.set({ code: bundled.code ?? '', map: bundled.map });
-
-		let styles: ConditionalOutput;
-		if (typeof bundled.css === 'string') {
-			styles = new ConditionalOutput();
-			styles.set({ code: bundled.css, map: bundled.cssmap });
-		}
-		return {
-			name,
-			version,
-			subpath,
-			...(key ? { key } : {}),
-			hash: output.hash,
-			code: sourcemap => output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
-			styles,
-			dependencies: bundled.dependencies,
-			stylesheets: bundled.references.filter(({ kind }) => kind === 'style').map(({ specifier }) => specifier),
-			compiler: { specifier: bundled.compiler.specifier, version: bundled.compiler.version }
-		};
+	/**
+	 * Releases the packages opened to be compiled by the bundlers they declare
+	 */
+	destroy(): void {
+		this.#authored?.destroy();
+		this.#compiled.clear();
 	}
 }

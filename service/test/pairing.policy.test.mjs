@@ -183,7 +183,7 @@ test('the preflight of an allowed origin is answered with its methods, headers, 
 	assert.equal(preflight.status, 204);
 	assert.equal(preflight.headers['access-control-allow-origin'], UI);
 	assert.equal(preflight.headers['access-control-allow-methods'], 'GET, PUT, POST, DELETE');
-	assert.equal(preflight.headers['access-control-allow-headers'], 'authorization, content-type, if-match, if-none-match, last-event-id');
+	assert.equal(preflight.headers['access-control-allow-headers'], 'authorization, content-type, if-match, if-none-match, last-event-id, idempotency-key');
 	assert.equal(preflight.headers['access-control-max-age'], '600');
 	assert.equal(preflight.headers['access-control-allow-private-network'], 'true');
 	assert.match(preflight.headers.vary, /Origin/);

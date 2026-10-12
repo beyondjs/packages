@@ -1,0 +1,11 @@
+{
+	"name": "chart-kit",
+	"version": "1.2.0",
+	"main": "index.js",
+	"dependencies": {
+		"shared-lib": "^1.0.0"
+	},
+	"peerDependencies": {
+		"react": "^18.3.1 || ^19.0.0"
+	}
+}

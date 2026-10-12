@@ -1,0 +1,8 @@
+{
+	"name": "@beyond-js/react-19-widgets",
+	"version": "1.0.0",
+	"description": "Stands for the React 19 adapter of Widgets the toolchain supplies to live development",
+	"dependencies": {
+		"react": "^19.0.0"
+	}
+}

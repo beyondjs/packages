@@ -1,4 +1,5 @@
-import { readdirSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, sep } from 'node:path';
 
 const SKIPPED = new Set(['node_modules', '.git', '.beyond', '.artifacts']);
@@ -15,7 +16,8 @@ const NAMES = new Set(['beyond.json', 'package.json', 'module.json']);
  *
  * What is compared:
  *
- * - every manifest below the root, as before;
+ * - every manifest below the root, as before; a `beyond.json` by its content without its `applications`, which the
+ *   catalog of applications follows itself;
  * - the members of the declaration, read again each time, so that a member that a pattern now matches or no
  *   longer matches is a change, wherever its directory is;
  * - every manifest below a member directory the walk of the root does not reach: one outside the root, in its
@@ -91,9 +93,36 @@ export class Manifests {
 			if (entry.isDirectory()) {
 				!SKIPPED.has(entry.name) && !entry.name.startsWith('.') && this.#walk(join(directory, entry.name), found);
 			} else if (NAMES.has(entry.name)) {
-				found.add(Manifests.#stamp(join(directory, entry.name)));
+				const file = join(directory, entry.name);
+				found.add(entry.name === 'beyond.json' ? Manifests.#declared(file) : Manifests.#stamp(file));
 			}
 		}
+	}
+
+	/**
+	 * What says that a `beyond.json` changed what the workspace is made of: its content without the applications it
+	 * declares, which the catalog of applications follows on its own (`applications.changed`), so declaring or editing an
+	 * application never reloads the workspace and rebuilds its modules. A document that is not a JSON object is compared
+	 * by its bytes, and one that cannot be read by its stamp.
+	 */
+	static #declared(file) {
+		let bytes;
+		try {
+			bytes = readFileSync(file);
+		} catch {
+			return Manifests.#stamp(file);
+		}
+		let compared = bytes.toString('utf8');
+		try {
+			const value = JSON.parse(compared);
+			if (value && typeof value === 'object' && !Array.isArray(value)) {
+				const { applications, ...rest } = value;
+				compared = JSON.stringify(rest);
+			}
+		} catch {
+			// Not JSON: its bytes are what is compared, so correcting it is a change
+		}
+		return `${file}:content:${createHash('sha256').update(compared).digest('hex')}`;
 	}
 
 	/**

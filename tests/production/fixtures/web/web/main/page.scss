@@ -1,0 +1,6 @@
+// The stylesheet of the page, linked by its document: the validation reads the color of the heading
+$ink: rgb(12, 74, 110);
+
+.greeting {
+	color: $ink;
+}

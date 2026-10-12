@@ -39,6 +39,31 @@ const SPELLINGS = [
 ];
 
 /**
+ * The routes of the hosting service's features (developer-journey.md), which `serve` does not mount: the guard decides
+ * before any handler, so the allowed grant reaches a route none serves (`404`). Launching, changing the settings and
+ * publishing need capabilities no grant carries: every grant is refused (`allowed` undefined)
+ */
+const OPERATION = 'op_000000000000000000000000';
+const FEATURES = [
+	['GET', '/operations', 'inspector', ['writer', 'visitor'], 404],
+	['GET', `/operations/${OPERATION}`, 'inspector', ['writer', 'visitor'], 404],
+	['POST', `/operations/${OPERATION}/cancel`, 'controller', ['inspector', 'writer', 'visitor'], 404],
+	['GET', '/launches', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/launches', undefined, ['inspector', 'writer', 'visitor', 'controller'], undefined],
+	['POST', '/launches/lch_000000000000000000000000/stop', undefined, ['inspector', 'writer', 'visitor', 'controller'], undefined],
+	['GET', '/settings', 'inspector', ['writer', 'visitor'], 404],
+	['PUT', '/settings', undefined, ['inspector', 'writer', 'visitor', 'controller'], undefined],
+	['GET', '/dependencies', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/dependencies/checks', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/dependencies/plans', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/dependencies/plans/pln_000000000000000000000000/apply', 'writer', ['inspector', 'visitor'], 404],
+	['GET', '/production/packages/shared', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/production/packages/shared/archives', 'inspector', ['writer', 'visitor'], 404],
+	['POST', '/production/exports', 'writer', ['inspector', 'visitor'], 404],
+	['POST', '/production/packages/shared/publish', undefined, ['inspector', 'writer', 'visitor', 'controller'], undefined]
+];
+
+/**
  * The code of a refusal; a `HEAD` answer has no body to carry it
  */
 const refusal = (method, response) => [response.status, method === 'HEAD' ? void 0 : response.body.error?.code];
@@ -48,7 +73,8 @@ export async function access() {
 	const grants = {
 		inspector: signer.grant('grt_ins0001', ['inspect.read', 'session.read']),
 		writer: signer.grant('grt_wri0001', ['files.write', 'files.read']),
-		visitor: signer.grant('grt_vis0002', ['artifacts.read', 'events.subscribe'])
+		visitor: signer.grant('grt_vis0002', ['artifacts.read', 'events.subscribe']),
+		controller: signer.grant('grt_ctl0001', ['build.control'])
 	};
 
 	/**
@@ -67,6 +93,7 @@ export async function access() {
 				}
 
 				// The guard lets the allowed grant through to the route: a stand-in answers, a method none serves is not found
+				if (!allowed) continue;
 				const through = await context.call(method, path, { grant: grants[allowed] });
 				assert.equal(through.status, answer, `${method} ${path} with the ${allowed} grant`);
 			}
@@ -78,6 +105,7 @@ export async function access() {
 
 	await step('installation-and-resolution-need-grants: the installation is read with inspect.read and run with files.write, the resolution documents need artifacts.read', () => guarded(ROUTES));
 	await step('another case or an ending slash is the same route, and needs the same grant', () => guarded(SPELLINGS));
+	await step('the features of the hosting service need grants: reading is inspection, changing sources a write, and launching, settings and publishing are refused to every delegated grant', () => guarded(FEATURES));
 
 	await step('local mode (no authority): the installation and the resolution documents need no grant', async () => {
 		const context = await serve({ 'a.ts': 'one' });

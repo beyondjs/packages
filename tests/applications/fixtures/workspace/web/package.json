@@ -1,0 +1,22 @@
+{
+	"name": "@applications/web",
+	"version": "1.0.0",
+	"description": "Applications validation: the browser entry of the frontend target, and a module that is no target",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./widget": "./widget/index.ts"
+	},
+	"dependencies": {
+		"@applications/shared": "1.0.0"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

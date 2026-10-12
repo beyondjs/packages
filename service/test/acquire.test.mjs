@@ -211,6 +211,29 @@ test('a service its owner holds that does not pair browsers is refused to a call
 	assert.match(both.message, /without file:\/\/\/guard\.mjs, pairing/);
 });
 
+test('a service its owner holds that does not launch execution targets is refused to a caller that asks for launches', async t => {
+	configured(t, 'SETTLE', 60000);
+	const { service, origin } = await running(t, [DEVELOPMENT], { capabilities: { state: 1, pairing: 1 } });
+
+	const launch = { node: { register: '/register.mjs', launcher: '/launcher.mjs' } };
+	const refused = await failure(service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true, launch }));
+	assert.equal(refused.code, 'SERVICE_LAUNCH_MISSING');
+	assert.match(refused.message, /is in use without the launch of execution targets, which this command needs/);
+	assert.ok(refused.message.includes(origin));
+
+	// A caller that does not ask for launches reuses it
+	const { started } = await service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true });
+	assert.equal(started, false);
+});
+
+test('a service that launches execution targets is reused by a caller that asks for launches', async t => {
+	const { service, origin } = await running(t, [DEVELOPMENT], { capabilities: { state: 1, pairing: 1, launch: 1 } });
+	const launch = { node: { register: '/register.mjs', launcher: '/launcher.mjs' } };
+	const { connection, started } = await service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true, launch });
+	assert.equal(started, false);
+	assert.equal(connection.origin, origin);
+});
+
 test('a service that pairs browsers is reused by a caller that asks for pairing, and by one that does not', async t => {
 	const { service, origin } = await running(t, [DEVELOPMENT], { capabilities: { state: 1, pairing: 1 } });
 	const paired = await service.acquire({ lifetime: 'owner', extensions: [DEVELOPMENT], pairing: true });

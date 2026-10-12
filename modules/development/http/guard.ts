@@ -10,7 +10,8 @@ type Entry = [path: RegExp, capability: string, methods?: string[]];
 /**
  * Delegated access for the routes the hosting service mounts itself: the session description, state,
  * selection, the installation of the workspace, attachments, the resolution documents, compiled modules and
- * their updates. In local mode it lets everything through.
+ * their updates, and the routes of its features (operations, launches, settings, dependencies, production). In local
+ * mode it lets everything through: a service that pairs decides its callers in its own policy.
  *
  * A path that does two things needs a capability per method: reading the installation is inspection, and running
  * one writes the committed lock and the state under `.beyond` of the working copy and asks registries, which is a
@@ -29,7 +30,25 @@ export class Guard {
 		[/^\/attach$/, 'events.subscribe'],
 		[/^\/m\//, 'artifacts.read'],
 		[/^\/u\//, 'artifacts.read'],
-		[/^\/$/, 'session.read']
+		[/^\/$/, 'session.read'],
+		// The features of the hosting service (developer-journey.md). Reading is inspection; what changes sources is a
+		// write; cancelling an operation controls work as cancelling a build does. Launching a process, changing the
+		// service's settings and publishing a package need capabilities no delegated grant carries today, so a delegated
+		// caller is refused them rather than let through
+		[/^\/operations(\/[^/]+)?$/, 'inspect.read', ['GET', 'HEAD']],
+		[/^\/operations\/[^/]+\/cancel$/, 'build.control'],
+		[/^\/launches(\/.*)?$/, 'inspect.read', ['GET', 'HEAD']],
+		[/^\/launches(\/.*)?$/, 'launch.run'],
+		[/^\/settings$/, 'inspect.read', ['GET', 'HEAD']],
+		[/^\/settings$/, 'settings.write'],
+		[/^\/dependencies(\/plans\/[^/]+)?$/, 'inspect.read', ['GET', 'HEAD']],
+		[/^\/dependencies\/(checks|preflight|plans)$/, 'inspect.read', ['POST']],
+		[/^\/dependencies\/plans\/[^/]+\/apply$/, 'files.write'],
+		[/^\/dependencies(\/.*)?$/, 'files.write'],
+		[/^\/production\/.*$/, 'inspect.read', ['GET', 'HEAD']],
+		[/^\/production\/exports$/, 'files.write', ['POST']],
+		[/^\/production\/packages\/[^/]+\/(archives|status)$/, 'inspect.read', ['POST']],
+		[/^\/production\/.*$/, 'production.publish']
 	];
 
 	#access: Access;

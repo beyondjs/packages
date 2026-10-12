@@ -17,7 +17,7 @@
  */
 export class Cors {
 	static METHODS = 'GET, PUT, POST, DELETE';
-	static HEADERS = 'authorization, content-type, if-match, if-none-match, last-event-id';
+	static HEADERS = 'authorization, content-type, if-match, if-none-match, last-event-id, idempotency-key';
 	static EXPOSED = 'etag, beyond-cursor, location, sourcemap, link';
 	static AGE = '600';
 

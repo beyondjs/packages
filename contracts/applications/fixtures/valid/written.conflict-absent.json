@@ -1,0 +1,12 @@
+{
+	"outcome": "conflict",
+	"revision": null,
+	"catalog": {
+		"protocol": "beyond-applications/1",
+		"generation": 0,
+		"document": { "path": "beyond.json", "branch": "inline", "exists": false },
+		"following": { "live": false, "watchers": "starting", "events": false },
+		"applications": [],
+		"diagnostics": []
+	}
+}

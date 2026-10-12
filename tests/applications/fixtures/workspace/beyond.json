@@ -1,0 +1,20 @@
+{
+	"packages": ["runtime", "shared", "web", "api"],
+	"description": "Applications validation: one workspace, its applications declared inline",
+	"applications": {
+		"composition": {
+			"title": "Composition",
+			"targets": {
+				"web": { "title": "Web page", "kind": "frontend", "package": "@applications/web", "entry": "./main" },
+				"api": {
+					"title": "Backend API",
+					"kind": "backend",
+					"package": "@applications/api",
+					"entry": "./server",
+					"runtime": "node",
+					"readiness": { "output": "applications api listening" }
+				}
+			}
+		}
+	}
+}

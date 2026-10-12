@@ -1,0 +1,32 @@
+{
+	"packages": ["runtime", "api", "web"],
+	"applications": {
+		"fixture": {
+			"title": "Launch fixture",
+			"targets": {
+				"api": {
+					"title": "Fixture API",
+					"kind": "backend",
+					"package": "@launches/api",
+					"entry": "./server",
+					"runtime": "node",
+					"readiness": { "output": "fixture API listening" }
+				},
+				"worker": {
+					"title": "Fixture API in Deno",
+					"kind": "backend",
+					"package": "@launches/api",
+					"entry": "./server",
+					"runtime": "deno",
+					"readiness": { "output": "fixture API listening" }
+				},
+				"web": {
+					"title": "Fixture page",
+					"kind": "frontend",
+					"package": "@launches/web",
+					"entry": "./main"
+				}
+			}
+		}
+	}
+}

@@ -89,7 +89,7 @@ The decision is left on the request under `Symbol.for('beyond.caller')`: the dev
 
 ### Cross-origin rules
 
-Nothing of a pairing service is readable with `*`. For an allowed origin of the listener a request arrived on, a preflight is answered with that origin, `GET, PUT, POST, DELETE`, `authorization, content-type, if-match, if-none-match, last-event-id`, `Access-Control-Max-Age: 600`, `Access-Control-Allow-Private-Network: true` when it is asked for, and `Vary: Origin`; every answer then carries that origin, `Vary: Origin` and exposes `etag, beyond-cursor, location, sourcemap, link`. Any other origin gets no cross-origin header at all.
+Nothing of a pairing service is readable with `*`. For an allowed origin of the listener a request arrived on, a preflight is answered with that origin, `GET, PUT, POST, DELETE`, `authorization, content-type, if-match, if-none-match, last-event-id, idempotency-key`, `Access-Control-Max-Age: 600`, `Access-Control-Allow-Private-Network: true` when it is asked for, and `Vary: Origin`; every answer then carries that origin, `Vary: Origin` and exposes `etag, beyond-cursor, location, sourcemap, link`. Any other origin gets no cross-origin header at all.
 
 | Listener | Allowed origins |
 | --- | --- |

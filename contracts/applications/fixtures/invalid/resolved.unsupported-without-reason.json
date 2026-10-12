@@ -1,0 +1,9 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 1,
+	"application": { "id": "composition" },
+	"declared": { "id": "api", "diagnostics": [] },
+	"entry": {},
+	"launch": { "supported": false },
+	"diagnostics": []
+}

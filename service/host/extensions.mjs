@@ -6,8 +6,8 @@
  * the one the bootstrap compiles, and a `file:` URL is a plain module. It exports either or both of:
  *
  * ```js
- * export async function guard(app, { workspace, delivery, settings, events }) {}   // before every route of the service
- * export async function setup(app, { workspace, delivery, settings, events }) {}   // after them, before the error handler
+ * export async function guard(app, { workspace, delivery, settings, events, services }) {}   // before every route of the service
+ * export async function setup(app, { workspace, delivery, settings, events, services }) {}   // after them, before the error handler
  * ```
  *
  * The service has no authentication of its own. `guard` is where a caller that exposes the service beyond
@@ -20,7 +20,8 @@
  * Packages workspace of its own. `settings` are the ones of the service (`root`, `standalone`, `bind`, …)
  * without the token that proves who started it and without the local credential of a service that pairs.
  * `events` are the events of the host (`subscribe(listener)`, the listener receiving a type and its data), which
- * an extension that serves an event stream appends to it, such as `export.changed`. Extensions run in the order
+ * an extension that serves an event stream appends to it, such as `export.changed`. `services` is the registry of the
+ * objects an extension shares with the features of the host (`services.set('files', files)`; see `Features`). Extensions run in the order
  * given. One that cannot be imported, exports neither function or fails fails the start of the service: a service
  * that silently lacks its access control or part of its API is worse than none.
  */
@@ -65,13 +66,13 @@ export class Extensions {
 		}
 	}
 
-	async #call(name, app, { workspace, settings, events }) {
+	async #call(name, app, { workspace, settings, events, services }) {
 		const { token, credential, ...visible } = settings;
 
 		for (const { specifier, module } of this.#modules) {
 			if (typeof module[name] !== 'function') continue;
 			try {
-				await module[name](app, { workspace, delivery: workspace, settings: visible, events });
+				await module[name](app, { workspace, delivery: workspace, settings: visible, events, services });
 			} catch (error) {
 				throw new Error(`The ${name}() of the service extension "${specifier}" failed: ${error.message}`);
 			}

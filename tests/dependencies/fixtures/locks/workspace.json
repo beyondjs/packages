@@ -1,0 +1,266 @@
+{
+	"protocol": "beyond-lock/2",
+	"inputs": {
+		"declaration": "sha256-fixture",
+		"members": {}
+	},
+	"members": {
+		"apps/admin": {
+			"name": "@fixture/admin",
+			"version": "1.0.0",
+			"node": "workspace:apps/admin"
+		},
+		"apps/web": {
+			"name": "@fixture/web",
+			"version": "1.0.0",
+			"node": "workspace:apps/web"
+		},
+		"packages/view": {
+			"name": "@fixture/view",
+			"version": "1.0.0",
+			"node": "workspace:packages/view"
+		}
+	},
+	"nodes": {
+		"workspace:apps/admin": {
+			"name": "@fixture/admin",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "apps/admin",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null
+		},
+		"workspace:apps/web": {
+			"name": "@fixture/web",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "apps/web",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null
+		},
+		"workspace:packages/view": {
+			"name": "@fixture/view",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "workspace"
+			},
+			"member": "packages/view",
+			"visibility": "public",
+			"integrity": null,
+			"tarball": null
+		},
+		"npm:react@18.3.1": {
+			"name": "react",
+			"version": "18.3.1",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-cmVhY3RAMTguMy4x",
+			"tarball": "https://registry.npmjs.org/react/-/react-18.3.1.tgz"
+		},
+		"npm:react-dom@18.3.1": {
+			"name": "react-dom",
+			"version": "18.3.1",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-cmVhY3QtZG9tQDE4LjMuMQ==",
+			"tarball": "https://registry.npmjs.org/react-dom/-/react-dom-18.3.1.tgz"
+		},
+		"npm:scheduler@0.23.2": {
+			"name": "scheduler",
+			"version": "0.23.2",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-c2NoZWR1bGVyQDAuMjMuMg==",
+			"tarball": "https://registry.npmjs.org/scheduler/-/scheduler-0.23.2.tgz"
+		},
+		"npm:loose-envify@1.4.0": {
+			"name": "loose-envify",
+			"version": "1.4.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-bG9vc2UtZW52aWZ5QDEuNC4w",
+			"tarball": "https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz"
+		},
+		"npm:js-tokens@4.0.0": {
+			"name": "js-tokens",
+			"version": "4.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-anMtdG9rZW5zQDQuMC4w",
+			"tarball": "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz"
+		},
+		"npm:shared-lib@1.0.0": {
+			"name": "shared-lib",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-c2hhcmVkLWxpYkAxLjAuMA==",
+			"tarball": "https://registry.npmjs.org/shared-lib/-/shared-lib-1.0.0.tgz"
+		},
+		"npm:chart-kit@1.0.0": {
+			"name": "chart-kit",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "npm",
+				"registry": "https://registry.npmjs.org/"
+			},
+			"visibility": "public",
+			"integrity": "sha512-Y2hhcnQta2l0QDEuMC4w",
+			"tarball": "https://registry.npmjs.org/chart-kit/-/chart-kit-1.0.0.tgz"
+		},
+		"registry-127-0-0-1-4873-team:@team/tokens@1.0.0": {
+			"name": "@team/tokens",
+			"version": "1.0.0",
+			"origin": {
+				"provider": "registry-127-0-0-1-4873-team",
+				"registry": "http://127.0.0.1:4873/"
+			},
+			"visibility": "private",
+			"integrity": "sha512-QHRlYW0vdG9rZW5zQDEuMC4w",
+			"tarball": "http://127.0.0.1:4873/@team/tokens/-/tokens-1.0.0.tgz",
+			"access": "credential"
+		}
+	},
+	"edges": [
+		{
+			"from": "workspace:apps/admin",
+			"to": "npm:chart-kit@1.0.0",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:apps/admin",
+			"to": "registry-127-0-0-1-4873-team:@team/tokens@1.0.0",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:apps/admin",
+			"to": "npm:react@18.3.1",
+			"kind": "dependency",
+			"range": "^18.3.1"
+		},
+		{
+			"from": "workspace:apps/admin",
+			"to": null,
+			"kind": "optional",
+			"range": "^1.0.0",
+			"name": "@team/secret-sdk",
+			"skipped": "PROVIDER_AUTH_DENIED: The provider 127.0.0.1:4873 refused the request with status 403"
+		},
+		{
+			"from": "npm:chart-kit@1.0.0",
+			"to": "npm:react@18.3.1",
+			"kind": "peer",
+			"range": "^18.3.1 || ^19.0.0",
+			"context": "workspace:apps/admin"
+		},
+		{
+			"from": "npm:chart-kit@1.0.0",
+			"to": "npm:shared-lib@1.0.0",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "npm:react@18.3.1",
+			"to": "npm:loose-envify@1.4.0",
+			"kind": "dependency",
+			"range": "^1.1.0"
+		},
+		{
+			"from": "npm:react-dom@18.3.1",
+			"to": "npm:react@18.3.1",
+			"kind": "peer",
+			"range": "^18.3.1",
+			"context": "workspace:apps/web"
+		},
+		{
+			"from": "npm:react-dom@18.3.1",
+			"to": "npm:loose-envify@1.4.0",
+			"kind": "dependency",
+			"range": "^1.1.0"
+		},
+		{
+			"from": "npm:react-dom@18.3.1",
+			"to": "npm:scheduler@0.23.2",
+			"kind": "dependency",
+			"range": "^0.23.2"
+		},
+		{
+			"from": "npm:scheduler@0.23.2",
+			"to": "npm:loose-envify@1.4.0",
+			"kind": "dependency",
+			"range": "^1.1.0"
+		},
+		{
+			"from": "npm:loose-envify@1.4.0",
+			"to": "npm:js-tokens@4.0.0",
+			"kind": "dependency",
+			"range": "^3.0.0 || ^4.0.0"
+		},
+		{
+			"from": "workspace:packages/view",
+			"to": "npm:react@18.3.1",
+			"kind": "peer",
+			"range": "^18.3.1 || ^19.0.0",
+			"context": "workspace:apps/web"
+		},
+		{
+			"from": "workspace:packages/view",
+			"to": "npm:react@18.3.1",
+			"kind": "build",
+			"range": "^18.3.1"
+		},
+		{
+			"from": "workspace:apps/web",
+			"to": "workspace:packages/view",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		},
+		{
+			"from": "workspace:apps/web",
+			"to": "npm:react@18.3.1",
+			"kind": "dependency",
+			"range": "^18.3.1"
+		},
+		{
+			"from": "workspace:apps/web",
+			"to": "npm:react-dom@18.3.1",
+			"kind": "dependency",
+			"range": "^18.3.1"
+		},
+		{
+			"from": "workspace:apps/web",
+			"to": "npm:shared-lib@1.0.0",
+			"kind": "dependency",
+			"range": "^1.0.0"
+		}
+	],
+	"overrides": [],
+	"exceptions": [],
+	"digest": "sha256-0cc6819a0a6c9cbbd063c884bd41a83a9333b705c37e41424446a17a25e2dfbd"
+}

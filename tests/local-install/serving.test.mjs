@@ -182,7 +182,9 @@ test('preview: a node of the graph is served by the environment whatever the sel
 	t.after(() => delete process.env[CDN]);
 	const served = await Served.start(t);
 	const replaced = await served.json('/development/selection', { method: 'PUT', body: JSON.stringify({ packages: ['@serving/app-a'] }) });
-	assert.deepEqual(replaced.body, { explicit: true, packages: ['@serving/app-a'], modules: [], unknown: [] });
+	// The selection names where installed packages come from (`externals`, `environment` by default); with an installed
+	// graph that policy does not decide anything, which the preview below says
+	assert.deepEqual(replaced.body, { explicit: true, packages: ['@serving/app-a'], modules: [], externals: 'environment', unknown: [] });
 
 	const { status, body } = await served.preview('@serving/app-a/main');
 	assert.equal(status, 200);

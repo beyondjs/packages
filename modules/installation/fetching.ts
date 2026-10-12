@@ -51,13 +51,27 @@ export class Fetching {
 	}
 
 	/**
+	 * Whether a node of a graph is external: anything but a member, which is already on disk
+	 */
+	static #external(key: string, node: Record<string, any>): boolean {
+		return !key.startsWith('workspace:') && node?.origin?.provider !== 'workspace';
+	}
+
+	/**
+	 * How many external nodes a graph has: what fetching it brings into the store or finds there
+	 */
+	static externals(graph: IInstalledGraph): number {
+		return Object.entries(graph?.nodes || {}).filter(([key, node]) => Fetching.#external(key, node)).length;
+	}
+
+	/**
 	 * The `beyond-graph/1` document of the external nodes: their exceptions travel with them, so a git source
 	 * without a published integrity gets one established at fetch
 	 */
 	#subset(graph: IInstalledGraph): IGraphDocument {
 		const nodes: Record<string, any> = {};
 		for (const [key, node] of Object.entries(graph.nodes)) {
-			if (!key.startsWith('workspace:') && node.origin?.provider !== 'workspace') nodes[key] = node;
+			if (Fetching.#external(key, node)) nodes[key] = node;
 		}
 		const exceptions = (graph.exceptions || []).filter(({ node }) =>
 			Object.prototype.hasOwnProperty.call(nodes, node)

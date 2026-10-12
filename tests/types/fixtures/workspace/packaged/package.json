@@ -1,0 +1,22 @@
+{
+	"name": "@types-fixture/packaged",
+	"version": "1.0.0",
+	"description": "Type browsing validation: a module compiled in the esbuild packaging mode, whose bundler has no types conditional",
+	"exports": {
+		"./main": "./main/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild"
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "env:BEYOND_ESBUILD_COMPILER"
+				}
+			}
+		}
+	}
+}

@@ -91,11 +91,12 @@ export class Generation {
 	}
 
 	/**
-	 * Releases the workspace of this generation and its watchers; a generation destroyed before its workspace
-	 * exists never creates one
+	 * Releases the workspace of this generation and its watchers, and the packages of the installed graph its
+	 * delivery opened; a generation destroyed before its workspace exists never creates one
 	 */
 	destroy() {
 		this.#destroyed = true;
+		this.#delivery?.destroy();
 		this.#workspace?.destroy();
 	}
 }

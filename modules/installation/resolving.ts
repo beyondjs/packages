@@ -3,18 +3,19 @@ import type { Settings } from './settings';
 import { type IWorkspaceGraph, Resolution } from '@beyond-js/packages/resolution';
 
 /**
- * What resolving the workspace established: the graph when it can be installed, and every diagnostic of the
- * resolution either way
+ * What resolving the workspace established: the graph when it can be installed, the graph the resolver answered
+ * whatever its diagnostics (what a plan compares), and every diagnostic of the resolution either way
  */
 export interface IResolved {
 	graph?: IInstalledGraph;
+	document?: IWorkspaceGraph;
 	diagnostics: IInstallationDiagnostic[];
 }
 
 /**
  * Resolves the whole workspace with the resolver of Packages (`Resolution.workspace`): every member and the
- * root's own dependencies, development dependencies of the importers included, with the previous lock as
- * preferences. A graph with an error diagnostic is never installed.
+ * root's own dependencies, development dependencies of the importers included, with the previous lock (or the
+ * preferences of a plan) as preferences. A graph with an error diagnostic is never installed.
  */
 export class Resolving {
 	#params: IInstallationParams;
@@ -26,8 +27,9 @@ export class Resolving {
 	}
 
 	/**
-	 * @param lock The content of the lock file in any format, offered as version preferences
-	 * @param update Ignore the preferences of the lock
+	 * @param lock The content of the lock file in any format, or the preferences of a plan, offered as version
+	 * preferences
+	 * @param update Ignore the preferences
 	 */
 	async run(lock: any, update: boolean): Promise<IResolved> {
 		const { manifest, members, logger } = this.#params;
@@ -55,9 +57,9 @@ export class Resolving {
 		}
 
 		const errors = diagnostics.filter(({ severity }) => severity === 'error');
-		if (!errors.length) return { graph, diagnostics };
+		if (!errors.length) return { graph, document: graph, diagnostics };
 
 		const message = `The dependency graph of the workspace has ${errors.length} error(s): nothing was installed`;
-		return { diagnostics: [{ code: 'GRAPH_INCOMPLETE', message, severity: 'error' }, ...diagnostics] };
+		return { document: graph, diagnostics: [{ code: 'GRAPH_INCOMPLETE', message, severity: 'error' }, ...diagnostics] };
 	}
 }

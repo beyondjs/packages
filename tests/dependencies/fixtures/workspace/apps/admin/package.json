@@ -1,0 +1,13 @@
+{
+  "name": "@fixture/admin",
+  "version": "1.0.0",
+  "description": "Indented with two spaces, to check that an edit keeps it",
+  "dependencies": {
+    "@team/tokens": "^1.0.0",
+    "chart-kit": "^1.0.0",
+    "react": "^18.3.1"
+  },
+  "optionalDependencies": {
+    "@team/secret-sdk": "^1.0.0"
+  }
+}

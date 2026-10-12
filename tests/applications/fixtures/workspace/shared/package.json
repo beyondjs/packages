@@ -1,0 +1,18 @@
+{
+	"name": "@applications/shared",
+	"version": "1.0.0",
+	"description": "Applications validation: a universal module both targets import, never a target itself",
+	"exports": {
+		"./message": "./message/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

@@ -1,0 +1,337 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "https://beyondjs.com/contracts/beyond-applications/1/schema.json",
+	"title": "The declaration of applications and execution targets, and the documents of the catalog (beyond-applications/1)",
+	"description": "What a workspace declares under `applications` of its beyond.json (inline, or the name of a JSON file of the workspace), and what the development service answers about it: the catalog, a resolved target, the outcome of a write and the data of `applications.changed`. A declaration that passes `declaration` has no error; fields the Core does not know are allowed and reported as warnings.",
+	"$defs": {
+		"applicationId": {
+			"description": "CDN's application name pattern",
+			"type": "string",
+			"pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+		},
+		"targetId": {
+			"description": "CDN's target name pattern",
+			"type": "string",
+			"pattern": "^[a-z][a-z0-9-]{0,31}$"
+		},
+		"title": {
+			"description": "What a person calls an application or a target, stored as written",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 80,
+			"pattern": "\\S"
+		},
+		"kind": {
+			"enum": ["frontend", "backend"]
+		},
+		"package": {
+			"description": "The package that publishes the entry, optionally prefixed by its provider as CDN accepts it",
+			"type": "string",
+			"pattern": "^([a-z][a-z0-9-]*:)?(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$"
+		},
+		"entry": {
+			"description": "The public subpath of the entry: `.` or `./<name>`",
+			"type": "string",
+			"pattern": "^\\.(/[A-Za-z0-9@_-][A-Za-z0-9@._-]*)*$"
+		},
+		"conditions": {
+			"description": "Compilation conditions of the target's publication, sorted and unique (sorting is checked by the Core)",
+			"type": "array",
+			"uniqueItems": true,
+			"items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }
+		},
+		"selection": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 256,
+			"pattern": "\\S"
+		},
+		"runtime": {
+			"description": "Where a backend target's consumer runs; one the Core cannot launch keeps the declaration valid (`TARGET_RUNTIME_UNSUPPORTED`, a warning)",
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 80,
+			"pattern": "\\S"
+		},
+		"readiness": {
+			"type": "object",
+			"required": ["output"],
+			"additionalProperties": false,
+			"properties": {
+				"output": { "type": "string", "minLength": 1, "maxLength": 200 }
+			}
+		},
+		"revision": {
+			"description": "The File API's revision of a file",
+			"type": "string",
+			"pattern": "^sha256-[0-9a-f]{64}$"
+		},
+		"path": {
+			"description": "A path of the File API: relative to the served root, with `/`, without empty, `.` or `..` segments",
+			"type": "string",
+			"pattern": "^(?!\\.\\.?(/|$))[^/\\\\]+(/(?!\\.\\.?(/|$))[^/\\\\]+)*$"
+		},
+		"code": {
+			"type": "string",
+			"pattern": "^[A-Z][A-Z_]*$"
+		},
+		"diagnostic": {
+			"type": "object",
+			"required": ["code", "message", "severity"],
+			"additionalProperties": false,
+			"properties": {
+				"code": { "$ref": "#/$defs/code" },
+				"message": { "type": "string" },
+				"severity": { "enum": ["error", "warning"] },
+				"field": { "type": "string" },
+				"target": { "$ref": "#/$defs/targetId" }
+			}
+		},
+		"diagnostics": {
+			"type": "array",
+			"items": { "$ref": "#/$defs/diagnostic" }
+		},
+		"declaredTarget": {
+			"description": "One execution target as it is declared",
+			"type": "object",
+			"required": ["kind", "package", "entry"],
+			"properties": {
+				"title": { "$ref": "#/$defs/title" },
+				"kind": { "$ref": "#/$defs/kind" },
+				"package": { "$ref": "#/$defs/package" },
+				"entry": { "$ref": "#/$defs/entry" },
+				"conditions": { "$ref": "#/$defs/conditions" },
+				"selection": { "$ref": "#/$defs/selection" },
+				"runtime": { "$ref": "#/$defs/runtime" },
+				"readiness": { "$ref": "#/$defs/readiness" }
+			},
+			"if": { "properties": { "kind": { "const": "frontend" } } },
+			"then": { "not": { "anyOf": [{ "required": ["runtime"] }, { "required": ["readiness"] }] } }
+		},
+		"application": {
+			"description": "One application as it is declared, which is also the body of `PUT /applications/:application`",
+			"type": "object",
+			"properties": {
+				"title": { "$ref": "#/$defs/title" },
+				"targets": {
+					"type": "object",
+					"propertyNames": { "$ref": "#/$defs/targetId" },
+					"additionalProperties": { "$ref": "#/$defs/declaredTarget" }
+				}
+			}
+		},
+		"declaration": {
+			"description": "The applications of a workspace: an object keyed by application identifier, never a list",
+			"type": "object",
+			"propertyNames": { "$ref": "#/$defs/applicationId" },
+			"additionalProperties": { "$ref": "#/$defs/application" }
+		},
+		"branch": {
+			"description": "The value of `applications` in beyond.json: the declaration inline, or the name of a JSON file of the workspace that holds it, relative to beyond.json",
+			"oneOf": [{ "$ref": "#/$defs/declaration" }, { "type": "string", "minLength": 1 }]
+		},
+		"document": {
+			"type": "object",
+			"required": ["path", "branch", "exists"],
+			"additionalProperties": false,
+			"properties": {
+				"path": { "$ref": "#/$defs/path" },
+				"branch": { "enum": ["inline", "file"] },
+				"exists": { "type": "boolean" },
+				"revision": { "$ref": "#/$defs/revision" },
+				"reference": { "type": "string" }
+			},
+			"if": { "properties": { "exists": { "const": false } } },
+			"then": { "not": { "required": ["revision"] } },
+			"else": { "required": ["revision"] }
+		},
+		"target": {
+			"description": "A target as the catalog lists it",
+			"type": "object",
+			"required": ["id", "diagnostics"],
+			"additionalProperties": false,
+			"properties": {
+				"id": { "type": "string" },
+				"title": { "type": "string" },
+				"kind": { "type": "string" },
+				"package": { "type": "string" },
+				"entry": { "type": "string" },
+				"specifier": { "type": "string" },
+				"environment": { "enum": ["browser", "node", "deno"] },
+				"conditions": { "type": "array", "items": { "type": "string" } },
+				"selection": { "type": "string" },
+				"runtime": { "type": "string" },
+				"readiness": { "$ref": "#/$defs/readiness" },
+				"diagnostics": { "$ref": "#/$defs/diagnostics" }
+			}
+		},
+		"listed": {
+			"description": "An application as the catalog lists it",
+			"type": "object",
+			"required": ["id", "targets", "diagnostics"],
+			"additionalProperties": false,
+			"properties": {
+				"id": { "type": "string" },
+				"title": { "type": "string" },
+				"targets": { "type": "array", "items": { "$ref": "#/$defs/target" } },
+				"diagnostics": { "$ref": "#/$defs/diagnostics" }
+			}
+		},
+		"following": {
+			"description": "How the service follows the declaration now, which is no part of the generation: `live` when a change reaches the catalog without a request, through the watchers service or the File API's events",
+			"type": "object",
+			"required": ["live", "watchers", "events"],
+			"additionalProperties": false,
+			"properties": {
+				"live": { "type": "boolean" },
+				"watchers": { "enum": ["starting", "ready", "unavailable"] },
+				"events": { "type": "boolean" },
+				"reason": { "type": "string" }
+			},
+			"allOf": [
+				{ "if": { "properties": { "watchers": { "const": "unavailable" } } }, "then": { "required": ["reason"] } },
+				{
+					"if": { "properties": { "live": { "const": false } } },
+					"then": { "properties": { "events": { "const": false }, "watchers": { "not": { "const": "ready" } } } },
+					"else": { "anyOf": [{ "properties": { "events": { "const": true } } }, { "properties": { "watchers": { "const": "ready" } } }] }
+				}
+			]
+		},
+		"catalog": {
+			"description": "`GET /applications`",
+			"type": "object",
+			"required": ["protocol", "generation", "document", "following", "applications", "diagnostics"],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": { "const": "beyond-applications/1" },
+				"generation": { "type": "integer", "minimum": 0 },
+				"document": { "$ref": "#/$defs/document" },
+				"following": { "$ref": "#/$defs/following" },
+				"applications": { "type": "array", "items": { "$ref": "#/$defs/listed" } },
+				"diagnostics": { "$ref": "#/$defs/diagnostics" }
+			}
+		},
+		"summary": {
+			"type": "object",
+			"required": ["packages", "modules"],
+			"additionalProperties": false,
+			"properties": {
+				"packages": { "$ref": "#/$defs/counts" },
+				"modules": { "$ref": "#/$defs/counts" },
+				"reason": { "type": "string" }
+			}
+		},
+		"counts": {
+			"type": "object",
+			"propertyNames": { "enum": ["workspace", "environment", "cdn", "unresolved", "mixed"] },
+			"additionalProperties": { "type": "integer", "minimum": 1 }
+		},
+		"resolved": {
+			"description": "`GET /applications/:application/targets/:target`",
+			"type": "object",
+			"required": ["protocol", "generation", "application", "declared", "entry", "diagnostics"],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": { "const": "beyond-applications/1" },
+				"generation": { "type": "integer", "minimum": 0 },
+				"application": {
+					"type": "object",
+					"required": ["id"],
+					"additionalProperties": false,
+					"properties": { "id": { "type": "string" }, "title": { "type": "string" } }
+				},
+				"declared": { "$ref": "#/$defs/target" },
+				"entry": {
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"specifier": { "type": "string" },
+						"vspecifier": { "type": "string" },
+						"package": {
+							"type": "object",
+							"required": ["name", "version", "source", "selected"],
+							"additionalProperties": false,
+							"properties": {
+								"name": { "type": "string" },
+								"version": { "type": "string" },
+								"source": { "enum": ["workspace", "toolchain"] },
+								"selected": { "type": "boolean" }
+							}
+						}
+					}
+				},
+				"environment": { "enum": ["browser", "node", "deno"] },
+				"build": {
+					"type": "object",
+					"required": ["platform", "state"],
+					"additionalProperties": false,
+					"properties": {
+						"platform": { "enum": ["web", "node"] },
+						"state": { "enum": ["built", "failed", "unsupported", "pending"] },
+						"hash": { "type": "string" }
+					}
+				},
+				"composition": { "$ref": "#/$defs/summary" },
+				"open": {
+					"type": "object",
+					"required": ["preview"],
+					"additionalProperties": false,
+					"properties": { "preview": { "type": "string", "pattern": "^/preview/\\?entry=[^\\s#]+$" } }
+				},
+				"launch": {
+					"type": "object",
+					"required": ["supported"],
+					"additionalProperties": false,
+					"properties": {
+						"supported": { "type": "boolean" },
+						"reason": { "$ref": "#/$defs/code" },
+						"requires": { "enum": ["deno"] },
+						"specifier": { "type": "string", "description": "What a launch imports: the public specifier of the entry, or its versioned one when several local versions publish it" }
+					},
+					"if": { "properties": { "supported": { "const": false } } },
+					"then": { "required": ["reason"] }
+				},
+				"diagnostics": { "$ref": "#/$defs/diagnostics" }
+			}
+		},
+		"written": {
+			"description": "The answer to `PUT` and `DELETE /applications/:application`: `completed` (200) or `conflict` (409)",
+			"type": "object",
+			"required": ["outcome", "revision", "catalog"],
+			"additionalProperties": false,
+			"properties": {
+				"outcome": { "enum": ["completed", "conflict"] },
+				"revision": { "oneOf": [{ "$ref": "#/$defs/revision" }, { "type": "null" }] },
+				"catalog": { "$ref": "#/$defs/catalog" }
+			},
+			"if": { "properties": { "outcome": { "const": "completed" } } },
+			"then": { "properties": { "revision": { "$ref": "#/$defs/revision" } } }
+		},
+		"changed": {
+			"description": "The data of `applications.changed` on the event stream",
+			"type": "object",
+			"required": ["generation", "revision"],
+			"properties": {
+				"generation": { "type": "integer", "minimum": 1 },
+				"revision": { "oneOf": [{ "$ref": "#/$defs/revision" }, { "type": "null" }] }
+			}
+		},
+		"refusal": {
+			"description": "A refused request: `{error: {code, message}}`, with the diagnostics of an invalid application or declaration",
+			"type": "object",
+			"required": ["error"],
+			"additionalProperties": false,
+			"properties": {
+				"error": {
+					"type": "object",
+					"required": ["code", "message"],
+					"properties": {
+						"code": { "$ref": "#/$defs/code" },
+						"message": { "type": "string" },
+						"diagnostics": { "$ref": "#/$defs/diagnostics" }
+					}
+				}
+			}
+		}
+	}
+}

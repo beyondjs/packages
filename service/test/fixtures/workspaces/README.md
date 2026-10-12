@@ -15,6 +15,7 @@ Workspace roots, members and packages that `Declaration` ([workspace/declaration
 | `extension/` | `root/` declares `app` in `workspaces` and, in `beyond.workspaces`, `libs/*` and `{path: "../message-v2", version: "2.0.0"}`: `message@1.0.0` inside the root and `message@2.0.0` outside it; `root/vendor/message/` is an undeclared second copy of `message@1.0.0` | Members `app`, `libs/message`, `../message-v2`, valid. The cases derive the duplicate, mismatch and not-found declarations from it |
 | `outside/` | `root/` declares `app`, `../shared` and `packages/*`; `repository/` is another repository whose `beyond.json` declares `lib/`; the cases link `root/packages/linked` to `repository/lib` | Members `app`, `../shared`, `packages/linked` (identified by the real directory `repository/lib`). From inside `shared/` the context is `shared` alone, from inside `repository/lib/` it is `repository/`; `--workspace root` reaches the workspace |
 | `conflict/` | A `beyond.json` and a `package.json` with `workspaces` in one root | `WORKSPACE_CONFIG_CONFLICT`, no member; below it, `CONTEXT_WORKSPACE_INVALID` |
+| `applications/` | npm `workspaces` (`packages/*`: `@fixture/site`, `@fixture/api`) beside a `beyond.json` that declares no `packages`, only `applications` | Kind `npm`, members `packages/api`, `packages/site`, no diagnostic: the manifest names the members and `beyond.json` holds the applications. The cases add a non-empty `packages` to it (`WORKSPACE_CONFIG_CONFLICT`; `null`, `""` and `[]` are none), write it malformed (the warning `WORKSPACE_CONFIG_INVALID`, the members kept) and remove the manifest's workspaces (kind `standalone`, the root alone) |
 
 Run the cases from the repository root:
 
@@ -22,4 +23,4 @@ Run the cases from the repository root:
 node --test "service/test/*.test.mjs"
 ```
 
-`declaration.test.mjs` covers the forms and the members they yield, `declaration.errors.test.mjs` every diagnostic code with its recovery, `declaration.inputs.test.mjs` the digests, and `context.test.mjs` which workspace a directory belongs to.
+`declaration.test.mjs` covers the forms and the members they yield, `declaration.errors.test.mjs` every diagnostic code with its recovery, `declaration.inputs.test.mjs` the digests, `declaration.applications.test.mjs` a `beyond.json` that holds applications beside npm workspaces and in `solo/` (whose kind and digest its first application leaves as they were), and `context.test.mjs` which workspace a directory belongs to.

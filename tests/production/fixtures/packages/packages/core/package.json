@@ -1,0 +1,8 @@
+{
+	"name": "@production/core",
+	"version": "1.0.0",
+	"description": "An ordinary npm package that the publication cases pack, publish and install",
+	"type": "module",
+	"main": "index.js",
+	"exports": { ".": "./index.js" }
+}

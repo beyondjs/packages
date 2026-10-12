@@ -1,5 +1,6 @@
 import type {
 	IInstallationDiagnostic,
+	IInstallationEvent,
 	IInstallationParams,
 	IInstallationReport,
 	IInstallOptions,
@@ -24,6 +25,8 @@ import { Report } from './report';
 /**
  * One installation of a workspace: read the lock, resolve unless the lock is the graph, fetch every external source,
  * locate every node, and only then write the lock and the projection, within the deadline of the installation.
+ * With the preferences of a plan the workspace is always resolved, with them instead of the lock's selections, and
+ * whoever listens is told each phase and each request as it happens.
  */
 export class Run {
 	#params: IInstallationParams;
@@ -38,7 +41,7 @@ export class Run {
 		this.#params = params;
 		this.#options = options;
 		this.#deadline = deadline;
-		this.#root = Run.#canonical(params.root);
+		this.#root = Run.canonical(params.root);
 		this.#lock = new LockFile(this.#root);
 		this.#projection = new Projection(this.#root);
 		this.#report = new Report(this.#lock.path, this.#projection.path);
@@ -66,36 +69,46 @@ export class Run {
 	}
 
 	async #execute(): Promise<IInstallationReport> {
-		const { update = false, offline = false } = this.#options;
+		const { update = false, offline = false, preferences } = this.#options;
 		const { inputs, members, limits } = this.#params;
 		const [lock, report] = [this.#lock, this.#report];
+		if (update && preferences !== void 0) {
+			const message = 'An update offers no preferences, and preferences are not combined with an update';
+			return report.fail('INSTALLATION_OPTIONS_INVALID', message);
+		}
 
 		await lock.read();
 		report.locked(lock.digest);
 		if (lock.problem) report.add(this.#unreadable());
 
+		// The preferences of a plan always resolve: a lock that covers the inputs would otherwise ignore them
 		const frozen =
 			!update &&
+			preferences === void 0 &&
 			lock.covers(
 				inputs,
 				members.map(({ id }) => id)
 			);
 		report.frozen = frozen;
-		if (offline && !frozen) return report.fail('OFFLINE_UNAVAILABLE', this.#unfrozen(update));
+		if (offline && !frozen) return report.fail('OFFLINE_UNAVAILABLE', this.#unfrozen(update, preferences !== void 0));
 
-		const breaker = new Breaker(this.#deadline, this.#params.transport ?? this.#params.providers?.fetch);
+		const listener = (request: IInstallationEvent['request']) => this.#tell({ request });
+		const breaker = new Breaker(this.#deadline, this.#params.transport ?? this.#params.providers?.fetch, { listener });
 		const settings = new Settings(this.#params, this.#root, breaker.transport);
+		!frozen && this.#tell({ phase: 'resolution' });
 		const graph = frozen ? lock.document : await this.#resolve(settings, update);
 		if (!graph) return report.build();
 
 		const store = await settings.store();
 		const fetching = new Fetching(store, limits, () => settings.providers, breaker.transport, offline);
+		this.#tell({ phase: 'download', total: Fetching.externals(graph) });
 		const fetched = await fetching.run(graph);
 		const counted = { members: Object.keys(graph.members).length, nodes: Object.keys(graph.nodes).length };
 		report.counts = { ...counted, fetched: fetched.fetched, reused: fetched.reused };
 		report.add(...fetched.diagnostics);
 		if (!fetched.complete) return this.#incomplete(fetched);
 
+		this.#tell({ phase: 'materialization' });
 		const locations = new Locations(this.#root, members);
 		if (!(await locations.run(graph, fetched.locations))) {
 			report.add(...locations.diagnostics);
@@ -125,10 +138,22 @@ export class Run {
 	}
 
 	async #resolve(settings: Settings, update: boolean): Promise<IInstalledGraph | undefined> {
-		const preferences = this.#lock.readable ? this.#lock.data : void 0;
+		const given = this.#options.preferences;
+		const preferences = given !== void 0 ? given : this.#lock.readable ? this.#lock.data : void 0;
 		const resolved = await new Resolving(this.#params, settings).run(preferences, update);
 		this.#report.add(...resolved.diagnostics, ...settings.warnings);
 		return resolved.graph;
+	}
+
+	/**
+	 * Tells whoever listens what the installation does; a listener that throws changes nothing
+	 */
+	#tell(event: IInstallationEvent): void {
+		try {
+			this.#options.progress?.(event);
+		} catch {
+			// Whoever listens never changes what the installation does
+		}
 	}
 
 	/**
@@ -153,9 +178,10 @@ export class Run {
 		return { code: 'LOCK_UNREADABLE', message, severity: 'warning' };
 	}
 
-	#unfrozen(update: boolean): string {
+	#unfrozen(update: boolean, preferred: boolean): string {
 		const offline = 'the installation is offline';
 		if (update) return `An update resolves the workspace again, which needs the registries: ${offline}`;
+		if (preferred) return `Preferences resolve the workspace again, which needs the registries: ${offline}`;
 		if (!this.#lock.document) {
 			return `There is no usable ${LockFile.NAME} to install from without requests: ${offline}`;
 		}
@@ -172,7 +198,11 @@ export class Run {
 		return `${why}: nothing was written`;
 	}
 
-	static #canonical(root: string): string {
+	/**
+	 * The real path of a workspace root, or its absolute path when it cannot be read: how every location of an
+	 * installation is recorded
+	 */
+	static canonical(root: string): string {
 		try {
 			return realpathSync(root);
 		} catch {

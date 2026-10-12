@@ -42,11 +42,13 @@ export class Discovery {
 
 	/**
 	 * @param {import('./home.mjs').Home} home
-	 * @param {{root: string, toolchain: string}} identity
+	 * @param {{root: string, toolchain: string, exclusive?: string}} identity An exclusive service (a headless build's)
+	 * adds its own identifier, so its record is never the one another caller finds and reuses
 	 */
-	constructor(home, { root, toolchain }) {
+	constructor(home, { root, toolchain, exclusive }) {
 		this.#directory = home.directory('services');
-		this.#key = createHash('sha256').update(JSON.stringify([PROTOCOL, root, toolchain])).digest('hex').slice(0, 20);
+		const identity = exclusive ? [PROTOCOL, root, toolchain, exclusive] : [PROTOCOL, root, toolchain];
+		this.#key = createHash('sha256').update(JSON.stringify(identity)).digest('hex').slice(0, 20);
 	}
 
 	get file() {

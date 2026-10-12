@@ -156,3 +156,24 @@ test('a lock replaced by renaming over it a file of the same size and time is a 
 	assert.equal(statSync(lock).mtimeMs, time * 1000);
 	assert.equal(manifests.changed, true, 'its inode changed');
 });
+
+test('declaring or editing applications in beyond.json is not a change of the workspace; anything else in it is', t => {
+	const { root, write } = directory(t);
+	write('ws/beyond.json', '{\n\t"packages": ["app"]\n}\n');
+	const manifests = new Manifests(root);
+
+	write('ws/beyond.json', '{\n\t"packages": ["app"],\n\t"applications": {"web": {"targets": {}}}\n}\n');
+	assert.equal(manifests.changed, false, 'applications declared');
+	write('ws/beyond.json', '{\n\t"packages": ["app"],\n\t"applications": {"web": {"title": "Web", "targets": {"page": {"kind": "frontend", "package": "app", "entry": "."}}}}\n}\n');
+	assert.equal(manifests.changed, false, 'an application edited');
+
+	write('ws/beyond.json', '{\n\t"packages": ["app", "lib"],\n\t"applications": {"web": {"targets": {}}}\n}\n');
+	assert.equal(manifests.changed, true, 'the members changed');
+	assert.equal(manifests.changed, false, 'one change is reported once');
+
+	// A document that cannot be parsed is compared by its bytes: breaking it and correcting it are both changes
+	write('ws/beyond.json', '{ "packages": [');
+	assert.equal(manifests.changed, true, 'broken');
+	write('ws/beyond.json', '{\n\t"packages": ["app", "lib"]\n}\n');
+	assert.equal(manifests.changed, true, 'corrected');
+});

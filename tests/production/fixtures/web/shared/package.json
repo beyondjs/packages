@@ -1,0 +1,19 @@
+{
+	"name": "@production/shared",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Production validation: a public module for Node and browsers that the page imports by its bare specifier",
+	"exports": {
+		"./text": "./text/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

@@ -1,0 +1,5 @@
+{
+	"name": "escaping",
+	"version": "1.0.0",
+	"types": "../typed-lib/index.d.ts"
+}

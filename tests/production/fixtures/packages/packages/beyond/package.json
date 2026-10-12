@@ -1,0 +1,14 @@
+{
+	"name": "@production/beyond",
+	"version": "1.0.0",
+	"description": "Beyond sources, compiled by whoever consumes the package",
+	"exports": { "./main": "./main/index.ts" },
+	"beyond": {
+		"publication": { "protocol": "beyond-publication/1", "form": "source" },
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": "@beyond-js/packages/bundlers/ts"
+	}
+}

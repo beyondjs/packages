@@ -159,7 +159,7 @@ test('a standalone package is its own single member, and a directory without one
 	}
 });
 
-test('beyond.json keeps its meaning: literal paths, a directory or its package.json, the root by default', t => {
+test('beyond.json keeps its meaning: literal paths, a directory or its package.json; without packages, the package alone', t => {
 	const root = join(layout(t, 'classic'), 'classic');
 	const declaration = Declaration.read(root);
 	assert.deepEqual(
@@ -174,10 +174,11 @@ test('beyond.json keeps its meaning: literal paths, a directory or its package.j
 	const warnings = Array(3).fill('INVALID_PACKAGE_PATH');
 	assert.deepEqual([ids(skipped), codes(skipped), skipped.valid], [['app'], warnings, true]);
 
+	// Without packages it declares no member, and the manifest decides: a package on its own
 	edit(join(root, 'beyond.json'), () => ({}));
 	cpSync(join(FIXTURES, 'solo/package.json'), join(root, 'package.json'));
 	const single = Declaration.read(root);
-	assert.deepEqual([ids(single), single.members[0].name, single.manifest.name], [['.'], 'solo', 'solo']);
+	assert.deepEqual([single.kind, ids(single), single.members[0].name, single.manifest.name], ['standalone', ['.'], 'solo', 'solo']);
 });
 
 test('member() is exact, owner() is the deepest member that contains a path, both by real identity', t => {

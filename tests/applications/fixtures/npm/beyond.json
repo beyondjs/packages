@@ -1,0 +1,10 @@
+{
+	"applications": {
+		"site": {
+			"title": "Site",
+			"targets": {
+				"web": { "title": "Web page", "kind": "frontend", "package": "@npm/web", "entry": "./main" }
+			}
+		}
+	}
+}

@@ -1,6 +1,7 @@
 import { type Selection, type Workspace } from '@beyond-js/packages/workspace';
 import type { IDiagnostic, IConditions } from '@beyond-js/packages/types';
 import type { ConditionalOutput } from '@beyond-js/packages/module/output';
+import type { Package } from '@beyond-js/packages/package';
 import { promises as fs } from 'fs';
 import { join, posix } from 'path';
 import { Conditions } from '@beyond-js/packages/module';
@@ -54,24 +55,31 @@ export /*bundle*/ class Resources {
 		const { name, version, subpath } = request;
 		const path = subpath === '.' ? '' : `/${subpath.slice(2)}`;
 		const { selected, errors } = await this.#selection.resolve(`${name}@${version}${path}`);
-		if (!selected && this.#installed?.serves(errors[0]?.code, request, conditions)) {
-			const installed = await this.#installed.module({ name, version, subpath }, conditions);
-			if (installed.module?.styles) return { styles: installed.module.styles, key: 'installed' };
-			if (installed.module) return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${name}${subpath.slice(1)}" produces no stylesheet` } };
-			return { failure: this.#failure([installed.failure]) };
-		}
-		if (!selected) return { failure: this.#failure(errors) };
+		if (selected) return this.#compile(selected.package, subpath, conditions);
+		if (!this.#installed?.serves(errors[0]?.code, request, conditions)) return { failure: this.#failure(errors) };
 
-		const compilation = new Compilation(selected.package, subpath, new Conditions(conditions), this.#dependencies);
+		// A package of the installed graph published as Beyond sources is compiled by the bundler it declares
+		const installed = await this.#installed.module({ name, version, subpath }, conditions);
+		if (installed.composed) return this.#compile(installed.composed, subpath, conditions);
+		if (installed.module?.styles) return { styles: installed.module.styles, key: 'installed' };
+		if (installed.module) return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${name}${subpath.slice(1)}" produces no stylesheet` } };
+		return { failure: this.#failure([installed.failure]) };
+	}
+
+	/**
+	 * The stylesheet a module of a package builds with the bundler the package declares
+	 */
+	async #compile(pkg: Package, subpath: string, conditions: IConditions): Promise<{ styles?: ConditionalOutput; key?: string; failure?: IResourceFailure }> {
+		const compilation = new Compilation(pkg, subpath, new Conditions(conditions), this.#dependencies);
 		await compilation.run();
 		// A style module builds a stylesheet and no code, so its compilation is not valid and its stylesheet is
 		const { styles } = compilation;
 		if (!compilation.valid && !styles) {
-			const message = `Module "${selected.specifier}" does not build: ${compilation.errors[0].message}`;
+			const message = `Module "${compilation.specifier}" does not build: ${compilation.errors[0].message}`;
 			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
 		}
 		if (styles) return { styles, key: compilation.key };
-		return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${selected.specifier}" produces no stylesheet` } };
+		return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message: `Module "${compilation.specifier}" produces no stylesheet` } };
 	}
 
 	/**

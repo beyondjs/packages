@@ -26,7 +26,7 @@ const report = message => process.connected && process.send(message);
 
 const installation = new Installation();
 const home = new Home(options.home);
-const discovery = new Discovery(home, { root: options.root, toolchain: installation.id });
+const discovery = new Discovery(home, { root: options.root, toolchain: installation.id, exclusive: options.exclusive });
 const directory = home.directory('services', discovery.key);
 const log = join(directory, 'service.log');
 let credential;

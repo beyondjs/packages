@@ -1,0 +1,12 @@
+{
+	"outcome": "completed",
+	"revision": "sha256-1111111111111111111111111111111111111111111111111111111111111111",
+	"catalog": {
+		"protocol": "beyond-applications/1",
+		"generation": 5,
+		"document": { "path": "beyond.json", "branch": "inline", "exists": true, "revision": "sha256-1111111111111111111111111111111111111111111111111111111111111111" },
+		"following": { "live": true, "watchers": "ready", "events": true },
+		"applications": [{ "id": "site", "title": "Site", "targets": [], "diagnostics": [] }],
+		"diagnostics": []
+	}
+}

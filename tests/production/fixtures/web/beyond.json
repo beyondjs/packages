@@ -1,0 +1,11 @@
+{
+	"packages": ["runtime", "shared", "web", "art"],
+	"applications": {
+		"site": {
+			"title": "Production site",
+			"targets": {
+				"web": { "title": "Web page", "kind": "frontend", "package": "@production/web", "entry": "./main" }
+			}
+		}
+	}
+}

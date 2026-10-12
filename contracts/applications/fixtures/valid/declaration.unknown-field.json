@@ -1,0 +1,10 @@
+{
+	"site": {
+		"title": "Site",
+		"owner": "kept as written, reported as APPLICATION_FIELD_UNKNOWN",
+		"targets": {
+			"web": { "kind": "frontend", "package": "npm:@scope/site", "entry": ".", "conditions": ["browser", "production"], "selection": "^1.2.0" }
+		}
+	},
+	"2048": { "targets": {} }
+}

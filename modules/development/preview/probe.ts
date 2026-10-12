@@ -37,7 +37,10 @@ export interface IProbed {
  * digest of the body. That digest becomes the integrity the import map pins, so a browser refuses any other bytes.
  *
  * Every request is bounded (`BEYOND_PREVIEW_CDN_TIMEOUT`, 5 seconds by default) and at most eight run at once, so a
- * CDN that does not answer delays a document by about one bound, never indefinitely. An output the CDN answered for
+ * CDN that does not answer delays a document by about one bound, never indefinitely. The bound is read from the
+ * environment once per check, so a change of the variable while the service runs (the `previews.timeout` setting of
+ * the host writes it) applies to the next description; an empty variable is the default, and a variable the
+ * environment no longer names leaves the bound this object was created with. An output the CDN answered for
  * is not asked again for ten seconds, so a description and its document read together check once; after that it is
  * checked again, because a CDN that never changes the bytes of an address can still stop serving it once nothing
  * retains it. What was missing, unverified or unanswered is asked again the next time.
@@ -51,16 +54,29 @@ export class Probe {
 	static #MEDIA: Record<string, RegExp> = { modules: /^(application|text)\/javascript\b/i, styles: /^text\/css\b/i };
 	static #TAG = /^"(sha256-([0-9a-f]{64}))"$/;
 
-	#timeout: number;
+	#environment: NodeJS.ProcessEnv;
+	#started: number;
 	#present: Map<string, { probed: IProbed; at: number }> = new Map();
 
 	constructor(environment: NodeJS.ProcessEnv = process.env) {
-		const configured = Number(environment[Probe.VARIABLE]);
-		this.#timeout = Number.isFinite(configured) && configured > 0 ? configured : Probe.TIMEOUT;
+		this.#environment = environment;
+		this.#started = Probe.#bound(environment[Probe.VARIABLE]);
 	}
 
-	get timeout() {
-		return this.#timeout;
+	/**
+	 * The milliseconds a value of the variable gives each request: a positive number, else the default
+	 */
+	static #bound(value: string | undefined): number {
+		const configured = Number(value);
+		return value && Number.isFinite(configured) && configured > 0 ? configured : Probe.TIMEOUT;
+	}
+
+	/**
+	 * The bound of each request, read now
+	 */
+	get timeout(): number {
+		const given = this.#environment[Probe.VARIABLE];
+		return given === void 0 ? this.#started : Probe.#bound(given);
 	}
 
 	/**
@@ -69,21 +85,23 @@ export class Probe {
 	async check(urls: string[]): Promise<Map<string, IProbed>> {
 		const results: Map<string, IProbed> = new Map();
 		const pending = [...new Set(urls)];
+		// One bound for every request of a check
+		const timeout = this.timeout;
 		const worker = async () => {
-			for (let url = pending.shift(); url; url = pending.shift()) results.set(url, await this.#one(url));
+			for (let url = pending.shift(); url; url = pending.shift()) results.set(url, await this.#one(url, timeout));
 		};
 		await Promise.all(Array.from({ length: Math.min(Probe.PARALLEL, pending.length) }, worker));
 		return results;
 	}
 
-	async #one(url: string): Promise<IProbed> {
+	async #one(url: string, timeout: number): Promise<IProbed> {
 		const known = this.#present.get(url);
 		if (known && Date.now() - known.at < Probe.RETAINED) return known.probed;
 		this.#present.delete(url);
 
 		let probed: IProbed;
 		try {
-			const response = await fetch(url, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(this.#timeout) });
+			const response = await fetch(url, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(timeout) });
 			probed = Probe.#answer(url, response);
 		} catch {
 			probed = { state: 'unavailable' };

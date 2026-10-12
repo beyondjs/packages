@@ -1,0 +1,11 @@
+{
+	"protocol": "beyond-applications/1",
+	"generation": 7,
+	"application": { "id": "composition" },
+	"declared": { "id": "api", "kind": "backend", "package": "@testbed/composition-api", "entry": "./server", "selection": "2.0.0", "runtime": "node", "specifier": "@testbed/composition-api/server", "environment": "node", "diagnostics": [] },
+	"entry": { "specifier": "@testbed/composition-api/server", "vspecifier": "@testbed/composition-api@2.0.0/server", "package": { "name": "@testbed/composition-api", "version": "2.0.0", "source": "workspace", "selected": true } },
+	"environment": "node",
+	"build": { "platform": "node", "state": "pending" },
+	"launch": { "supported": true, "specifier": "@testbed/composition-api@2.0.0/server" },
+	"diagnostics": [{ "code": "TARGET_BUILD_PENDING", "message": "\"@testbed/composition-api/server\" is still being built for node after 30000 ms (BEYOND_TARGET_BUILD_TIMEOUT): read the target again to know whether it builds", "severity": "warning" }]
+}
