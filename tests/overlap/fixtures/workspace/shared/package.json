@@ -1,0 +1,17 @@
+{
+	"name": "@fixture/shared",
+	"version": "1.0.0",
+	"exports": {
+		"./main": "./main/index.ts",
+		"./math": "./main/math.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts"
+		}
+	}
+}

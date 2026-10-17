@@ -76,11 +76,11 @@ test('stylesheets of composed modules', { timeout: 900_000 }, async t => {
 		assert.ok(codes.includes('STYLE_BINDING_UNSUPPORTED'), JSON.stringify(inventory.diagnostics));
 	});
 
-	await t.test('composed outputs are keyed by composition 3', async () => {
-		assert.equal(Toolchain.COMPOSITION, '3');
+	await t.test('composed outputs are keyed by composition 4', async () => {
+		assert.equal(Toolchain.COMPOSITION, '4');
 		const inventory = await trace(['@fixture/cards/entry']);
 		const composed = inventory.items.filter(({ inputs }) => inputs.compiler.name === '@beyond-js/packages/bundlers/ts');
 		assert.ok(composed.length > 5, `${composed.length} composed items`);
-		assert.deepEqual([...new Set(composed.map(({ inputs }) => inputs.compiler.version))], ['3']);
+		assert.deepEqual([...new Set(composed.map(({ inputs }) => inputs.compiler.version))], ['4']);
 	});
 });

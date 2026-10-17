@@ -69,6 +69,12 @@ export /*bundle*/ interface IDelivered {
 	stylesheets?: string[];
 
 	/**
+	 * What the compilation warns about a module that built, such as one that shares its directory with another
+	 * public module (`MODULES_SHARE_DIRECTORY`)
+	 */
+	warnings?: IDiagnostic[];
+
+	/**
 	 * The registration of the widget the module declares, when it is one
 	 */
 	widget?: { name: string; vspecifier: string; attrs?: string[]; render: { csr: boolean; ssr: boolean; sr: boolean } };

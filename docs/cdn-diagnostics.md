@@ -38,7 +38,7 @@ const result = await Diagnostics.check({
 | `module.root` | The absolute directory of the package: a workspace package or an extracted npm package of Beyond sources. It is the only absolute value of the description and is never reported. |
 | `module.subpath`, `module.entry` | The published subpath, such as `./main`, and its entry point relative to the package, such as `main/index.ts`. |
 | `module.path` | The module directory relative to the package. Defaults to the directory of the entry point. |
-| `module.files` | The sources relative to the package. Defaults to every `.ts` and `.tsx` file under the module directory, which is what generation compiles; `node_modules`, `builds` and dot directories are skipped. |
+| `module.files` | The sources relative to the package. Defaults to every `.ts` and `.tsx` file under the module directory; `node_modules`, `builds` and dot directories are skipped. The artifact of a module whose directory another public module also uses holds only the sources its entry imports ([modules that share a directory](architecture.md#modules-that-share-a-directory)); the type check still reads the whole directory, so a caller that checks such a module names its `files`. |
 | `module.tsconfig` | A configuration file relative to the package, or `{ compilerOptions }` inline. Defaults to the `tsconfig.json` of the module directory, then the one of the package. |
 | `sources.files` | Contents in memory, keyed by path relative to the package. They take precedence over the package directory. |
 | `conditions` | `platform` and optional `environment`. They select the conditions of package `exports` when the types of a dependency are resolved (`web` is read as `browser`). |

@@ -97,8 +97,19 @@ export class Viewer {
 		return this.#page.locator('fixture-counter p').textContent();
 	}
 
+	/**
+	 * Clicks the button of the element as its own event, so a development overlay drawn over the page does not
+	 * take the click: what is asserted is the page's code, not the pointer
+	 */
 	click() {
-		return this.#page.locator('fixture-counter button').click();
+		return this.#page.locator('fixture-counter button').dispatchEvent('click');
+	}
+
+	/**
+	 * The text of the development overlay the page shows, or null when it shows none
+	 */
+	overlay() {
+		return this.#page.evaluate(() => document.querySelector('[data-beyond-overlay]')?.shadowRoot?.textContent ?? null);
 	}
 
 	/**

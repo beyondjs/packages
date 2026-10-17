@@ -1,0 +1,16 @@
+{
+	"name": "@fixture/own",
+	"version": "1.0.0",
+	"exports": {
+		"./lib": "./lib/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts"
+		}
+	}
+}

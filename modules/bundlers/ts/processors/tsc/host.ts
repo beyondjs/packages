@@ -9,6 +9,15 @@ import type { Graph } from './graph';
 const COMPONENTS = ['.vue', '.svelte'];
 
 /**
+ * What the host asks of the workspace about a bare specifier
+ */
+export interface IResolver {
+	published(specifier: string): boolean;
+	source(specifier: string): string | undefined;
+	map(specifier: string): string;
+}
+
+/**
  * The compiler host of a module program.
  *
  * It serves the files the program cannot read from disk: the declarations of the public modules the
@@ -27,6 +36,7 @@ export class Host {
 	#virtual: Map<string, string>;
 	#fallback: string;
 	#published: (specifier: string) => boolean;
+	#resolver: IResolver;
 	#graph: Graph | undefined;
 
 	get compiler(): ts.CompilerHost {
@@ -35,15 +45,17 @@ export class Host {
 
 	/**
 	 * @param virtual The in-memory files, by absolute virtual path
-	 * @param published Whether a bare specifier is a public module of the workspace
+	 * @param resolver Whether a bare specifier is a public module of the workspace (declared ambiently), the entry
+	 * point of a workspace module read as source, and the specifier a source names as the assembly imports it
 	 * @param graph The installed graph of the workspace, which replaces every other resolution of a bare
 	 * specifier or a type reference
 	 */
-	constructor(options: ts.CompilerOptions, directory: string, fallback: string, virtual: Map<string, string>, published: (specifier: string) => boolean, graph?: Graph) {
+	constructor(options: ts.CompilerOptions, directory: string, fallback: string, virtual: Map<string, string>, resolver: IResolver, graph?: Graph) {
 		this.#options = options;
 		this.#virtual = virtual;
 		this.#fallback = fallback;
-		this.#published = published;
+		this.#published = specifier => resolver.published(specifier);
+		this.#resolver = resolver;
 		this.#graph = graph;
 
 		const host = ts.createCompilerHost(options, true);
@@ -99,9 +111,18 @@ export class Host {
 		const bare = !specifier.startsWith('.') && !isAbsolute(specifier);
 		if (bare && this.#graph) return this.#graph.module(specifier, containing, options);
 
+		// A workspace module whose bundler declares nothing is read from its TypeScript entry point
+		const source = bare ? this.#resolver.source(specifier) : void 0;
+		if (source) {
+			const extension = source.endsWith('.tsx') ? ts.Extension.Tsx : ts.Extension.Ts;
+			return { resolvedModule: { resolvedFileName: source, extension, isExternalLibraryImport: true } };
+		}
+
 		// A public module of the workspace is declared ambiently by the program; nothing on disk answers it
 		if (bare && this.#published(specifier)) return none;
 
+		// A Kernel family is the module of the runtime the module is assembled against
+		bare && (specifier = this.#resolver.map(specifier));
 		const resolved = ts.resolveModuleName(specifier, containing, options, this.#host);
 		if (resolved.resolvedModule || !bare) return resolved;
 

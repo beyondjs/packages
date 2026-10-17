@@ -41,6 +41,7 @@ const select = packages => call('PUT', '/development/selection', { body: JSON.st
 const source = (...parts) => workspace.file(...parts);
 const rewrite = async (file, mutate) => writeFile(file, mutate(await readFile(file, 'utf8')));
 const shown = () => page.locator('fixture-counter p').textContent();
+const overlay = () => page.evaluate(() => document.querySelector('[data-beyond-overlay]')?.shadowRoot?.textContent ?? null);
 const until = (text, ms = 30000) => page.waitForFunction(expected => document.querySelector('fixture-counter')?.shadowRoot?.querySelector('p')?.textContent.includes(expected), text, { timeout: ms });
 
 try {
@@ -162,35 +163,46 @@ try {
 		return `${updates.length} update request(s) through the gateway`;
 	});
 
-	await step('update of another package: the public dependency is current through the original import', async () => {
+	await step('update of another package: no module accepts it, so the page loads again and shows it', async () => {
+		const before = { navigations: observed.navigations.length, documents: gateway.requests.filter(([, path]) => path.startsWith('/preview/')).length };
 		await rewrite(source('shared/text/index.ts'), text => text.replace('[environment] Hello', '[environment] Hi'));
-		// The page reads the public module through its import map, which is the instance the application imported
-		const greeting = () => page.evaluate(async () => (await import('@fixture/shared/text')).greet('x'));
-		for (const deadline = Date.now() + 30000; (await greeting()) !== '[environment] Hi x'; await new Promise(done => setTimeout(done, 100))) {
-			if (Date.now() > deadline) throw new Error('Timed out waiting for the update of the shared module');
-		}
+
+		// The application drew the greeting with the previous code and accepts no update of what it imports: an
+		// update in place would leave it stale, so the runtime reports a reload and the document is loaded again
+		await until('[environment] Hi preview | Clicks: 0', 60000).catch(async error => {
+			const builds = events.messages.filter(({ event }) => event === 'build.ended').map(({ build }) => [build.state, build.files]);
+			throw new Error(`${error.message}; the page shows "${await shown()}" after ${observed.navigations.length} navigations; builds ${JSON.stringify(builds)}`);
+		});
+		assert.equal(observed.navigations.length, before.navigations + 1, 'The page loaded its document again');
+		assert.ok(gateway.requests.filter(([, path]) => path.startsWith('/preview/')).length > before.documents, 'The document was requested again');
+		assert.deepEqual(await page.evaluate(() => window.evaluated), { store: 1 }, 'A new page, evaluated once');
+		assert.equal(await page.evaluate(async () => (await import('@fixture/shared/text')).greet('x')), '[environment] Hi x');
 
 		await page.locator('fixture-counter button').click();
-		assert.equal(await shown(), '[environment] Hi preview | Clicks: 4');
+		assert.equal(await shown(), '[environment] Hi preview | Clicks: 1');
 	});
 
-	await step('failure and recovery: an invalid source changes nothing on the page, and its correction is applied', async () => {
+	await step('failure and recovery: an invalid source is shown over the page with its location, and its correction removes it', async () => {
 		const file = source('web/main/view.ts');
 		const valid = await readFile(file, 'utf8');
 		const seen = events.messages.length;
 		await writeFile(file, 'export const label = ;\n');
 		await events.until(({ event, build }, index) => index >= seen && event === 'build.ended' && build.state === 'failed', 'the failed build');
-		await page.locator('fixture-counter button').click();
-		assert.equal(await shown(), '[environment] Hi preview | Clicks: 5');
+		assert.equal(await shown(), '[environment] Hi preview | Clicks: 1', 'The page keeps the last code that built');
 
-		// The diagnostic of the real compiler is located: the file relative to the root, at its position
+		// The diagnostic of the real compiler is located: the file relative to the root, at its position, with its line
 		const { build: failed } = events.messages.find(({ event, build }, index) => index >= seen && event === 'build.ended' && build.state === 'failed');
-		const located = failed.diagnostics.find(({ file: named }) => named === 'web/main/view.ts');
-		assert.ok(located, JSON.stringify(failed.diagnostics));
-		assert.deepEqual([located.range, located.revision?.slice(0, 7)], [{ line: 1, column: 22 }, 'sha256-'], JSON.stringify(located));
+		const located = failed.diagnostics.filter(({ file: named }) => named === 'web/main/view.ts');
+		assert.equal(located.length, 1, `One problem, listed once: ${JSON.stringify(failed.diagnostics)}`);
+		assert.deepEqual([located[0].range, located[0].revision?.slice(0, 7), located[0].frame?.lines.find(({ number }) => number === 1)?.text], [{ line: 1, column: 22 }, 'sha256-', 'export const label = ;'], JSON.stringify(located));
+
+		// The development overlay of the page says where
+		await page.waitForFunction(() => document.querySelector('[data-beyond-overlay]')?.shadowRoot?.textContent.includes('web/main/view.ts:1:22'), null, { timeout: 30000 });
+		assert.match(await overlay(), /export const label = ;/);
 
 		await writeFile(file, valid.replace('Clicks: ${count}', 'Total: ${count}'));
-		await until('Total: 5');
+		await until('Total: 1');
+		assert.equal(await overlay(), null, 'The correction removes the overlay');
 		assert.deepEqual(await page.evaluate(() => window.evaluated), { store: 1 });
 		assert.deepEqual(observed.errors.filter(text => !text.includes('invalid')), []);
 	});

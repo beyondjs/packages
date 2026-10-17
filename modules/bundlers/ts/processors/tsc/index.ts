@@ -90,7 +90,7 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 			graph?.own(file, owners.get(specifier));
 		});
 
-		const host = new Host(options, directory, process.cwd(), virtual, specifier => this.#dependencies.published(specifier), graph);
+		const host = new Host(options, directory, process.cwd(), virtual, this.#dependencies, graph);
 		const program = ts.createProgram({ rootNames: [...roots, ...virtual.keys()], options, host: host.compiler });
 
 		const own = new Set(roots);

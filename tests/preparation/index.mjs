@@ -105,7 +105,7 @@ try {
 		const widgets = ['react', 'vue', 'svelte', 'html'].map(subpath => `module:${CARDS}/${subpath}`);
 		assert.deepEqual(global.importers, [`module:${CARDS}/entry`, ...widgets].sort(), 'the entry selects it and every widget of the package adopts it');
 		assert.deepEqual(prepared.inventory.items.find(({ id }) => id === `style:${CARDS}/tone`)?.importers, [`module:${CARDS}/html`]);
-		assert.equal(prepared.inventory.items.find(({ id }) => id === `module:${CARDS}/html`).inputs.compiler.version, '3', 'composition 3');
+		assert.equal(prepared.inventory.items.find(({ id }) => id === `module:${CARDS}/html`).inputs.compiler.version, '4', 'composition 4');
 		return `global.css linked by the document and adopted by ${widgets.length} widgets; tone.css adopted by the html widget alone`;
 	});
 

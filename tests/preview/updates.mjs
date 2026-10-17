@@ -109,10 +109,14 @@ try {
 		await until('invalid', WEB);
 		await every(viewer => viewer.click());
 		same(await every(viewer => viewer.shown()), '[environment] Hello preview | Clicks: 3');
+		// The page the preview document registered shows the problem over itself; the others registered the runtime
+		// themselves and show nothing
+		assert.match(await viewers[0].overlay(), /web\/main\/view\.ts:1:22/);
 
 		await writeFile(source('view.ts'), valid.replace('Clicks: ${count}', 'Total: ${count}'));
 		await text('Total: 3');
 		same(await every(viewer => viewer.page.evaluate(() => window.evaluated)), { store: 1 });
+		assert.equal(await viewers[0].overlay(), null, 'the correction removes the overlay');
 	});
 
 	await step('evaluation failure: a source that throws when evaluated fails its update, and its correction is applied', async () => {
@@ -122,9 +126,11 @@ try {
 		await until('error', WEB);
 		const errors = await reported('error', from);
 		assert.ok(errors.every(events => events.some(([, name, message]) => name === WEB && /evaluation failed/.test(message))), JSON.stringify(errors));
+		assert.match(await viewers[0].overlay(), /evaluation failed/);
 
 		await writeFile(source('view.ts'), valid.replace('Total: ${count}', 'Sum: ${count}'));
 		await text('Sum: 3');
+		assert.equal(await viewers[0].overlay(), null);
 		await every(viewer => viewer.click());
 		same(await every(viewer => viewer.shown()), '[environment] Hello preview | Sum: 4');
 		same(await every(viewer => viewer.page.evaluate(() => window.evaluated)), { store: 1 });

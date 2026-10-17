@@ -29,8 +29,8 @@ The workspace is a temporary copy of [`fixture/`](fixture) (see [its README](fix
 | browser, CDN | Behind the prefix, the page renders `[cdn] Hello preview`, its adopted style is computed, the one CDN request is the expected path and query, and the page reports no error and no refused request |
 | browser, environment | With every package selected the same page shows `[environment]`, nothing else is asked of the CDN, and the runtime subscribed to the events through the gateway |
 | update | After two clicks, a saved edit of an internal file changes the text **of the running page**: the counter is still 2, the mounted element is the same object, the stateful internal module was evaluated once, the page has one navigation entry and did not navigate, the document was not requested again, and an update of the browser artifact was requested through the gateway |
-| update of another package | An edit of the shared module is current through the original import of the application |
-| failure and recovery | A source that does not compile changes nothing on the page; its correction is applied, with the state kept |
+| update of another package | The application drew with the shared module and accepts no update of what it imports: the runtime reports a reload and the page loads its document again (a new navigation and document request, the stateful module evaluated once in the new page), showing the edit; it is never reported as an update |
+| failure and recovery | A source that does not compile changes nothing on the page; the build lists its error once, located at `web/main/view.ts:1:22` with its line in `frame`, and the development overlay of the page shows that location and line; the correction removes the overlay and is applied, with the state kept |
 | declarations | The public declaration of a module is served by its specifier with the hash the build names as its tag, answers `304` to that tag, is refused to a visitor grant, and names the export of the dependency |
 | events | A completed build lists the browser-only module once, for `web`, and the shared module for `node` and `web`; the visitor, whose grant has no `files.read`, received no `file.*` or `batch.*` event |
 
@@ -59,8 +59,8 @@ The service runs in local mode on a port kept for its restart, over a temporary 
 | service | The preview addresses the entry module in the environment and links its stylesheet in the document; the runtime has a coordinator |
 | browser | The three pages render with the stylesheet applied (`body` color) and one link; each runtime is `ready`, platform `web`, environment `browser`, loader `module`, source `stream`; the SystemJS page's runtime is itself in SystemJS's registry as a `format=system` module |
 | update | A saved edit changes every page with the internal state, the mounted element and the navigation entry intact; in the SystemJS page the update is a `format=system` `/u/` module in SystemJS's registry |
-| invalid build | `invalid` everywhere; the page keeps working with the last code; the correction is applied |
-| evaluation failure | `error` with the exception everywhere; the correction is applied with the state kept |
+| invalid build | `invalid` everywhere; the page keeps working with the last code; the page registered by the document shows the overlay with `web/main/view.ts:1:22` (the others registered the runtime themselves and show none); the correction is applied and removes it |
+| evaluation failure | `error` with the exception everywhere, and in the overlay of the document's page; the correction is applied with the state kept and removes it |
 | stylesheet | A new sheet replaces the document's link (one link, addressed by its hash); an invalid sheet leaves the last valid link and color; the correction replaces it |
 | stylesheet that fails to load | With the browser refused the new sheet (503 from a route of the test), the previous link and color stay and `error` is reported; once allowed again the next sheet is applied |
 | order | Two saves 60 ms apart end in the last one, without errors |
@@ -77,7 +77,7 @@ BEE_URL=http://localhost:1112 WATCHERS_URL=http://localhost:1120 \
   node --import "$BEE_NODE_DIR/register.mjs" tests/preview/widgets.mjs
 ```
 
-Expected: `5/5 steps passed`. The fixture is [`widgets-fixture/`](widgets-fixture/README.md); the page is the preview document of `@fixture/page/main`, named with `?entry=` because the modules of Widgets are also candidates.
+Expected: `9/9 steps passed`. The fixture is [`widgets-fixture/`](widgets-fixture/README.md); the page is the preview document of `@fixture/page/main`, named with `?entry=` because the modules of Widgets are also candidates.
 
 | Step | Established |
 | --- | --- |
@@ -86,6 +86,10 @@ Expected: `5/5 steps passed`. The fixture is [`widgets-fixture/`](widgets-fixtur
 | update | An edit of `ui/global.scss` is announced as `styles` for `@fixture/ui@0.1.0/global`, and both widgets of the package link the new sheet from `/u/<hash>/…/styles/global` (one link each) and paint with it; the other widget is unchanged |
 | invalid | A broken sheet is reported `invalid`; colors and links of every widget are the last valid ones |
 | correction | The corrected sheet is applied to both widgets of the package, the other is unchanged, the runtime reported no `error` and the page logged none |
+| dependency | An edit of `@fixture/words/source`, which `ui-first` reads through `@fixture/words/text`, renders that widget again (`first updated`) without a navigation; the other widgets are untouched, the runtime reported `applied` and no `reload` or `error` |
+| render error | A `phrase` that throws makes the view of `ui-first` throw while it mounts: the development overlay shows the error; the correction mounts the widget again by itself, without a reload, and removes the overlay |
+| build error | A syntax error in `words/text/index.ts` is shown in the overlay with its location and its line, the page keeps the last code that built, and the correction removes it |
+| lifecycle | The page logged only the failures the steps caused, and closing releases its connection |
 
 ## `cdn.mjs`: the runtime for a stand-in CDN
 
@@ -116,7 +120,8 @@ The sibling package `@project/shared` is written by the driver, not copied from 
 
 - CDN delivery, the proxy of a Workspace administration, visitor links and their revocation: both are stand-ins here.
 - A runtime delivered by a real CDN, or published anywhere: the runtime is installed from its checkout by the acceptance installer, and its browser modules come from the stand-in.
-- Stylesheets of a widget itself and the sheets a widget selects with `.css`: `widgets.mjs` covers the shared sheet of a package, and `updates.mjs` the stylesheet links of the document. Framework widgets (React, Vue, Svelte) are the command line's `web` acceptance.
+- Stylesheets of a widget itself and the sheets a widget selects with `.css`: `widgets.mjs` covers the shared sheet of a package, and `updates.mjs` the stylesheet links of the document. Framework widgets (React, Vue, Svelte) are the command line's `web` acceptance, a React view that throws included: these drivers use widgets written without a framework.
+- The stand-ins that forward the browser's requests to the service (the gateway of `index.mjs` and the page server of `updates.mjs`) name the service's host, as a proxy does, since the service refuses a request that names another host.
 - A SystemJS page served by the service itself: the page is a test fixture, and the preview document is an ES-module page.
 - Browsers other than the installed Chrome, and cross-device or shared sessions.
 - A change of the selection while a page is open: the page keeps the import map it was loaded with.

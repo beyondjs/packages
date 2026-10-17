@@ -60,8 +60,12 @@ export /*bundle*/ class Toolchain {
 	 * `3`: a stylesheet the sources select (`pkg/sub.css`) is a style relation, named by the specification of
 	 * the bundle and never imported, where an output composed before imported it as a module; and a widget
 	 * whose package publishes `./global` relates to that sheet.
+	 *
+	 * `4`: a module whose directory another public module also uses is made of the internal modules its entry
+	 * imports ([Overlap](../sdk/conditional/esm/overlap.ts)), where an output composed before held and evaluated
+	 * every source of the directory, the other module's entry included.
 	 */
-	static COMPOSITION = '3';
+	static COMPOSITION = '4';
 
 	/**
 	 * The revision of how the public subpaths of an ordinary npm package are delivered: on their own, or as a

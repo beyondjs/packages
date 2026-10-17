@@ -121,7 +121,8 @@ export class Gateway {
 			const path = incoming.url.slice(prefix.length);
 			this.requests.push([incoming.method, path]);
 
-			const headers = { ...incoming.headers, authorization: `Bearer ${grant}` };
+			// A proxy names the service it forwards to, as the service checks the host a request names
+			const headers = { ...incoming.headers, host: `${hostname}:${port}`, authorization: `Bearer ${grant}` };
 			const upstream = request({ hostname, port, path, method: incoming.method, headers }, answer => {
 				outgoing.writeHead(answer.statusCode, answer.headers);
 				answer.pipe(outgoing);

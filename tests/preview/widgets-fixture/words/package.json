@@ -1,0 +1,16 @@
+{
+	"name": "@fixture/words",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Preview widgets validation: two modules that are not widgets, one imported by the other, read by a widget's view",
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts",
+			"runtime": "@beyond-js/local-2026/bundle"
+		}
+	}
+}

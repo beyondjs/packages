@@ -1,0 +1,38 @@
+{
+	"id": "bld_0043",
+	"state": "failed",
+	"input": "k3v9q2:45",
+	"files": ["app/main/index.ts"],
+	"modules": [
+		{
+			"vspecifier": "@suite/app@0.1.0/main",
+			"platform": "web",
+			"status": "invalid"
+		},
+		{
+			"vspecifier": "@suite/app@0.1.0/other",
+			"platform": "web",
+			"status": "invalid"
+		}
+	],
+	"diagnostics": [
+		{
+			"code": "TRANSPILE_ERROR",
+			"message": "@suite/app@0.1.0/main: ';' expected.",
+			"severity": "error",
+			"file": "app/main/index.ts",
+			"revision": "sha256-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+			"range": { "line": 3, "column": 14 },
+			"frame": {
+				"line": 3,
+				"column": 14,
+				"lines": [
+					{ "number": 2, "text": "export const a = 1;" },
+					{ "number": 3, "text": "export const b = 2" },
+					{ "number": 4, "text": "export const c = 3;" }
+				]
+			},
+			"modules": ["@suite/app@0.1.0/other"]
+		}
+	]
+}

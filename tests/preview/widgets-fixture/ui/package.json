@@ -7,7 +7,8 @@
 		"./global": "./global.scss"
 	},
 	"dependencies": {
-		"@beyond-js/widgets": "*"
+		"@beyond-js/widgets": "*",
+		"@fixture/words": "0.1.0"
 	},
 	"beyond": {
 		"modules": ".",
