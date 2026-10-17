@@ -381,6 +381,35 @@
 							"minimum": 1
 						}
 					}
+				},
+				"frame": {
+					"type": "object",
+					"description": "Up to three lines of `file` around the line, read when the build reported the diagnostic: the line before, the line and the line after, as far as the file has them. Absent when the file could not be read or is larger than 1 MiB.",
+					"required": ["line", "column", "lines"],
+					"additionalProperties": false,
+					"properties": {
+						"line": { "type": "integer", "minimum": 1 },
+						"column": { "type": "integer", "minimum": 1 },
+						"lines": {
+							"type": "array",
+							"minItems": 1,
+							"maxItems": 3,
+							"items": {
+								"type": "object",
+								"required": ["number", "text"],
+								"additionalProperties": false,
+								"properties": {
+									"number": { "type": "integer", "minimum": 1 },
+									"text": { "type": "string" }
+								}
+							}
+						}
+					}
+				},
+				"modules": {
+					"type": "array",
+					"items": { "type": "string" },
+					"description": "The other public modules whose build reported the same problem, which is listed once; the message starts with the versioned specifier of the first one"
 				}
 			}
 		},
@@ -456,6 +485,11 @@
 					"items": {
 						"$ref": "#/$defs/diagnostic"
 					}
+				},
+				"files": {
+					"type": "array",
+					"items": { "$ref": "#/$defs/path" },
+					"description": "The files whose changes since the previous build this build compiled. Absent for a build nothing changed for, such as the first or one requested."
 				}
 			}
 		},

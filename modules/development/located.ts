@@ -1,4 +1,5 @@
 import { relative, sep } from 'path';
+import { Frame, type IFrame } from './frame';
 
 /**
  * A diagnostic as Packages' delivery produces it: the file is an absolute path when the producer knows it
@@ -21,16 +22,27 @@ export /*bundle*/ interface ILocatedDiagnostic {
 	file?: string;
 	revision?: string;
 	range?: { line: number; column: number };
+
+	/**
+	 * Up to three lines of the file around the line, when the file is readable
+	 */
+	frame?: IFrame;
+
+	/**
+	 * The other public modules whose build reported the same diagnostic, which is listed once
+	 */
+	modules?: string[];
 }
 
 /**
- * Locates the diagnostics of the delivery inside the served root. A file outside the root, such as one of
- * a package the toolchain supplies, is not named: the message keeps its text, and the client has no file
- * to open.
+ * Locates the diagnostics of the delivery inside the served root, with the lines around the position. A file
+ * outside the root, such as one of a package the toolchain supplies, is not named: the message keeps its text,
+ * and the client has no file to open.
  */
 export class Located {
 	#root: string;
 	#revision: (path: string) => string | undefined;
+	#frame: Frame;
 
 	/**
 	 * @param root The absolute, resolved path of the served root
@@ -39,6 +51,7 @@ export class Located {
 	constructor(root: string, revision: (path: string) => string | undefined) {
 		this.#root = root;
 		this.#revision = revision;
+		this.#frame = new Frame(root);
 	}
 
 	/**
@@ -59,7 +72,10 @@ export class Located {
 		located.file = path;
 		const revision = this.#revision(path);
 		revision && (located.revision = revision);
-		position && (located.range = { line: position.line, column: position.column });
+		if (!position) return located;
+		located.range = { line: position.line, column: position.column };
+		const frame = this.#frame.of(path, position);
+		frame && (located.frame = frame);
 		return located;
 	}
 }

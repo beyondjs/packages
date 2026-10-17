@@ -2,6 +2,7 @@ import type { Log } from './log';
 import type { Files } from './files';
 import { DevelopmentError } from './error';
 import { Located, type ILocatedDiagnostic, type IProducedDiagnostic } from './located';
+import { Report } from './report';
 
 /**
  * Why the delivery could not produce what a build asked for
@@ -122,6 +123,12 @@ export /*bundle*/ interface IBuild {
 	input: string;
 	modules: { vspecifier: string; platform?: string; status: 'valid' | 'invalid'; hash?: string; styles?: string; declaration?: string }[];
 	diagnostics?: ILocatedDiagnostic[];
+
+	/**
+	 * The files whose changes since the previous build this build compiled, relative to the root: what a terminal
+	 * or a client names when it says what an update applies
+	 */
+	files?: string[];
 }
 
 /**
@@ -152,6 +159,9 @@ export /*bundle*/ class Builds {
 	#timer: ReturnType<typeof setTimeout>;
 	#unsubscribe: () => void;
 
+	/** The files changed since the last build started */
+	#changed = new Set<string>();
+
 	/**
 	 * A gate the next delivery waits for. Validation uses it to keep a build running while sources change.
 	 */
@@ -176,7 +186,10 @@ export /*bundle*/ class Builds {
 		this.#unsubscribe = this.#log.subscribe(event => {
 			if (event.type === 'batch.completed') batches.delete(event.batch);
 			else if (!event.type.startsWith('file.')) return;
-			else if (event.batch) return void batches.add(event.batch);
+			else {
+				[event.path, event.from].forEach(path => typeof path === 'string' && this.#changed.add(path));
+				if (event.batch) return void batches.add(event.batch);
+			}
 
 			clearTimeout(this.#timer);
 			this.#timer = setTimeout(() => void this.start(), Builds.DEBOUNCE);
@@ -199,6 +212,8 @@ export /*bundle*/ class Builds {
 	 */
 	start(): IBuild {
 		const build: IBuild = { id: `bld_${++this.#counter}_${Date.now().toString(36)}`, state: 'running', input: this.#log.cursor, modules: [] };
+		this.#changed.size && (build.files = [...this.#changed].sort());
+		this.#changed.clear();
 		this.#items.set(build.id, build);
 		if (this.#items.size > Builds.RETAINED) this.#items.delete(this.#items.keys().next().value);
 
@@ -215,15 +230,16 @@ export /*bundle*/ class Builds {
 
 	/**
 	 * Builds one module for each platform it declares. The same source error is reported once, whatever
-	 * number of platforms met it.
+	 * number of platforms or modules met it ([Report](./report.ts)).
+	 *
+	 * The type errors of a package the toolchain supplies (the development runtime, Widgets, the framework
+	 * adapters) are the toolchain's defects, not the workspace's: they are not reported against its build. A
+	 * module of such a package that does not build still is, because the page that imports it cannot run.
 	 */
-	async #module(module: IPublishedModule, build: IBuild, diagnostics: IBuild['diagnostics']) {
+	async #module(module: IPublishedModule, build: IBuild, diagnostics: Report) {
 		const { vspecifier } = module;
 		const report = (failure: IBuildFailure) => {
-			for (const diagnostic of failure.diagnostics ?? [failure]) {
-				const located = this.#located.of({ ...diagnostic, message: `${vspecifier}: ${diagnostic.message}` });
-				!diagnostics.some(one => one.code === located.code && one.message === located.message) && diagnostics.push(located);
-			}
+			for (const diagnostic of failure.diagnostics ?? [failure]) diagnostics.add(vspecifier, diagnostic);
 		};
 
 		const entries = build.modules.length;
@@ -258,13 +274,14 @@ export /*bundle*/ class Builds {
 
 		// The declaration, checked once for the module and named by each of its platform entries
 		if (!this.#delivery.declaration) return;
+		const own = build.modules.slice(entries);
 		const { declaration, failure } = await this.#delivery.declaration(module);
-		if (declaration) build.modules.slice(entries).forEach(entry => entry.status === 'valid' && (entry.declaration = declaration.hash));
-		else failure.code === 'BUILD_FAILED' && report(failure);
+		if (declaration) own.forEach(entry => entry.status === 'valid' && (entry.declaration = declaration.hash));
+		else failure.code === 'BUILD_FAILED' && !module.supplied && report(failure);
 	}
 
 	async #run(build: IBuild) {
-		const diagnostics: IBuild['diagnostics'] = [];
+		const diagnostics = new Report(this.#located);
 		try {
 			await this.hold;
 			// Declarations are not watched by the compiler: a package or module declared since the last build
@@ -275,14 +292,15 @@ export /*bundle*/ class Builds {
 				await this.#module(module, build, diagnostics);
 			}
 		} catch (error) {
-			diagnostics.push({ code: 'BUILD_ERROR', message: (error as Error).message, severity: 'error' });
+			diagnostics.fail('BUILD_ERROR', (error as Error).message);
 		}
 
-		if (diagnostics.length) build.diagnostics = diagnostics;
+		const { items } = diagnostics;
+		if (items.length) build.diagnostics = items;
 		// Order matters: a cancelled or obsolete build is reported as such even when it also failed
 		build.state = this.#cancelled.delete(build.id) ? 'cancelled'
 			: this.#log.changed(build.input) ? 'superseded'
-			: diagnostics.length ? 'failed' : 'completed';
+			: items.length ? 'failed' : 'completed';
 		this.#log.append('build.ended', { build: { ...build, modules: [...build.modules] } });
 	}
 }

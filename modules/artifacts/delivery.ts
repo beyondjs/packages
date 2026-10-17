@@ -165,6 +165,12 @@ export /*bundle*/ class Delivery {
 				const message = `Module "${selected.specifier}" produces no declaration: its bundler has no "types" conditional`;
 				return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message } };
 			}
+			// A module without TypeScript sources, such as a style module, checks nothing and declares nothing: its
+			// types conditional reported nothing and produced nothing
+			if (compilation.errors.length === 1 && first.code === 'OUTPUT_MISSING') {
+				const message = `Module "${selected.specifier}" has no TypeScript sources to declare`;
+				return { failure: { code: 'OUTPUT_NOT_AVAILABLE', message } };
+			}
 			const message = `Module "${selected.specifier}" does not check: ${first.message}`;
 			return { failure: { code: 'BUILD_FAILED', message, diagnostics: compilation.errors } };
 		}

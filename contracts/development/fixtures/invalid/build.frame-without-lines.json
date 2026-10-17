@@ -1,0 +1,15 @@
+{
+	"id": "bld_0044",
+	"state": "failed",
+	"input": "k3v9q2:46",
+	"modules": [{ "vspecifier": "@suite/app@0.1.0/main", "status": "invalid" }],
+	"diagnostics": [
+		{
+			"code": "TS1005",
+			"message": "';' expected.",
+			"file": "app/main/index.ts",
+			"range": { "line": 3, "column": 14 },
+			"frame": { "line": 3, "column": 14, "lines": [] }
+		}
+	]
+}
