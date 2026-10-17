@@ -19,6 +19,20 @@
 		"./package.json": "./package.json"
 	},
 	"description": "BeyondJS Packages",
+	"files": [
+		"service/",
+		"!service/test/",
+		"modules/",
+		"beyond.json",
+		"README.md"
+	],
+	"engines": {
+		"node": ">=22.21.1"
+	},
+	"publishConfig": {
+		"access": "public",
+		"tag": "preview"
+	},
 	"deployment": {
 		"distributions": [
 			{

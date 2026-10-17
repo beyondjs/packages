@@ -7,6 +7,10 @@
 	"engines": {
 		"node": ">=22.21.1"
 	},
+	"publishConfig": {
+		"access": "public",
+		"tag": "preview"
+	},
 	"exports": {
 		".": "./index.mjs",
 		"./package.json": "./package.json"
