@@ -62,7 +62,7 @@ export class Download {
 	async #run(node: string, pinned: IGraphNode, excepted: boolean): Promise<ISourceResult> {
 		const { name, version, tarball } = pinned;
 		const origin = pinned.origin?.provider;
-		if (!origin || !name || !version || !/^https?:\/\//.test(tarball || '')) {
+		if (!origin || !name || !version || !/^(https?:\/\/|toolchain:)/.test(tarball || '')) {
 			throw new Refusal('NODE_INVALID', `The graph node "${node}" does not describe a downloadable release`);
 		}
 
@@ -170,7 +170,10 @@ export class Download {
 	}
 
 	async #request(url: string, headers: Record<string, string>, signal: AbortSignal, what: string) {
-		const host = new URL(url).host;
+		// A release the Beyond toolchain supplied is read from the toolchain's archives, which only the transport of
+		// an installation with that toolchain answers
+		const supplied = url.startsWith('toolchain:');
+		const host = supplied ? 'the Beyond toolchain' : new URL(url).host;
 
 		let response: Response;
 		try {
@@ -178,6 +181,10 @@ export class Download {
 		} catch (error) {
 			// A transport that refuses a destination says so with a code of its own
 			if (error?.code === 'DESTINATION_REFUSED') throw new Refusal(error.code, String(error.message));
+			if (supplied) {
+				const how = 'install it with the Beyond command line that carries it, or publish it to a registry this workspace uses';
+				throw new Refusal('TOOLCHAIN_ARCHIVE_MISSING', `"${what}" is supplied by the Beyond toolchain and no archive of it is available here: ${how}`);
+			}
 			throw new Refusal('DOWNLOAD_FAILED', `The archive of "${what}" could not be requested to ${host}`);
 		}
 

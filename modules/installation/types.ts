@@ -40,6 +40,10 @@ export /*bundle*/ interface IInstallationParams {
 	// When given, every request (metadata and archives) goes through it
 	transport?: SourcesTransport;
 	limits?: ILimits;
+	// The directory of package archives the Beyond toolchain carries, a source of the releases no registry publishes
+	// (see the local installation guide): `BEYOND_TOOLCHAIN_ARCHIVES`, else the `archives/` directory of the
+	// installation of the command line that runs this process; `false` turns the source off
+	toolchain?: string | false;
 	// Milliseconds the whole installation may take; `BEYOND_INSTALL_DEADLINE`, else 540000
 	deadline?: number;
 	logger?: IGraphLogger;

@@ -3,6 +3,7 @@ import type { SourcesTransport } from '@beyond-js/packages/sources';
 import type { IInstallationDiagnostic, IInstallationParams } from './types';
 import { promises as fs } from 'fs';
 import { join, resolve } from 'path';
+import { Toolchain } from './toolchain/index';
 import {
 	PackageProviders,
 	Metadata,
@@ -27,8 +28,10 @@ export class Settings {
 	#transport: SourcesTransport;
 	#providers?: PackageProviders;
 	#metadata?: Metadata;
+	#supplied?: IPackageProviders;
 	#records?: FilesystemMetadataStore;
 	#unusable?: string;
+	#toolchain?: Toolchain | null;
 
 	/**
 	 * @param root The canonical workspace root
@@ -51,21 +54,35 @@ export class Settings {
 	}
 
 	/**
+	 * The archives the toolchain carries, located once; undefined when there are none
+	 */
+	get toolchain(): Toolchain | undefined {
+		if (this.#toolchain === void 0) this.#toolchain = Toolchain.locate(this.#params.toolchain) ?? null;
+		return this.#toolchain ?? void 0;
+	}
+
+	/**
 	 * Why the metadata cache could not be used or written, as warnings of the installation
 	 */
 	get warnings(): IInstallationDiagnostic[] {
 		const found = [this.#unusable, this.#records?.failure?.message].filter(message => typeof message === 'string');
-		return found.map(message => {
+		const cache = found.map(message => {
 			const said = `${message}: metadata is requested again next time`;
 			return { code: 'METADATA_CACHE_UNAVAILABLE', message: said, severity: <const>'warning' };
 		});
+		const left = (this.#toolchain?.catalog.problems ?? []).map(message => ({
+			code: 'TOOLCHAIN_ARCHIVE_UNREADABLE',
+			message,
+			severity: <const>'warning'
+		}));
+		return [...cache, ...left];
 	}
 
 	/**
 	 * The providers with the metadata cache of the user: what the resolution reads
 	 */
 	async metadata(): Promise<IPackageProviders> {
-		if (this.#metadata) return this.#metadata;
+		if (this.#supplied) return this.#supplied;
 
 		const directory = await Settings.#cache(this.#params.metadata, 'BEYOND_METADATA_DIR', 'metadata');
 		let store: FilesystemMetadataStore | MemoryMetadataStore;
@@ -77,7 +94,16 @@ export class Settings {
 		}
 		// A local installation is its own single tenant: what needs credentials is cached for it alone
 		this.#metadata = new Metadata(this.providers, { store, tenant: 'local' });
-		return this.#metadata;
+		// The releases only the toolchain carries are added to what the registries publish
+		this.#supplied = this.toolchain?.metadata(this.#metadata) ?? this.#metadata;
+		return this.#supplied;
+	}
+
+	/**
+	 * The transport of the fetch: the toolchain's archive addresses are answered from its archives
+	 */
+	carrier(next: SourcesTransport): SourcesTransport {
+		return this.toolchain ? this.toolchain.transport(next) : next;
 	}
 
 	/**

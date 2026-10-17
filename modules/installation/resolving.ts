@@ -27,6 +27,17 @@ export class Resolving {
 	}
 
 	/**
+	 * A Beyond package no registry has is one the toolchain supplies before it is published: say how to get it
+	 */
+	#advised(code: string, message: string): string {
+		if (code !== 'PACKAGE_NOT_FOUND' || !/"@beyond-js\//.test(message)) return message;
+		const carried = this.#settings.toolchain
+			? 'the archives of this Beyond command line do not carry it either'
+			: 'it is supplied by the Beyond command line before it is published: run beyond install from an installation of the Beyond command line, or publish it to a registry this workspace uses';
+		return `${message}: ${carried}`;
+	}
+
+	/**
 	 * @param lock The content of the lock file in any format, or the preferences of a plan, offered as version
 	 * preferences
 	 * @param update Ignore the preferences
@@ -46,7 +57,7 @@ export class Resolving {
 		const diagnostics = (graph?.diagnostics || []).map(({ code, message, severity, node }) => {
 			const diagnostic: IInstallationDiagnostic = {
 				code,
-				message,
+				message: this.#advised(code, message),
 				severity: severity === 'warning' ? 'warning' : 'error'
 			};
 			return node ? { ...diagnostic, node } : diagnostic;

@@ -134,6 +134,8 @@ export class Releases {
 	 * An archive URL as it may be stored and shown: without user information
 	 */
 	#clean(url?: string): string | null {
+		// The archive address of a release the toolchain supplied names the release, never a location
+		if (typeof url === 'string' && /^toolchain:.+@[^@/]+$/.test(url)) return url;
 		try {
 			const parsed = new URL(url);
 			parsed.username = '';
