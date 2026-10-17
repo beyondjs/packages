@@ -8,6 +8,8 @@ import { equal } from '@beyond-js/equal/main';
 import { Assembler } from './assembler';
 import { Outputs } from './outputs';
 import { Widget } from './widget';
+import { Overlap, type IOverlapped } from './overlap';
+import { Reach } from './reach';
 
 export type { IWidgetDeclaration, IWidgetSpecs } from './widget';
 
@@ -253,7 +255,7 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 		};
 
 		const outputs = new Outputs(this.processors, ESMConditional.id, ESMConditional.hash);
-		const { warnings } = outputs;
+		let { warnings } = outputs;
 		if (outputs.errors.length) return done({ errors: outputs.errors, warnings });
 
 		const { module } = this;
@@ -294,7 +296,12 @@ export /*bundle*/ abstract class ESMConditional extends Conditional {
 
 		const styles = outputs.styles(vspecifier);
 		const types = outputs.types(vspecifier);
-		const assembler = new Assembler({ vspecifier, entry: id, ims: outputs.ims, runtime: <string>runtime, styles: !!styles, widget });
+
+		// A module that shares its directory with another public module is made of what its entry imports
+		const overlap = new Overlap(<IOverlapped>(<unknown>module)).warning;
+		overlap && (warnings = [...warnings, overlap]);
+		const ims = overlap && id ? new Reach(outputs.ims).from(id) : outputs.ims;
+		const assembler = new Assembler({ vspecifier, entry: id, ims, runtime: <string>runtime, styles: !!styles, widget });
 		if (assembler.errors.length) return done({ errors: assembler.errors, warnings });
 
 		const artifact = this.#describe(vspecifier, assembler, styles, widget);

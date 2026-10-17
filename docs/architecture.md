@@ -160,6 +160,12 @@ The SDK [ESM assembly](../modules/sdk/conditional/esm/index.ts) emits the execut
 
 To author another bundler against this design, expose a public Module, register its specifier under a package alias, choose conditionals, project their spec, then either configure SDK Processors or produce a core ConditionalOutput directly. Reuse these signatures and explicitly define source/options/error handling. The current ESMConditional assembles the TS path; a different processor still needs compatible outputs and its own validation.
 
+### Modules that share a directory
+
+The inputs of a `ts` module are the files of its directory and its subdirectories, unless its manifest names `files`, and the runtime evaluates every internal module of an artifact when it initialises it. A module therefore owns its directory. When two public modules declared through `exports` have their entry points in one directory (`"./main": "./main/index.ts"` and `"./math": "./main/math.ts"`), or one's entry lies under the other's directory, each compiled the other's sources and ran their top-level code: a `listen`, a migration or a timer ran twice, and `beyond run ./math` ran the code of `./main`.
+
+[Overlap](../modules/sdk/conditional/esm/overlap.ts) finds the other public modules whose entry lies in a module's directory (a module that names its `files`, and a style module, compile only what they were given and share nothing). Such a module warns `MODULES_SHARE_DIRECTORY`, naming the directory and the other modules, and its artifact is made of the internal modules its entry reaches through relative requires, as the runtime resolves them ([Reach](../modules/sdk/conditional/esm/reach.ts)): `./main` holds `./index` and `./math`, `./math` holds `./math` alone, and a file nobody imports is in neither. A module whose directory is its own keeps every file of it. The warning reaches the delivery (`IDelivered.warnings`) and the build's diagnostics with `severity: "warning"`, which does not fail the build. The stylesheets and the type check of the module still read the whole directory: give each public module a directory of its own. `Toolchain.COMPOSITION` is `4` since this change. [The overlap validation](../tests/overlap/README.md) executes it.
+
 ## Styles, framework sources and declarations
 
 The [TypeScript bundler](../modules/bundlers/ts/module/index.ts) configures four processors for every executable conditional, each of which compiles only the inputs of its extensions and loads its compiler on first use, so a module without a `.vue` file never loads Vue:

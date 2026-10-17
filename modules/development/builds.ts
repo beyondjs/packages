@@ -49,7 +49,7 @@ export /*bundle*/ interface IBuildable {
 
 	published(): Promise<IPublishedModule[]>;
 	module(request: object, conditions: object): Promise<{
-		delivered?: { hash: string; styles?: string; stylesheets?: string[]; dependencies?: IModuleDependency[]; runtime?: string; widget?: object };
+		delivered?: { hash: string; styles?: string; stylesheets?: string[]; dependencies?: IModuleDependency[]; runtime?: string; widget?: object; warnings?: IProducedDiagnostic[] };
 		failure?: IBuildFailure;
 	}>;
 
@@ -263,6 +263,7 @@ export /*bundle*/ class Builds {
 						: { vspecifier, platform, status: 'invalid' }
 			);
 			failure && !sheet && report(failure);
+			delivered?.warnings?.forEach(warning => diagnostics.add(vspecifier, warning, 'warning'));
 		}
 
 		// A module that declares none of the platforms this service builds for has nothing to deliver
@@ -300,7 +301,7 @@ export /*bundle*/ class Builds {
 		// Order matters: a cancelled or obsolete build is reported as such even when it also failed
 		build.state = this.#cancelled.delete(build.id) ? 'cancelled'
 			: this.#log.changed(build.input) ? 'superseded'
-			: items.length ? 'failed' : 'completed';
+			: items.some(({ severity }) => severity === 'error') ? 'failed' : 'completed';
 		this.#log.append('build.ended', { build: { ...build, modules: [...build.modules] } });
 	}
 }

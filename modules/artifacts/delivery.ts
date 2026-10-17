@@ -236,6 +236,7 @@ export /*bundle*/ class Delivery {
 				styles: conditional.styles?.hash,
 				...(conditional.artifact.stylesheets ? { stylesheets: conditional.artifact.stylesheets } : {}),
 				widget: conditional.artifact.widget,
+				...(conditional.warnings.length ? { warnings: conditional.warnings } : {}),
 				code: sourcemap => conditional.output.code(sourcemap === 'inline' ? 'sourcemap-inline' : 'raw-code'),
 				patch: () => conditional.patch?.code('sourcemap-inline')
 			}
