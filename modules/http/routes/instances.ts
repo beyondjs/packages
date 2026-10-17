@@ -186,13 +186,14 @@ export class Instances {
 	}
 
 	/**
-	 * Where an instance came from, as the paths of the compiled-module contract write it: a member of the workspace
-	 * and the npm registry unprefixed, any other registry by the id of its provider. A node taken from Git or from
+	 * Where an instance came from, as the paths of the compiled-module contract write it: a member of the workspace,
+	 * a release the toolchain supplied and the npm registry unprefixed, any other registry by the id of its provider. A node taken from Git or from
 	 * an archive address has no registry address.
 	 */
 	origin(node: IInstance): IOrigin {
 		const provider = node.origin?.provider;
-		if (this.member(node) || provider === Instances.NPM) return { registry: Instances.NPM };
+		// A release the Beyond toolchain supplied is addressed as the toolchain's packages are in development: unprefixed
+		if (this.member(node) || provider === Instances.NPM || provider === 'toolchain') return { registry: Instances.NPM };
 		if (provider?.startsWith('registry-')) return { registry: provider };
 		const how = provider?.startsWith('git') ? 'from Git' : 'from an archive address';
 		return { reason: `"${node.name}@${node.version}" was installed ${how}, which has no registry address` };

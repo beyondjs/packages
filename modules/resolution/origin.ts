@@ -13,8 +13,12 @@ import { createHash } from 'crypto';
  * - A git node comes from one repository at one commit: `git-<slug>-<digest>` of `host/owner/repo@commit`, the
  *   tree its source was taken from.
  * - An archive URL has no provider of its own: its identity is its content, and its origin is `digest`.
+ * - A release only the Beyond toolchain carries is `toolchain`, with no registry: its archive address is
+ *   `toolchain:<name>@<version>` and its integrity that of the toolchain's archive.
  */
 export /*bundle*/ class Origin {
+	static TOOLCHAIN = 'toolchain';
+
 	static #slug(text: string): string {
 		return text
 			.toLowerCase()
@@ -30,6 +34,8 @@ export /*bundle*/ class Origin {
 
 	static registry(identity: IProviderIdentity): IGraphOrigin {
 		const { registry, base } = identity;
+		// A release only the Beyond toolchain carries has no registry address: it is read from the toolchain's archives
+		if (registry === Origin.TOOLCHAIN && !base) return { provider: Origin.TOOLCHAIN };
 		const address = base ? `${base}/` : void 0;
 		if (registry === 'registry.npmjs.org') return { provider: 'npm', registry: address };
 		return { provider: `registry-${Origin.#slug(registry)}-${Origin.#digest(registry)}`, registry: address };

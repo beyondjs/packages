@@ -1,0 +1,8 @@
+{
+	"name": "@fixture/supplied-app",
+	"version": "1.0.0",
+	"dependencies": {
+		"@fixture/runtime": "~1.0.0",
+		"lib-a": "^1.0.0"
+	}
+}

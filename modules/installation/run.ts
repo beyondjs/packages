@@ -100,7 +100,7 @@ export class Run {
 		if (!graph) return report.build();
 
 		const store = await settings.store();
-		const fetching = new Fetching(store, limits, () => settings.providers, breaker.transport, offline);
+		const fetching = new Fetching(store, limits, () => settings.providers, settings.carrier(breaker.transport), offline);
 		this.#tell({ phase: 'download', total: Fetching.externals(graph) });
 		const fetched = await fetching.run(graph);
 		const counted = { members: Object.keys(graph.members).length, nodes: Object.keys(graph.nodes).length };
