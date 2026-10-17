@@ -52,6 +52,7 @@ const { connection } = await new Service(context).acquire({
 | `pairing.embeds` | Origins whose pages import the preview listener's compiled modules (the command line gives `BEYOND_EMBED_ORIGINS` and `--embed`); the service adds `BEYOND_EMBED_ORIGINS` of its own environment |
 | `pairing.public` | The https origin an external server is reached through; `{port}` stands for the port of each listener (Codespaces forwards each port at its own address). A fixed origin names the API listener only |
 | `interface` | A directory with the static build of the Packages interface, served at `/ui/`; without `index.html` the start fails |
+| `preview` | The port the preview listener asks for (the command line's `--preview-port`): taken when it is free, another one when something holds it or it is not allowed, and `/session` names the one taken (`service.preview`); an argument that is not an integer from 1 to 65535 is refused before anything starts |
 
 ### Two listeners
 

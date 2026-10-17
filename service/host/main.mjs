@@ -244,7 +244,7 @@ try {
 	description.origin = origin;
 
 	// A service that pairs opens its preview listener on a port of its own, beside the API one
-	const listening = await portable?.listen(app, { port: server.address().port, address });
+	const listening = await portable?.listen(app, { port: server.address().port, address, preview: settings.preview });
 	description.preview = listening?.preview;
 	description.public = listening?.publics.api;
 

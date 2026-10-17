@@ -140,19 +140,21 @@ export class Portable {
 	 * of both are known
 	 *
 	 * @param {import('express').Application} app
-	 * @param {{port: number, address: string}} api The port of the API listener, and the address local clients reach
-	 * the service at
+	 * @param {{port: number, address: string, preview?: number}} api The port of the API listener, the address local
+	 * clients reach the service at, and the port the preview listener asks for
 	 * @returns {Promise<{preview: string, port: number, publics: {api?: string, preview?: string}}>} The preview origin a
 	 * browser uses (its public one behind a forwarder), the port of the preview listener and the public origins of both
 	 * listeners
 	 */
-	async listen(app, { port, address }) {
+	async listen(app, { port, address, preview: asked }) {
 		this.#server = createServer(app);
-		this.#server.listen(0, this.#bind);
-		await new Promise((resolve, reject) => {
+		// The port asked for when it is free; another one otherwise, which the description names
+		const open = wanted => new Promise((resolve, reject) => {
 			this.#server.once('listening', resolve);
 			this.#server.once('error', reject);
+			this.#server.listen(wanted, this.#bind);
 		});
+		await (asked ? open(asked).catch(error => (error?.code === 'EADDRINUSE' || error?.code === 'EACCES' ? open(0) : Promise.reject(error))) : open(0));
 		const preview = this.#server.address().port;
 		const template = this.#public?.includes('{port}');
 		const publics = {

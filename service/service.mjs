@@ -114,10 +114,11 @@ export class Service {
 	}
 
 	/**
-	 * @param {{lifetime: 'owner' | 'attachments', port?: number, bind?: string, extensions?: string[], pairing?: true |
+	 * @param {{lifetime: 'owner' | 'attachments', port?: number, preview?: number, bind?: string, extensions?: string[], pairing?: true |
 	 * {origins?: string[], public?: string}, interface?: string, launch?: object, exclusive?: boolean}} options How a
 	 * service started by this call ends; an
-	 * explicit port; the address it listens on, which is the loopback one unless something else controls who reaches
+	 * explicit port, and the port its preview listener asks for when it pairs (taken when free, else another one, which
+	 * its description names); the address it listens on, which is the loopback one unless something else controls who reaches
 	 * the service, because the service has no authentication; the module specifiers of the extensions that add routes to
 	 * its host; whether it pairs browsers (`beyond-dev-pairing/1`), with the interface origins allowed besides its own
 	 * and the public origin of an external server (`{port}` standing for its port); and the directory of the interface
@@ -135,8 +136,9 @@ export class Service {
 	 * it had them, and it is not replaced while it is there
 	 * @throws {ContractError} `UNAVAILABLE` when the running service answers that it cannot describe itself now
 	 */
-	async acquire({ lifetime, port, bind, extensions = Service.extensions(process.env), pairing, interface: build, launch, exclusive = false }) {
-		if (exclusive) return this.#exclusive({ lifetime, port, bind, extensions, pairing, interface: build, launch });
+	async acquire({ lifetime, port, preview, bind, extensions = Service.extensions(process.env), pairing, interface: build, launch, exclusive = false }) {
+		if (preview !== undefined && !(Number.isInteger(preview) && preview > 0 && preview < 65536)) throw new TypeError('The preview port is an integer from 1 to 65535');
+		if (exclusive) return this.#exclusive({ lifetime, port, preview, bind, extensions, pairing, interface: build, launch });
 
 		// Whoever waits for the lock waits for as long as the holder's start can last, stop and description
 		// included, and the time the holder gives a service that lacks an extension to leave, its last look
@@ -150,7 +152,7 @@ export class Service {
 			if (reused) return { connection: reused, started: false };
 
 			const token = randomUUID();
-			const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch });
+			const record = await this.#start({ lifetime, port, preview, bind, extensions, token, pairing, interface: build, launch });
 			const connection = await this.#described(record);
 			return { connection, started: true, token };
 		}, { timeout });
@@ -160,10 +162,10 @@ export class Service {
 	 * Starts a service of its own, under a discovery record keyed also by an identifier of this start, so it neither
 	 * reuses a running service nor is found by another caller; it ends with its lifetime like any other
 	 */
-	async #exclusive({ lifetime, port, bind, extensions, pairing, interface: build, launch }) {
+	async #exclusive({ lifetime, port, preview, bind, extensions, pairing, interface: build, launch }) {
 		const token = randomUUID();
 		const exclusive = randomUUID();
-		const record = await this.#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch, exclusive });
+		const record = await this.#start({ lifetime, port, preview, bind, extensions, token, pairing, interface: build, launch, exclusive });
 		const connection = await this.#described(record);
 		return { connection, started: true, token };
 	}
@@ -242,10 +244,10 @@ export class Service {
 	 * Starts the supervisor detached from this process and waits for the outcome of the start, within the
 	 * deadline of `BEYOND_START_TIMEOUT`. A supervisor that is not ready by then is stopped.
 	 */
-	#start({ lifetime, port, bind, extensions, token, pairing, interface: build, launch, exclusive }) {
+	#start({ lifetime, port, preview, bind, extensions, token, pairing, interface: build, launch, exclusive }) {
 		const deadline = Service.#deadline.read(process.env);
 		const { root, standalone } = this.#context;
-		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path, pairing, interface: build, ...(launch ? { launch } : {}), ...(exclusive ? { exclusive } : {}) };
+		const options = { root, standalone, lifetime, port, bind, extensions, token, home: this.#home.path, pairing, interface: build, ...(preview ? { preview } : {}), ...(launch ? { launch } : {}), ...(exclusive ? { exclusive } : {}) };
 
 		// Where the supervisor logs, which it names itself once it can: a start that fails before, or never
 		// ends, is reported with it as well. An exclusive service keeps its own directory
