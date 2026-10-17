@@ -15,14 +15,17 @@ const FINAL = ['stored', 'failed', 'unknown'];
  * Exports of a copy of the fixture, allowed to send to a stand-in of Snapshots, with the events they announce
  */
 const prepare = async (t, { behaviors, delay, host, environment = {}, packages = PACKAGES } = {}) => {
+	// Hooks run in the order they were added: the transfers end, and write their last record, before the workspace
+	// and the stand-in go, so no write races the removal of the workspace
+	let exports;
+	t.after(() => exports?.stop());
 	const root = workspace(t, { additions: false });
 	const snapshots = await stand(t, { behaviors, delay, host });
 	const events = [];
 	const bus = new Events();
 	bus.subscribe((type, data) => events.push({ type, ...data }));
-	const exports = new Exports(root, { events: bus, environment: { BEYOND_SNAPSHOTS_ORIGINS: snapshots.origin, ...environment } });
+	exports = new Exports(root, { events: bus, environment: { BEYOND_SNAPSHOTS_ORIGINS: snapshots.origin, ...environment } });
 	await exports.start();
-	t.after(() => exports.stop());
 	const created = await exports.create(packages);
 	return { root, snapshots, exports, created, events };
 };
@@ -232,12 +235,13 @@ test('removing an export cancels its transfer and removes its archives', async t
 });
 
 test('a Snapshots origin the paired page declared, or the setting holds, admits a transfer of that caller', async t => {
+	let exports;
+	t.after(() => exports?.stop());
 	const root = workspace(t, { additions: false });
 	const snapshots = await stand(t, {});
 	let configured = [];
-	const exports = new Exports(root, { environment: {}, settings: () => configured });
+	exports = new Exports(root, { environment: {}, settings: () => configured });
 	await exports.start();
-	t.after(() => exports.stop());
 	const created = await exports.create(['packages/plain']);
 	const body = () => ({ capture: { id: CAPTURE }, grants: snapshots.grants(CAPTURE, ['packages/plain']) });
 

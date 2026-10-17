@@ -28,6 +28,9 @@ import { Transfer } from './transfer.mjs';
  * ```
  */
 export class Exports {
+	/** Milliseconds `stop` waits for the transfers it cancelled to write their last record */
+	static STOP = 5000;
+
 	static PROTOCOL = 'beyond-dev-exports/1';
 	static RETENTION = new Deadline('BEYOND_EXPORT_RETENTION', 86400000);
 	static UPLOAD = new Deadline('BEYOND_EXPORT_UPLOAD_TIMEOUT', 120000);
@@ -109,11 +112,16 @@ export class Exports {
 	}
 
 	/**
-	 * Stops sweeping and ends the transfers that run; their packages are left as the record says
+	 * Stops sweeping and ends the transfers that run; their packages are left as the record says. The promise settles
+	 * once every cancelled transfer wrote its last record, or after `Exports.STOP` milliseconds, so whoever removes the
+	 * workspace next never races a write
 	 */
 	stop() {
 		clearInterval(this.#timer);
-		this.#active.forEach(({ transfer }) => transfer.cancel());
+		const running = [...this.#active.values()].map(({ transfer, running }) => (transfer.cancel(), running));
+		let timer;
+		const bound = new Promise(resolve => (timer = setTimeout(resolve, Exports.STOP)));
+		return Promise.race([Promise.allSettled(running), bound]).finally(() => clearTimeout(timer));
 	}
 
 	#expired(record) {
@@ -235,7 +243,7 @@ export class Exports {
 			Object.assign(entry, outcome);
 			await this.#save(active.record);
 		};
-		transfer
+		active.running = transfer
 			.start({ archives, slots: this.#slots, timeout: this.#timeout, save })
 			.catch(() => void 0)
 			.finally(() => this.#active.get(id) === active && this.#active.delete(id));
