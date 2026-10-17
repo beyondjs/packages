@@ -1,0 +1,16 @@
+{
+	"name": "@fixture/maps",
+	"version": "1.0.0",
+	"exports": {
+		"./math": "./lib/math.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts"
+		}
+	}
+}
