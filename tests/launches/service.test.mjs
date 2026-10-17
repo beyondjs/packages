@@ -1,5 +1,6 @@
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:net';
 import { Served } from './support/served.mjs';
 
 /**
@@ -47,7 +48,7 @@ test('a service started with it claims the launch capability and has no launch y
 	assert.equal(served.session.capabilities.launch, 1);
 	const { status, body } = await served.send('GET', '/launches');
 	assert.equal(status, 200);
-	assert.deepEqual(body, { protocol: 'beyond-launches/1', launches: [] });
+	assert.deepEqual(body, { protocol: 'beyond-launches/1', launches: [], listeners: [] });
 });
 
 test('a backend target starts, is ready once it says so, answers, runs once and stops on request', async t => {
@@ -87,6 +88,36 @@ test('a backend target starts, is ready once it says so, answers, runs once and 
 	assert.ok(end.includes('fixture API stopping'), end.join('\n'));
 	assert.throws(() => process.kill(ready.pid, 0), { code: 'ESRCH' });
 	await assert.rejects(fetch(`${address}/health`, { signal: AbortSignal.timeout(5000) }), 'it no longer answers');
+});
+
+test('a target given a port reports its own launch as the listener, and a taken port fails the launch before it starts', async t => {
+	const settings = (await served.send('GET', '/settings')).body;
+	const port = await new Promise(resolve => {
+		const probe = createServer().listen(0, '127.0.0.1', () => {
+			const { port } = probe.address();
+			probe.close(() => resolve(port));
+		});
+	});
+	const changed = await served.send('PUT', '/settings', { body: { values: { 'targets.fixture.api.environment': { PORT: String(port) } } }, headers: { 'if-match': `"${settings.revision}"` } });
+	assert.equal(changed.status, 200, JSON.stringify(changed.body));
+	t.after(() => served.send('PUT', '/settings', { body: { values: { 'targets.fixture.api.environment': null } }, headers: { 'if-match': `"${changed.body.document.revision}"` } }));
+
+	const created = await served.send('POST', '/launches', { body: { application: 'fixture', target: 'api' }, key: 'request-0010' });
+	const { id } = created.body.launch;
+	const ready = await served.until(id, launch => launch.state === 'ready' || launch.state === 'failed');
+	assert.deepEqual([ready.state, ready.port], ['ready', port], JSON.stringify(ready));
+	assert.deepEqual((await served.send('GET', '/launches')).body.listeners, [{ application: 'fixture', target: 'api', port, address: '127.0.0.1', launch: id }]);
+	await served.send('POST', `/launches/${id}/stop`);
+	await served.until(id, launch => launch.state === 'exited' || launch.state === 'failed', 30000);
+
+	// Something else takes the port: the target reports it without a launch, and a launch fails at once
+	const other = createServer().listen(port, '127.0.0.1');
+	await new Promise(resolve => other.once('listening', resolve));
+	t.after(() => new Promise(resolve => other.close(resolve)));
+	assert.deepEqual((await served.send('GET', '/launches')).body.listeners, [{ application: 'fixture', target: 'api', port, address: '127.0.0.1' }]);
+	const refused = await served.send('POST', '/launches', { body: { application: 'fixture', target: 'api' }, key: 'request-0011' });
+	assert.equal(refused.status, 202);
+	assert.deepEqual([refused.body.launch.state, refused.body.launch.pid, refused.body.launch.failure], ['failed', null, { code: 'PORT_IN_USE', message: `Port ${port} is already in use`, port, address: '127.0.0.1' }]);
 });
 
 test('a frontend target is opened, not launched, and a Deno target needs an executable', async () => {
