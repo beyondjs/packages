@@ -1,8 +1,11 @@
 import type { ConditionalProcessor } from '@beyond-js/packages/sdk';
+import { Compatibility } from '@beyond-js/packages/sdk';
 import type { BaseConditional } from '@beyond-js/packages/module';
 import type { Package } from '@beyond-js/packages/package';
 import type { IWorkspaceImport } from '@beyond-js/packages/workspace';
 import * as ts from 'typescript';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import { Ambient } from './ambient';
 
 /**
@@ -26,12 +29,26 @@ interface IResolver {
  * declaration is resolved for the package that declaration belongs to. A public specifier is one ambient
  * module of the program, declared by the first instance it reaches; an alias of a member is declared under its
  * own name ([Ambient](./ambient.ts)).
+ *
+ * A specifier of a Kernel family (`@beyond-js/kernel/routing`) is the module of the runtime the bundler of the
+ * checked module selects, as the assembly imports it ([Compatibility](../../../../sdk/conditional/esm/compatibility.ts)),
+ * declared under the name the sources wrote. A module of the workspace whose bundler produces no declaration (the
+ * esbuild packaging mode, which compiles the development runtime) is read from its TypeScript sources instead: the
+ * program resolves its specifier to its entry point (`sources`), and its diagnostics stay its own.
  */
 export class Dependencies {
 	static WAIT = 8000;
 
 	#processor: ConditionalProcessor;
 	#subscriptions: Map<BaseConditional, () => void> = new Map();
+
+	/**
+	 * How the specifiers of the sources map to the modules of the runtime the module is assembled against
+	 */
+	get #compatibility(): Compatibility {
+		const { runtime } = <{ runtime?: unknown }>(this.#processor.conditional.module.bundler?.settings ?? {});
+		return new Compatibility(typeof runtime === 'string' && runtime ? runtime : void 0);
+	}
 
 	constructor(processor: ConditionalProcessor) {
 		this.#processor = processor;
@@ -54,6 +71,7 @@ export class Dependencies {
 	 * How the workspace satisfies a specifier for a package that imports it
 	 */
 	#resolve(specifier: string, importer: Package): IWorkspaceImport | undefined {
+		specifier = this.#compatibility.resolve(specifier);
 		const workspace = <IResolver>(<unknown>importer.workspace);
 		if (workspace?.imports) return workspace.imports.resolve(specifier, importer);
 
@@ -69,6 +87,31 @@ export class Dependencies {
 	published(specifier: string): boolean {
 		const found = this.#resolve(specifier, this.#own);
 		return !!found?.package || ['PACKAGE_AMBIGUOUS', 'PACKAGE_DUPLICATED'].includes(found?.error?.code);
+	}
+
+	/**
+	 * The specifier a source of the module imports, as the assembly imports it: a Kernel family is the module of
+	 * the runtime the bundler selects
+	 */
+	map(specifier: string): string {
+		return this.#compatibility.resolve(specifier);
+	}
+
+	/**
+	 * The entry point of a workspace module whose bundler produces no declaration, which the program reads as
+	 * source, or undefined for any other specifier
+	 */
+	source(specifier: string, importer: Package = this.#own): string | undefined {
+		const resolution = this.#resolve(specifier, importer);
+		if (!resolution?.package) return;
+		const { package: pkg, subpath } = resolution;
+		const dependency = pkg.modules?.get(subpath);
+		if (!dependency || dependency.conditionals?.get('types')) return;
+
+		const { path, entry } = <{ path?: string; entry?: string }>dependency.spec;
+		if (typeof entry !== 'string' || !/\.tsx?$/.test(entry)) return;
+		const file = join(pkg.path, path ?? '', entry);
+		return existsSync(file) ? file : void 0;
 	}
 
 	/**
@@ -142,7 +185,8 @@ export class Dependencies {
 
 		await dependency.conditionals.ready;
 		const types = dependency.conditionals.get('types');
-		if (!types) return { reason: `"${specifier}" produces no declaration: its bundler has no types conditional` };
+		// Read from its sources by the program, when they are TypeScript
+		if (!types) return this.source(specifier, importer) ? void 0 : { reason: `"${specifier}" produces no declaration: its bundler has no types conditional` };
 
 		wanted.add(types);
 		this.#subscribe(types);
