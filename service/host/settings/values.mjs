@@ -42,6 +42,32 @@ export class Origin {
 }
 
 /**
+ * A list of origins, each one as `Origin` takes it (https, or http on a loopback name), at most `Origins.LIMIT`; an
+ * empty list is the default. A variable gives them separated by commas.
+ */
+export class Origins {
+	static LIMIT = 16;
+
+	#origin = new Origin();
+
+	parse(value) {
+		if (value === null) return { value: null };
+		if (!Array.isArray(value) || value.length > Origins.LIMIT) return { message: `a list of at most ${Origins.LIMIT} origins, such as ["https://snapshots.example.com"]` };
+		const parsed = [];
+		for (const item of value) {
+			const one = this.#origin.parse(item);
+			if (one.message || one.value === null) return { message: `"${item}" is not an origin: ${one.message ?? 'null'}` };
+			parsed.includes(one.value) || parsed.push(one.value);
+		}
+		return { value: parsed.length ? parsed : null };
+	}
+
+	environment(text) {
+		return text.split(',').map(one => one.trim().replace(/\/+$/, '')).filter(Boolean);
+	}
+}
+
+/**
  * A whole number of milliseconds within a range
  */
 export class Milliseconds {

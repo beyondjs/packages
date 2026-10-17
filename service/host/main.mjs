@@ -160,7 +160,7 @@ try {
 	hosts.setup(app);
 	const session = () => workspace.refresh().then(() => description.session());
 	const announce = (type, data) => attachments.announce(type, data);
-	portable = settings.pairing ? new Portable(settings, { hosts, events, session, announce }) : void 0;
+	portable = settings.pairing ? new Portable(settings, { hosts, events, session, announce, services, log }) : void 0;
 	portable?.guard(app);
 
 	// A loopback service that neither pairs nor verifies delegated grants lets a page of another origin read only the
@@ -189,7 +189,9 @@ try {
 	// Whoever resolves or describes the workspace sees the declarations as they are now
 	app.get([Session.PATH, '/state', '/selection'], (request, response, next) => workspace.refresh().then(() => next(), next));
 
-	app.get(Session.PATH, async (request, response, next) => description.session().then(value => response.json(value), next));
+	app.get(Session.PATH, async (request, response, next) =>
+		description.session().then(value => response.json(portable ? portable.describe(request, value) : value), next)
+	);
 	app.get('/state', async (request, response, next) =>
 		description.state().then(value => response.json({ ...value, attachments: attachments.list }), next)
 	);

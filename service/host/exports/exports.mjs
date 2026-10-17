@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { Deadline } from '../../deadline.mjs';
 import { Archive } from './archive.mjs';
+import { Destinations } from './destinations.mjs';
 import { ExportError } from './error.mjs';
 import { Records } from './records.mjs';
 import { Roots } from './roots.mjs';
@@ -37,7 +38,7 @@ export class Exports {
 	#events;
 	#retention;
 	#timeout;
-	#origins;
+	#destinations;
 	#limits;
 	#clock;
 	#slots = new Slots(2);
@@ -48,42 +49,39 @@ export class Exports {
 
 	/**
 	 * @param {string} root The canonical root of the workspace
-	 * @param {{events?: import('../events.mjs').Events, environment?: object, clock?: () => number, limits?: {bytes?:
-	 * number, files?: number}}} [options] Where changes are announced, the environment that configures retention, the
-	 * upload bound and the allowed Snapshots origins (`BEYOND_SNAPSHOTS_ORIGINS`, separated by commas), the time
-	 * (tests give their own) and the bounds of one archive
+	 * @param {{events?: import('../events.mjs').Events, environment?: object, settings?: () => unknown, clock?: () =>
+	 * number, limits?: {bytes?: number, files?: number}}} [options] Where changes are announced, the environment that
+	 * configures retention, the upload bound and the Snapshots origins of `BEYOND_SNAPSHOTS_ORIGINS`, the value of the
+	 * `snapshots.origins` setting now (see `Destinations`), the time (tests give their own) and the bounds of one archive
 	 */
-	constructor(root, { events, environment = process.env, clock = Date.now, limits } = {}) {
+	constructor(root, { events, environment = process.env, settings, clock = Date.now, limits } = {}) {
 		this.#records = new Records(root);
 		this.#roots = new Roots(root);
 		this.#events = events;
 		this.#retention = Exports.RETENTION.read(environment);
 		this.#timeout = Exports.UPLOAD.read(environment);
-		this.#origins = Exports.origins(environment);
+		this.#destinations = new Destinations({ environment, settings });
 		this.#clock = clock;
 		this.#limits = limits;
 	}
 
 	/**
-	 * The allowed Snapshots origins an environment names: https origins, or http ones on a loopback name (`127.0.0.1`,
-	 * `[::1]`, `localhost` and every name under it, such as `http://snapshots.beyond.localhost:<port>`)
+	 * The Snapshots origins an environment names (`Destinations.origins`)
 	 *
 	 * @param {object} environment
-	 * @returns {string[]}
-	 * @throws {Error} For a value that is not one, which fails the start of the service
+	 * @throws {Error} For a value that is not an allowed origin
 	 */
 	static origins(environment) {
-		const values = String(environment.BEYOND_SNAPSHOTS_ORIGINS ?? '').split(',').map(value => value.trim()).filter(Boolean);
-		return values.map(value => {
-			let url;
-			try {
-				url = new URL(value);
-			} catch {
-				throw new Error(`BEYOND_SNAPSHOTS_ORIGINS names "${value}", which is not an origin`);
-			}
-			if (!Transfer.secure(url)) throw new Error(`BEYOND_SNAPSHOTS_ORIGINS names "${value}", which is neither an https origin nor an http one on a loopback name`);
-			return url.origin;
-		});
+		return Destinations.origins(environment);
+	}
+
+	/**
+	 * The Snapshots origins a caller's transfers may upload to (`exports.destinations` of its session)
+	 *
+	 * @param {{snapshots?: string} | undefined} caller
+	 */
+	destinations(caller) {
+		return this.#destinations.for(caller);
 	}
 
 	/**
@@ -215,14 +213,15 @@ export class Exports {
 	 *
 	 * @param {string} id
 	 * @param {unknown} body `{capture: {id}, grants: [{path, upload, token, expires}]}`
+	 * @param {{snapshots?: string}} [caller] Who requests it (`Caller`), whose declared Snapshots origin is allowed
 	 * @returns {Promise<object>} The export as the transfer begins
 	 * @throws {ExportError} `EXPORT_NOT_FOUND`, `EXPORT_CONFLICT`, `EXPORT_TRANSFER_INVALID`, `EXPORT_DESTINATION`
 	 */
-	async transfer(id, body) {
+	async transfer(id, body, caller) {
 		// A transfer whose packages all have an outcome has ended, even while its last state is being written
 		const running = this.#active.get(id)?.record.transfer.packages.some(({ state }) => state === 'queued' || state === 'uploading');
 		if (running) throw new ExportError('EXPORT_CONFLICT', 'A transfer of this export runs: follow it, or remove the export to cancel it');
-		const transfer = Transfer.prepare(await this.get(id), body, { origins: this.#origins });
+		const transfer = Transfer.prepare(await this.get(id), body, { origins: this.destinations(caller) });
 
 		const active = { transfer, record: transfer.record };
 		this.#active.set(id, active);

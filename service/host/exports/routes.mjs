@@ -1,4 +1,5 @@
 import { Body, BodyError } from '../body.mjs';
+import { Caller } from '../pairing/caller.mjs';
 import { ExportError } from './error.mjs';
 
 /**
@@ -8,7 +9,7 @@ import { ExportError } from './error.mjs';
  * | --- | --- |
  * | `POST /exports {packages: [path]}` | `201 {export}`; `400 EXPORT_PACKAGE_INVALID` |
  * | `GET /exports`, `GET /exports/:id` | `200 {exports}`, `200 {export}`; `404 EXPORT_NOT_FOUND` |
- * | `POST /exports/:id/transfer {capture: {id}, grants: [{path, upload, token, expires}]}` | `202 {export}`; `403 EXPORT_DESTINATION`, `409 EXPORT_CONFLICT` |
+ * | `POST /exports/:id/transfer {capture: {id}, grants: [{path, upload, token, expires}]}` | `202 {export}`; `403 EXPORT_DESTINATION` (`details: {origin, allowed}`), `409 EXPORT_CONFLICT` |
  * | `DELETE /exports/:id` | `204`: a transfer under way is cancelled and the archives are removed |
  *
  * The routes exist on a service that pairs, where a browser reaches them only with a pairing, and their bodies are
@@ -56,7 +57,7 @@ export class ExportRoutes {
 		app.get('/exports/:id', route(async (request, response) => ExportRoutes.#answer(response, 200, { export: await this.#exports.get(request.params.id) })));
 		app.post('/exports/:id/transfer', route(async (request, response) => {
 			const transfer = await body(request);
-			ExportRoutes.#answer(response, 202, { export: await this.#exports.transfer(request.params.id, transfer) });
+			ExportRoutes.#answer(response, 202, { export: await this.#exports.transfer(request.params.id, transfer, Caller.of(request)) });
 		}));
 		app.delete('/exports/:id', route(async (request, response) => {
 			const removed = await this.#exports.remove(request.params.id);

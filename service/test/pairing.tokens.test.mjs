@@ -47,7 +47,7 @@ test('an unknown or malformed token is PAIRING_REQUIRED', t => {
 	}
 });
 
-test('a pairing expires after its lifetime, its token then answered PAIRING_EXPIRED and its observers told', t => {
+test('a pairing idle for its lifetime expires, its token then answered PAIRING_EXPIRED and its observers told', t => {
 	const time = clock();
 	const pairings = new Pairings({ clock: time, ttl: 60000 });
 	t.after(() => pairings.close());
@@ -56,8 +56,10 @@ test('a pairing expires after its lifetime, its token then answered PAIRING_EXPI
 	pairings.verify(token, ORIGIN).observe(reason => reasons.push(reason));
 
 	time.advance(59999);
-	assert.ok(pairings.verify(token, ORIGIN).pairing);
-	time.advance(1);
+	assert.ok(pairings.verify(token, ORIGIN).pairing, 'a use within the lifetime renews it');
+	time.advance(59999);
+	assert.ok(pairings.verify(token, ORIGIN).pairing, 'renewed from its last use');
+	time.advance(60000);
 	const { refusal } = pairings.verify(token, ORIGIN);
 	assert.deepEqual([refusal.status, refusal.code], [401, 'PAIRING_EXPIRED']);
 	assert.deepEqual(reasons, ['PAIRING_EXPIRED']);
@@ -120,5 +122,21 @@ test('the list says when each pairing was created, last used and expires', t => 
 	assert.deepEqual(Object.keys(listed).sort(), ['created', 'expires', 'id', 'origin', 'used']);
 	assert.equal(listed.created, pairing.created);
 	assert.equal(Date.parse(listed.used) - Date.parse(listed.created), 5000);
-	assert.equal(Date.parse(listed.expires) - Date.parse(listed.created), Pairings.TTL);
+	assert.equal(Date.parse(listed.expires) - Date.parse(listed.used), Pairings.TTL, 'the expiry slides from the last use');
+});
+
+test('however often it is used, a pairing ends at its absolute bound from its creation', t => {
+	const time = clock();
+	const pairings = new Pairings({ clock: time, ttl: 3600000, bound: 4 * 3600000 });
+	t.after(() => pairings.close());
+	const { token, pairing } = pairings.issue(ORIGIN);
+	for (let hour = 1; hour < 4; hour++) {
+		time.advance(3600000 - 1);
+		const verified = pairings.verify(token, ORIGIN);
+		assert.ok(verified.pairing, `hour ${hour}`);
+		assert.ok(Date.parse(verified.pairing.expires) <= Date.parse(pairing.created) + 4 * 3600000, 'never past the bound');
+	}
+	time.advance(3600000);
+	assert.equal(pairings.verify(token, ORIGIN).refusal.code, 'PAIRING_EXPIRED');
+	assert.equal(Pairings.BOUND, 7 * 86400000, 'seven days by default');
 });

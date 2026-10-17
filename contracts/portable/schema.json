@@ -73,7 +73,8 @@
 			"required": [
 				"code",
 				"expires",
-				"origins"
+				"origins",
+				"fragment"
 			],
 			"additionalProperties": false,
 			"properties": {
@@ -89,6 +90,11 @@
 					"items": {
 						"$ref": "#/$defs/origin"
 					}
+				},
+				"fragment": {
+					"type": "string",
+					"description": "What a command line appends to an interface link after #, never in a query: code=XXXX-XXXX",
+					"pattern": "^code=[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$"
 				}
 			}
 		},
@@ -173,6 +179,10 @@
 							},
 							"expires": {
 								"$ref": "#/$defs/time"
+							},
+							"snapshots": {
+								"$ref": "#/$defs/origin",
+								"description": "The Snapshots origin the pairing's page declared"
 							}
 						}
 					}
@@ -512,6 +522,100 @@
 							]
 						}
 					}
+				}
+			}
+		},
+		"session": {
+			"description": "What GET /session adds for the caller on a service that pairs: a paired page's own pairing, and the Snapshots origins its transfers may upload to. A page without a token is answered {protocol, capabilities, pairing: null} only",
+			"type": "object",
+			"properties": {
+				"pairing": {
+					"oneOf": [
+						{
+							"type": "null"
+						},
+						{
+							"type": "object",
+							"required": [
+								"id",
+								"origin",
+								"created",
+								"expires"
+							],
+							"additionalProperties": false,
+							"properties": {
+								"id": {
+									"$ref": "#/$defs/pairingId"
+								},
+								"origin": {
+									"$ref": "#/$defs/origin"
+								},
+								"created": {
+									"$ref": "#/$defs/time"
+								},
+								"expires": {
+									"$ref": "#/$defs/time"
+								}
+							}
+						}
+					]
+				},
+				"exports": {
+					"type": "object",
+					"required": [
+						"destinations"
+					],
+					"properties": {
+						"destinations": {
+							"type": "array",
+							"items": {
+								"$ref": "#/$defs/origin"
+							}
+						}
+					}
+				},
+				"capabilities": {
+					"$ref": "#/$defs/capabilities"
+				},
+				"protocol": {
+					"type": "string",
+					"pattern": "^beyond-dev-session/"
+				}
+			}
+		},
+		"probe": {
+			"description": "The answer to GET /session for a page of an allowed interface origin that presents no token",
+			"type": "object",
+			"required": [
+				"protocol",
+				"capabilities",
+				"pairing"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"protocol": {
+					"type": "string",
+					"pattern": "^beyond-dev-session/"
+				},
+				"capabilities": {
+					"$ref": "#/$defs/capabilities"
+				},
+				"pairing": {
+					"type": "null"
+				}
+			}
+		},
+		"declaration": {
+			"description": "The body of PUT /pairing, and the optional snapshots of POST /pairing: the Snapshots origin of the page",
+			"type": "object",
+			"required": [
+				"snapshots"
+			],
+			"additionalProperties": false,
+			"properties": {
+				"snapshots": {
+					"type": "string",
+					"pattern": "^(https://[^/?#@]+|http://(localhost|[^/?#@]+\\.localhost|127(\\.\\d{1,3}){3}|\\[::1\\])(:\\d+)?)$"
 				}
 			}
 		}

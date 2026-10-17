@@ -76,11 +76,20 @@ test('an upload address outside the allowed Snapshots origins refuses the transf
 	const { snapshots, exports, created } = await prepare(t);
 	const grants = snapshots.grants(CAPTURE, PACKAGES);
 	grants[1].upload = 'https://elsewhere.example/v1/captures/x/archive?package=packages%2Fwidgets';
-	await assert.rejects(exports.transfer(created.id, { capture: { id: CAPTURE }, grants }), error => error.code === 'EXPORT_DESTINATION' && error.status === 403);
+	await assert.rejects(exports.transfer(created.id, { capture: { id: CAPTURE }, grants }), error => {
+		assert.deepEqual([error.code, error.status], ['EXPORT_DESTINATION', 403]);
+		assert.equal(error.described.details.origin, 'https://elsewhere.example');
+		assert.ok(error.described.details.allowed.includes('https://snapshots.beyondjs.com'), 'the family default is allowed');
+		assert.doesNotMatch(error.message, /BEYOND_/, 'no variable in the message');
+		return true;
+	});
 
 	const unconfigured = new Exports(workspace(t, { additions: false }), { environment: {} });
 	const own = await unconfigured.create(['packages/plain']);
-	await assert.rejects(unconfigured.transfer(own.id, { capture: { id: CAPTURE }, grants: snapshots.grants(CAPTURE, ['packages/plain']) }), /none is configured/);
+	await assert.rejects(unconfigured.transfer(own.id, { capture: { id: CAPTURE }, grants: snapshots.grants(CAPTURE, ['packages/plain']) }), error => {
+		assert.deepEqual(error.described.details.allowed, ['https://snapshots.beyondjs.com']);
+		return error.code === 'EXPORT_DESTINATION';
+	});
 	assert.equal(snapshots.uploads.length, 0);
 	assert.equal((await exports.get(created.id)).transfer, undefined, 'the export is as it was');
 });
@@ -220,4 +229,27 @@ test('removing an export cancels its transfer and removes its archives', async t
 	const { existsSync } = await import('node:fs');
 	assert.equal(existsSync(join(root, '.beyond', 'exports', created.id)), false);
 	assert.deepEqual(snapshots.uploads.map(({ path }) => path).sort(), ['.', 'packages/widgets'], 'the third package was never sent');
+});
+
+test('a Snapshots origin the paired page declared, or the setting holds, admits a transfer of that caller', async t => {
+	const root = workspace(t, { additions: false });
+	const snapshots = await stand(t, {});
+	let configured = [];
+	const exports = new Exports(root, { environment: {}, settings: () => configured });
+	await exports.start();
+	t.after(() => exports.stop());
+	const created = await exports.create(['packages/plain']);
+	const body = () => ({ capture: { id: CAPTURE }, grants: snapshots.grants(CAPTURE, ['packages/plain']) });
+
+	await assert.rejects(exports.transfer(created.id, body(), { snapshots: 'https://other.example' }), error => error.code === 'EXPORT_DESTINATION');
+	assert.equal(snapshots.uploads.length, 0, 'nothing was sent');
+	assert.equal((await exports.transfer(created.id, body(), { snapshots: snapshots.origin })).transfer.packages[0].state, 'queued', 'the declared origin');
+	assert.equal(states(await settled(exports, created.id))['packages/plain'], 'stored');
+
+	const again = await exports.create(['packages/plain']);
+	await assert.rejects(exports.transfer(again.id, body()), error => error.code === 'EXPORT_DESTINATION', 'without a declaration');
+	configured = [snapshots.origin];
+	assert.deepEqual(exports.destinations(undefined), ['https://snapshots.beyondjs.com', snapshots.origin]);
+	assert.equal((await exports.transfer(again.id, body())).transfer.packages[0].state, 'queued', 'the setting, read at the transfer');
+	await settled(exports, again.id);
 });

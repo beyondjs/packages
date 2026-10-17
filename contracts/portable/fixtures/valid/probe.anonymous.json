@@ -1,0 +1,9 @@
+{
+	"protocol": "beyond-dev-session/1",
+	"capabilities": {
+		"pairing": 1,
+		"exports": 1,
+		"logs": 1
+	},
+	"pairing": null
+}

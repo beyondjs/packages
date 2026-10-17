@@ -1,6 +1,7 @@
 import { Deadline } from '../../deadline.mjs';
 import { Codes } from './codes.mjs';
 import { Cors } from './cors.mjs';
+import { Ledger } from './ledger.mjs';
 import { Origins } from './origins.mjs';
 import { Pairings } from './pairings.mjs';
 import { PairingRoutes } from './routes.mjs';
@@ -44,17 +45,23 @@ export class Pairing {
 
 	/**
 	 * @param {true | {origins?: string[], embeds?: string[]}} settings The `pairing` setting of the service
-	 * @param {{hosts: import('../hosts.mjs').Hosts, session: () => Promise<object>, credential: string,
-	 * environment?: object, clock?: () => number, announce?: (type: string, data: object) => void}} context The names
-	 * requests may address, the session description a paired page receives, the local credential, the environment
-	 * (`BEYOND_PAIRING_TTL`, `BEYOND_EMBED_ORIGINS`), the time (tests give their own) and where new pairings are told
+	 * @param {{hosts: import('../hosts.mjs').Hosts, session: () => Promise<object>, credential: string, root?: string,
+	 * environment?: object, clock?: () => number, announce?: (type: string, data: object) => void, log?: (...values:
+	 * unknown[]) => void}} context The names requests may address, the session description a paired page receives, the
+	 * local credential, the root of the workspace whose `.beyond/pairings.json` keeps the pairings between starts (none:
+	 * in memory only), the environment (`BEYOND_PAIRING_TTL`, `BEYOND_EMBED_ORIGINS`), the time (tests give their own),
+	 * where new pairings are told and where a pairings file that was not read or written is reported
 	 */
-	constructor(settings, { hosts, session, credential, environment = process.env, clock, announce = () => void 0 }) {
+	constructor(settings, { hosts, session, credential, root, environment = process.env, clock, announce = () => void 0, log = () => void 0 }) {
 		const given = settings === true ? {} : (settings ?? {});
 		const embeds = [...(given.embeds ?? []), ...String(environment.BEYOND_EMBED_ORIGINS ?? '').split(',').map(one => one.trim()).filter(Boolean)];
 		this.#origins = new Origins({ interfaces: given.origins ?? [], embeds });
 		this.#codes = new Codes({ clock });
-		this.#pairings = new Pairings({ clock, ttl: Pairing.TTL.read(environment) });
+		const ledger = root ? new Ledger(root) : void 0;
+		const report = message => log(`pairing: ${message}`);
+		this.#pairings = new Pairings({ clock, ttl: Pairing.TTL.read(environment), ledger, report });
+		const problem = this.#pairings.load();
+		problem && report(`${problem.code}: ${problem.message}`);
 		const previews = origin => this.#origins.previews(origin) || this.allows(origin);
 		this.#policy = new Policy(hosts, this.#pairings, { credential, previews });
 		this.#cors = new Cors((origin, request) => (this.#policy.previewing(request) ? previews(origin) : this.allows(origin)));
@@ -110,12 +117,13 @@ export class Pairing {
 	 *
 	 * @param {unknown} code
 	 * @param {string} origin
+	 * @param {{snapshots?: string}} [options] The Snapshots origin the page declares, already validated
 	 */
-	redeem(code, origin) {
+	redeem(code, origin, { snapshots } = {}) {
 		const admits = origins => origins.has(origin) || this.#origins.interface(origin);
 		const { refusal } = this.#codes.redeem(code, admits);
 		if (refusal) return { refusal };
-		const issued = this.#pairings.issue(origin);
+		const issued = this.#pairings.issue(origin, { snapshots });
 		this.#announce('paired', { id: issued.pairing.id, origin: issued.pairing.origin });
 		return issued;
 	}
@@ -168,7 +176,7 @@ export class Pairing {
 	}
 
 	/**
-	 * The service stops: every pairing ends with it
+	 * The service stops: the pairings stay in the workspace's file for its next start
 	 */
 	close() {
 		this.#pairings.close();

@@ -10,7 +10,8 @@ import { ResourcePath } from '@beyond-js/artifact-api';
  * - `reads`: what a local consumer reads on the API listener: the session and the identity of the service (`/`),
  *   the state, the selection of a module (`/selection`), the state of the installation (`GET /installation`), the
  *   compiled modules and updates, the resolution documents, the build events, the attachments and the preview.
- * - `visitor`: what anyone reaches on the API listener: `POST /pairing` and the static files of the interface (`/ui/`).
+ * - `visitor`: what anyone reaches on the API listener: `POST /pairing`, the static files of the interface (`/ui/`) and
+ *   `GET /session`, which pairing answers to a page without a token with what the service implements only.
  *
  * `compiled` names the routes of the compiled-module contract, whose cross-origin rules are that contract's.
  */
@@ -78,7 +79,7 @@ export class Scope {
 	 */
 	static visitor(method, path) {
 		if (method === 'POST') return Scope.normalized(path) === '/pairing';
-		return Scope.#read(method) && Scope.#test(Scope.#INTERFACE, path);
+		return Scope.#read(method) && (Scope.#test(Scope.#INTERFACE, path) || Scope.normalized(path) === '/session');
 	}
 
 	/**

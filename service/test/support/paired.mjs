@@ -36,9 +36,10 @@ export const BROWSER = 'target=browser&format=esm&env=development&min=false&sour
  * ```
  *
  * @param {import('node:test').TestContext} t
- * @param {{pairing?: false | object, bind?: string, environment?: object}} [options]
+ * @param {{pairing?: false | object, bind?: string, environment?: object, services?: {get: (name: string) => any}}}
+ * [options] `services` stands for what the host's features share, such as the settings
  */
-export const compose = async (t, { pairing = { origins: [UI], embeds: [EMBED] }, bind = '127.0.0.1', environment = {} } = {}) => {
+export const compose = async (t, { pairing = { origins: [UI], embeds: [EMBED] }, bind = '127.0.0.1', environment = {}, services } = {}) => {
 	const root = realpathSync(mkdtempSync(join(tmpdir(), 'beyond paired ')));
 	t.after(() => rmSync(root, { recursive: true, force: true }));
 	writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@fixture/paired', version: '1.0.0' }));
@@ -48,9 +49,9 @@ export const compose = async (t, { pairing = { origins: [UI], embeds: [EMBED] },
 	hosts.setup(app);
 	const attachments = new Attachments(OWNER);
 	const settings = { root, bind, credential: CREDENTIAL, pairing };
-	const session = async () => ({ protocol: 'beyond-dev-session/1' });
+	const session = async () => ({ protocol: 'beyond-dev-session/1', capabilities: { pairing: 1, exports: 1 }, workspace: { root } });
 	const announce = (type, data) => attachments.announce(type, data);
-	const portable = pairing ? new Portable(settings, { hosts, events: new Events(), session, announce, environment }) : void 0;
+	const portable = pairing ? new Portable(settings, { hosts, events: new Events(), session, announce, environment, services }) : void 0;
 	portable?.guard(app);
 	!portable && hosts.loopback && !environment.BEYOND_AUTHORITY && new SameOrigin({ environment }).setup(app);
 	portable?.setup(app);
@@ -65,7 +66,10 @@ export const compose = async (t, { pairing = { origins: [UI], embeds: [EMBED] },
 	app.get(['/m/*', '/u/*'], (request, response) => response.type('text/javascript').send('export default 1;\n'));
 	app.get('/resolution.json', (request, response) => response.json({ protocol: 'beyond-resolution/1' }));
 	attachments.setup(app);
-	app.get('/session', (request, response) => response.json({ protocol: 'beyond-dev-session/1' }));
+	app.get('/session', async (request, response) => {
+		const value = await session();
+		response.json(portable ? portable.describe(request, value) : value);
+	});
 	app.get('/preview/*', (request, response) => response.type('text/html').send('<!doctype html>'));
 	const refused = (request, response, capability) => {
 		const refusal = Caller.of(request)?.refusal(capability);
@@ -194,6 +198,7 @@ export const compose = async (t, { pairing = { origins: [UI], embeds: [EMBED] },
 		send,
 		stream,
 		pair,
+		root,
 		writes,
 		builds,
 		attach: headers => stream('/attach?kind=session', { ...local, ...headers })

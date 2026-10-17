@@ -1,5 +1,6 @@
 {
 	"code": "7KQ2-MX9U",
 	"expires": "2026-10-10T12:10:00.000Z",
-	"origins": []
+	"origins": [],
+	"fragment": "code=7KQ2-MX9U"
 }

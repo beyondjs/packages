@@ -9,6 +9,7 @@ These are local development settings, not machine administration: no port, bind 
 | Key | Value | Default | Applies | Set by the environment with |
 | --- | --- | --- | --- | --- |
 | `cdn.origin` | The CDN origin that previews address modules on under `externals: cdn` and for packages not in development: `https://…`, or `http://…` on a loopback name (`localhost`, `*.localhost`, `127.x.x.x`, `[::1]`), with no path, query, fragment or credentials; or null | null | `live`: the next description of a preview | `BEYOND_CDN_ORIGIN` |
+| `snapshots.origins` | More Snapshots origins a source export may be uploaded to, besides the family's own (`https://snapshots.beyondjs.com`) and the one the paired page declares: a list of at most 16 origins, each as `cdn.origin` takes it | `[]` | `live`: the next transfer ([portable connections](portable.md#where-a-transfer-may-upload)) | `BEYOND_SNAPSHOTS_ORIGINS`, separated by commas |
 | `previews.timeout` | Milliseconds each CDN check of a preview waits, 500–30000 | 5000 | `live`: the next description of a preview | `BEYOND_PREVIEW_CDN_TIMEOUT` |
 | `launch.deno` | The absolute path of a Deno 2 executable, or null | null | `launch`: the next launch of a Deno target ([launching execution targets](launches.md)) | `BEYOND_DENO` |
 | `targets.<application>.<target>.environment` | The variables given to a launched backend target: at most 50 names matching `[A-Z_][A-Z0-9_]*` that are not reserved (below), string values of at most 4096 characters | `{}` | `launch`: the next launch of that target | None |
@@ -16,7 +17,9 @@ These are local development settings, not machine administration: no port, bind 
 
 `<application>` and `<target>` are the identifiers of the applications catalog (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$` and `^[a-z][a-z0-9-]{0,31}$`). A target's variables are kept whether or not the target is declared now, and listed when stored.
 
-**Fixed by the environment.** A setting whose variable is set, and not empty, in the environment the service started with is fixed: the document gives its value from the environment with `source: environment` and `editable: false`, a change of it is refused, and only a new start with another environment changes it. An empty variable is no value, as the readers of these variables take it.
+**Fixed by the environment.** A setting whose variable is set, and not empty, in the environment the service started with is fixed: the document gives its value from the environment with `source: environment`, `editable: false` and `reason: {code: 'SETTING_FIXED', message: 'Set when the server was started; start it again to change it'}`, a change of it is refused, and only a new start with another environment changes it. The variable is named in `variable` only, for an interface's technical details: no message of these routes names it as its text.
+
+**A default for the CDN.** `cdn.origin` stays null unless a person sets it, so a preview never points at a production CDN by itself; an interface that knows the CDN origin it is configured with offers it in place, and writes it with `PUT /settings`. A setting with `applies: restart` is changed by starting the service again (`beyond run`), which an interface says as a sentence with the command. An empty variable is no value, as the readers of these variables take it.
 
 **Not used by this service.** On a service started without the `launch` setting (every service but the one `beyond run` starts), which launches nothing, `launch.deno` is listed with `editable: false` and `reason: {code: 'LAUNCH_UNAVAILABLE', message}`, and a change of it is refused (`403 SETTING_UNAVAILABLE`) before anything is checked: no executable is ever run there.
 
@@ -55,12 +58,13 @@ Its revision is `sha256-<hex>` of its bytes, and the revision of an absent file 
 	"revision": "sha256-…",
 	"settings": [
 		{ "key": "cdn.origin", "value": "https://cdn.example.com", "default": null, "source": "file", "applies": "live", "editable": true, "variable": "BEYOND_CDN_ORIGIN" },
-		{ "key": "previews.timeout", "value": 4000, "default": 5000, "source": "environment", "applies": "live", "editable": false, "variable": "BEYOND_PREVIEW_CDN_TIMEOUT" }
+		{ "key": "snapshots.origins", "value": [], "default": [], "source": "default", "applies": "live", "editable": true, "variable": "BEYOND_SNAPSHOTS_ORIGINS" },
+		{ "key": "previews.timeout", "value": 4000, "default": 5000, "source": "environment", "applies": "live", "editable": false, "variable": "BEYOND_PREVIEW_CDN_TIMEOUT", "reason": { "code": "SETTING_FIXED", "message": "Set when the server was started; start it again to change it" } }
 	]
 }
 ```
 
-The settings are listed in the order of the table, the stored target variables after `launch.deno` sorted by key. `source` is `default`, `file` or `environment`; `variable` names the environment variable of a setting that has one; `reason` says why a setting this service does not use is not editable; `diagnostics`, present only when the file has a problem, holds `{key?, code, message}` with `SETTINGS_FILE_INVALID`, `SETTINGS_FILE_UNTRUSTED`, `SETTING_UNKNOWN` or `SETTING_INVALID`.
+The settings are listed in the order of the table, the stored target variables after `launch.deno` sorted by key. `source` is `default`, `file` or `environment`; `variable` names the environment variable of a setting that has one; `reason` says why a setting is not editable (`SETTING_FIXED`, `LAUNCH_UNAVAILABLE`); `diagnostics`, present only when the file has a problem, holds `{key?, code, message}` with `SETTINGS_FILE_INVALID`, `SETTINGS_FILE_UNTRUSTED`, `SETTING_UNKNOWN` or `SETTING_INVALID`.
 
 A change states the revision it was based on and names the values it changes; null sets a key back to its default (an empty object for a target's variables). It changes every value it names or none, in this order:
 
@@ -68,7 +72,7 @@ A change states the revision it was based on and names the values it changes; nu
 | --- | --- | --- |
 | `PRECONDITION_REQUIRED` | 428 | No `If-Match`, or `If-Match: *`, which names no revision a client read |
 | `CONTENT_TYPE_UNSUPPORTED`, `BODY_TOO_LARGE`, `BODY_INVALID` | 415, 413, 400 | Not sent as `Content-Type: application/json`, larger than 1 MiB, or without a `values` object (at most 200 keys) |
-| `SETTING_FIXED` | 403 | A key the environment fixes; `keys` names them |
+| `SETTING_FIXED` | 403 | A key the environment fixes; `keys` names them, and `details.variables` the variables that fix them; the message says it was set when the server was started |
 | `SETTING_UNAVAILABLE` | 403 | A key this service does not use (`launch.deno` where nothing is launched); `keys` names them |
 | `SETTING_INVALID` | 422 | One diagnostic per refused key, `{key, code: 'SETTING_INVALID' \| 'SETTING_UNKNOWN', message}`; the Deno executable is checked only once every value is otherwise valid |
 | Conflict | 409 | The file is at another revision: nothing is written, and the answer carries the current document |
@@ -81,7 +85,7 @@ A change to the values the file already holds writes nothing: its revision stays
 
 ## How each one applies
 
-- **Live.** The feature writes `cdn.origin` and `previews.timeout` into the environment of the host as `BEYOND_CDN_ORIGIN` and `BEYOND_PREVIEW_CDN_TIMEOUT` (a value set back to its default as an empty variable), and the development extension reads those variables at each use: the preview's addresses when a description is built, and its CDN checks once per description ([the development contract](development-contract.md#preview-entry)). The next description reads the new value; one being built while the value changes may hold addresses of both origins. Processes the service starts afterwards inherit the same values.
+- **Live.** The exports of a service that pairs read `snapshots.origins` at each transfer. The feature writes `cdn.origin` and `previews.timeout` into the environment of the host as `BEYOND_CDN_ORIGIN` and `BEYOND_PREVIEW_CDN_TIMEOUT` (a value set back to its default as an empty variable), and the development extension reads those variables at each use: the preview's addresses when a description is built, and its CDN checks once per description ([the development contract](development-contract.md#preview-entry)). The next description reads the new value; one being built while the value changes may hold addresses of both origins. Processes the service starts afterwards inherit the same values.
 - **At the next launch.** The launches feature reads `launch.deno` and a target's variables when it starts a process, through the settings feature it finds in the host's service registry (`services.get('settings').value(key)`), which answers the environment's value for a fixed setting, else the stored one, else the default. It checks the Deno executable again at every launch, whichever source names it, as a change of `launch.deno` is checked below (`DENO_INVALID` otherwise), and leaves the reserved variables out.
 - **When the service starts again.** A starting host reads `BEYOND_WORKSPACE_TIMEOUT` from its environment completed with the stored `workspace.timeout` ([Startup](../service/host/settings/startup.mjs)), unless the environment sets the variable itself; the running service keeps the bound it started with, and the document says `applies: restart`.
 

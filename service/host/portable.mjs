@@ -3,6 +3,7 @@ import { ExportRoutes } from './exports/routes.mjs';
 import { Exports } from './exports/exports.mjs';
 import { Hosts } from './hosts.mjs';
 import { Interface } from './interface.mjs';
+import { Caller } from './pairing/caller.mjs';
 import { Pairing } from './pairing/index.mjs';
 
 /**
@@ -18,11 +19,12 @@ import { Pairing } from './pairing/index.mjs';
  * and reach no privileged route.
  *
  * ```js
- * const portable = new Portable(settings, { hosts, events, session, announce });
+ * const portable = new Portable(settings, { hosts, events, session, announce, services, log });
  * portable.guard(app);                      // before every route, after the Host check
  * portable.setup(app);                      // the routes of pairing, exports and the interface
  * await portable.start();
  * await portable.listen(app, { port, address });   // opens the preview listener: {preview, publics}
+ * portable.describe(request, session);      // the session as this caller receives it
  * ```
  *
  * A service started without the setting does not construct this and behaves as before; the Conduict runner, which
@@ -45,10 +47,13 @@ export class Portable {
 	 * local credential, the pairing setting (the configured interface and embed origins, and the public origin of an
 	 * external server, where `{port}` stands for the port of each listener) and the interface build
 	 * @param {{hosts: import('./hosts.mjs').Hosts, events: import('./events.mjs').Events, session: () => Promise<object>,
-	 * announce?: (type: string, data: object) => void, environment?: object}} context
+	 * announce?: (type: string, data: object) => void, environment?: object, services?:
+	 * import('./features.mjs').Services, log?: (...values: unknown[]) => void}} context The objects the features share
+	 * (the settings' `snapshots.origins`, read at each transfer) and where a pairings file that was not read or written
+	 * is reported
 	 * @throws {Error} For settings that cannot be served, which fails the start of the service
 	 */
-	constructor(settings, { hosts, events, session, announce, environment = process.env }) {
+	constructor(settings, { hosts, events, session, announce, environment = process.env, services, log }) {
 		if (environment.BEYOND_AUTHORITY) throw new Error('A service that pairs browsers cannot also verify delegated grants (BEYOND_AUTHORITY)');
 		if (!settings.credential) throw new Error('A service that pairs browsers needs its local credential');
 		this.#hosts = hosts;
@@ -57,8 +62,9 @@ export class Portable {
 		if (!Hosts.loopback(this.#bind) && !this.#public) {
 			throw new Error(`A service that pairs browsers listens on a loopback address unless it is given its public origin, and it was asked to listen on ${this.#bind}`);
 		}
-		this.#pairing = new Pairing(settings.pairing, { hosts, session, credential: settings.credential, environment, announce });
-		this.#exports = new Exports(settings.root, { events, environment });
+		this.#pairing = new Pairing(settings.pairing, { hosts, session, credential: settings.credential, root: settings.root, environment, announce, log });
+		const configured = () => services?.get('settings')?.value('snapshots.origins') ?? [];
+		this.#exports = new Exports(settings.root, { events, environment, settings: configured });
 		this.#interface = settings.interface ? new Interface(settings.interface) : void 0;
 	}
 
@@ -87,6 +93,19 @@ export class Portable {
 	 */
 	get capabilities() {
 		return { ...this.#pairing.capabilities, ...this.#exports.capabilities, ...(this.#interface?.capabilities ?? {}) };
+	}
+
+	/**
+	 * The session description as the caller of a request receives it: a paired page's own pairing (`pairing: {id,
+	 * origin, created, expires}`) and the Snapshots origins its transfers may upload to (`exports: {destinations}`)
+	 *
+	 * @param {import('node:http').IncomingMessage} request
+	 * @param {object} session
+	 */
+	describe(request, session) {
+		const caller = Caller.of(request);
+		const pairing = caller?.kind === 'paired' ? { pairing: { ...caller.pairing } } : {};
+		return { ...session, ...pairing, exports: { destinations: this.#exports.destinations(caller) } };
 	}
 
 	/**
@@ -147,7 +166,8 @@ export class Portable {
 	}
 
 	/**
-	 * The service stops: the preview listener closes, transfers end where they are, and every pairing ends
+	 * The service stops: the preview listener closes, transfers end where they are, and the pairings stay in the
+	 * workspace's file for its next start
 	 */
 	async stop() {
 		this.#exports.stop();

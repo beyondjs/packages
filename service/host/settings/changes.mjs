@@ -2,7 +2,7 @@ import { SettingsError } from './error.mjs';
 
 /**
  * The values a request asks to change, validated whole before anything is written: a key the environment fixes is
- * refused (`403 SETTING_FIXED`, naming the keys), so is one this service does not use (`403 SETTING_UNAVAILABLE`: a
+ * refused (`403 SETTING_FIXED`, naming the keys, with the variables that fix them in `details`), so is one this service does not use (`403 SETTING_UNAVAILABLE`: a
  * Deno executable on a service that launches nothing, which runs no executable to check it), and an unknown key or a
  * refused value is reported with one diagnostic per key (`422 SETTING_INVALID`), so a request changes every value it
  * names or none. What only running a value tells (a Deno executable answering `--version`) is checked once every value
@@ -42,9 +42,9 @@ export class Changes {
 
 		const fixed = keys.filter(key => this.#catalog.find(key)?.fixed);
 		if (fixed.length) {
-			const variables = fixed.map(key => this.#catalog.find(key).variable).join(', ');
-			const message = `Nothing was changed: ${fixed.join(', ')} ${fixed.length > 1 ? 'are' : 'is'} set by the environment the service started with (${variables}); change it there and start the service again`;
-			throw new SettingsError(403, 'SETTING_FIXED', message, { keys: fixed });
+			const variables = fixed.map(key => this.#catalog.find(key).variable);
+			const message = `Nothing was changed: ${fixed.join(', ')} ${fixed.length > 1 ? 'were' : 'was'} set when the server was started; start it again to change ${fixed.length > 1 ? 'them' : 'it'}`;
+			throw new SettingsError(403, 'SETTING_FIXED', message, { keys: fixed, details: { variables } });
 		}
 
 		const unavailable = keys.filter(key => this.#catalog.find(key)?.unavailable);

@@ -1,5 +1,5 @@
 import { Deno } from './deno.mjs';
-import { Executable, Milliseconds, Origin, Variables } from './values.mjs';
+import { Executable, Milliseconds, Origin, Origins, Variables } from './values.mjs';
 
 /**
  * One setting: its key, the value it has when nothing sets it, when a change applies (`live`, at the next `launch`,
@@ -9,6 +9,12 @@ import { Executable, Milliseconds, Origin, Variables } from './values.mjs';
  * changes it.
  */
 export class Setting {
+	/**
+	 * Why a setting the environment fixes is not editable, in the words a person reads; the variable is named apart
+	 * (`variable`), for technical details only
+	 */
+	static FIXED = Object.freeze({ code: 'SETTING_FIXED', message: 'Set when the server was started; start it again to change it' });
+
 	#key;
 	#variable;
 	#default;
@@ -75,7 +81,7 @@ export class Setting {
 	 */
 	item(stored) {
 		const described = { key: this.#key, default: this.#default, applies: this.#applies, ...(this.#variable ? { variable: this.#variable } : {}) };
-		if (this.#fixed) return { ...described, value: this.#fixed.value, source: 'environment', editable: false };
+		if (this.#fixed) return { ...described, value: this.#fixed.value, source: 'environment', editable: false, reason: { ...Setting.FIXED } };
 		const value = stored !== void 0 ? { value: stored, source: 'file' } : { value: this.#default, source: 'default' };
 		if (this.#unavailable) return { ...described, ...value, editable: false, reason: { ...this.#unavailable } };
 		return { ...described, ...value, editable: true };
@@ -89,6 +95,7 @@ export class Setting {
  * | Key | Value | Applies | Variable |
  * | --- | --- | --- | --- |
  * | `cdn.origin` | The CDN origin of `externals: cdn` previews (https, or http on a loopback name), or null | `live` | `BEYOND_CDN_ORIGIN` |
+ * | `snapshots.origins` | More Snapshots origins a source export may be uploaded to, besides the family's own | `live` | `BEYOND_SNAPSHOTS_ORIGINS` |
  * | `previews.timeout` | Milliseconds of each CDN check of a preview, 500–30000 | `live` | `BEYOND_PREVIEW_CDN_TIMEOUT` |
  * | `launch.deno` | The absolute path of a Deno 2 executable, or null | `launch` | `BEYOND_DENO` |
  * | `targets.<application>.<target>.environment` | Variables given to a launched backend | `launch` | None |
@@ -123,6 +130,7 @@ export class Catalog {
 		const executable = { key: 'launch.deno', variable: 'BEYOND_DENO', default: null, applies: 'launch', kind: new Executable(deno), ...(launches ? {} : { unavailable: Catalog.LAUNCH }) };
 		const specs = [
 			{ key: 'cdn.origin', variable: 'BEYOND_CDN_ORIGIN', default: null, applies: 'live', kind: new Origin() },
+			{ key: 'snapshots.origins', variable: 'BEYOND_SNAPSHOTS_ORIGINS', default: [], applies: 'live', kind: new Origins() },
 			{ key: 'previews.timeout', variable: 'BEYOND_PREVIEW_CDN_TIMEOUT', default: 5000, applies: 'live', kind: new Milliseconds(500, 30000) },
 			executable,
 			{ key: 'workspace.timeout', variable: 'BEYOND_WORKSPACE_TIMEOUT', default: 120000, applies: 'restart', kind: new Milliseconds(10000, 600000) }
@@ -165,7 +173,7 @@ export class Catalog {
 	 */
 	items(stored) {
 		const targets = Object.keys(stored).filter(key => Catalog.target(key)).sort().map(key => this.find(key));
-		const [cdn, previews, deno, workspace] = this.settings;
-		return [cdn, previews, deno, ...targets, workspace].map(setting => setting.item(stored[setting.key]));
+		const [cdn, snapshots, previews, deno, workspace] = this.settings;
+		return [cdn, snapshots, previews, deno, ...targets, workspace].map(setting => setting.item(stored[setting.key]));
 	}
 }

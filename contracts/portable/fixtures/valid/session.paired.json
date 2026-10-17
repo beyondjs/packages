@@ -1,0 +1,19 @@
+{
+	"protocol": "beyond-dev-session/1",
+	"capabilities": {
+		"pairing": 1,
+		"exports": 1
+	},
+	"pairing": {
+		"id": "prg_0123456789ab",
+		"origin": "https://packages.example",
+		"created": "2026-10-10T12:00:00.000Z",
+		"expires": "2026-10-11T00:00:00.000Z"
+	},
+	"exports": {
+		"destinations": [
+			"https://snapshots.beyondjs.com",
+			"http://snapshots.beyond.localhost:5300"
+		]
+	}
+}

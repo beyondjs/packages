@@ -9,9 +9,9 @@ import { Upload } from './upload.mjs';
  *
  * A request names the capture and the grants: one per package that is not stored for that capture yet (every package
  * on the first transfer, the ones that are not `stored` on a later one), or nothing starts. A grant's `upload` must be
- * exactly `<origin>/v1/captures/<capture id>/archive?package=<path>`, for an allowed Snapshots origin
- * (`BEYOND_SNAPSHOTS_ORIGINS`) that is https, or http on a loopback name (`127.0.0.1`, `[::1]`, `localhost` and every
- * name under it), and that capture and package; anything else is `EXPORT_DESTINATION`. The grants stay in this
+ * exactly `<origin>/v1/captures/<capture id>/archive?package=<path>`, for an allowed Snapshots origin (`Destinations`)
+ * that is https, or http on a loopback name (`127.0.0.1`, `[::1]`, `localhost` and every name under it), and that
+ * capture and package; anything else is `EXPORT_DESTINATION`, whose details name the origin and the allowed ones. The grants stay in this
  * object's memory and are gone with it.
  *
  * ```js
@@ -99,8 +99,8 @@ export class Transfer {
 			throw Transfer.#invalid(`The grant of "${path}" names no upload address`);
 		}
 		if (!Transfer.secure(url) || !origins.includes(url.origin)) {
-			const allowed = origins.length ? `one of ${origins.join(', ')}` : 'none is configured (BEYOND_SNAPSHOTS_ORIGINS)';
-			throw new ExportError('EXPORT_DESTINATION', `The upload address of "${path}" is not on an allowed Snapshots origin: ${allowed}`);
+			const message = `This server cannot upload to Snapshots at ${url.origin}: start it with that origin allowed, or add it to its Snapshots origins in Settings`;
+			throw new ExportError('EXPORT_DESTINATION', message, { origin: url.origin, allowed: [...origins] });
 		}
 		const exact =
 			url.pathname === `/v1/captures/${encodeURIComponent(capture)}/archive` &&

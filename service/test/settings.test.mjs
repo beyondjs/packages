@@ -74,6 +74,7 @@ test('the document lists the bounded settings with their defaults, when they app
 	assert.equal(body.diagnostics, void 0);
 	assert.deepEqual(body.settings, [
 		{ key: 'cdn.origin', default: null, applies: 'live', variable: 'BEYOND_CDN_ORIGIN', value: null, source: 'default', editable: true },
+		{ key: 'snapshots.origins', default: [], applies: 'live', variable: 'BEYOND_SNAPSHOTS_ORIGINS', value: [], source: 'default', editable: true },
 		{ key: 'previews.timeout', default: 5000, applies: 'live', variable: 'BEYOND_PREVIEW_CDN_TIMEOUT', value: 5000, source: 'default', editable: true },
 		{ key: 'launch.deno', default: null, applies: 'launch', variable: 'BEYOND_DENO', value: null, source: 'default', editable: true },
 		{ key: 'workspace.timeout', default: 120000, applies: 'restart', variable: 'BEYOND_WORKSPACE_TIMEOUT', value: 120000, source: 'default', editable: true }
@@ -87,7 +88,7 @@ test('a value the environment sets is fixed: it says so, the feature returns it,
 	const environment = { BEYOND_PREVIEW_CDN_TIMEOUT: '4000', BEYOND_CDN_ORIGIN: '' };
 	const { send, change, feature, file } = await served(t, { environment });
 	const { body } = await send('GET');
-	assert.deepEqual(item(body, 'previews.timeout'), { key: 'previews.timeout', default: 5000, applies: 'live', variable: 'BEYOND_PREVIEW_CDN_TIMEOUT', value: 4000, source: 'environment', editable: false });
+	assert.deepEqual(item(body, 'previews.timeout'), { key: 'previews.timeout', default: 5000, applies: 'live', variable: 'BEYOND_PREVIEW_CDN_TIMEOUT', value: 4000, source: 'environment', editable: false, reason: { code: 'SETTING_FIXED', message: 'Set when the server was started; start it again to change it' } });
 	assert.equal(item(body, 'cdn.origin').source, 'default', 'an empty variable is no value');
 	assert.equal(feature.value('previews.timeout'), 4000);
 
@@ -95,9 +96,33 @@ test('a value the environment sets is fixed: it says so, the feature returns it,
 	assert.equal(refused.status, 403);
 	assert.equal(refused.body.error.code, 'SETTING_FIXED');
 	assert.deepEqual(refused.body.error.keys, ['previews.timeout']);
-	assert.match(refused.body.error.message, /BEYOND_PREVIEW_CDN_TIMEOUT/);
+	assert.doesNotMatch(refused.body.error.message, /BEYOND_/, 'the variable is never the message');
+	assert.match(refused.body.error.message, /set when the server was started/);
+	assert.deepEqual(refused.body.error.details, { variables: ['BEYOND_PREVIEW_CDN_TIMEOUT'] });
 	await assert.rejects(stat(file), { code: 'ENOENT' }, 'nothing was written');
 	assert.equal(environment.BEYOND_PREVIEW_CDN_TIMEOUT, '4000', 'a fixed variable is never written');
+});
+
+test('the Snapshots origins are a list of https or loopback origins, kept and read live, and refused whole otherwise', async t => {
+	const { send, change, feature } = await served(t);
+	const { body } = await send('GET');
+	for (const value of [['http://snapshots.example.com'], ['https://snapshots.example.com/v1'], 'https://snapshots.example.com', [7]]) {
+		const refused = await change({ 'snapshots.origins': value }, body.revision);
+		assert.deepEqual([refused.status, refused.body.error.code], [422, 'SETTING_INVALID'], JSON.stringify(value));
+	}
+	const changed = await change({ 'snapshots.origins': ['https://snapshots.example.com/', 'http://snapshots.beyond.localhost:5300'] }, body.revision);
+	assert.equal(changed.status, 200);
+	assert.deepEqual(feature.value('snapshots.origins'), ['https://snapshots.example.com', 'http://snapshots.beyond.localhost:5300']);
+	assert.deepEqual(item(changed.body.document, 'snapshots.origins').source, 'file');
+	const cleared = await change({ 'snapshots.origins': null }, changed.body.document.revision);
+	assert.deepEqual([cleared.status, feature.value('snapshots.origins')], [200, []]);
+});
+
+test('Snapshots origins the server was started with are fixed, as a list', async t => {
+	const { send, feature } = await served(t, { environment: { BEYOND_SNAPSHOTS_ORIGINS: 'https://a.example, http://127.0.0.1:5300/' } });
+	const { body } = await send('GET');
+	assert.deepEqual([item(body, 'snapshots.origins').value, item(body, 'snapshots.origins').editable], [['https://a.example', 'http://127.0.0.1:5300'], false]);
+	assert.deepEqual(feature.value('snapshots.origins'), ['https://a.example', 'http://127.0.0.1:5300']);
 });
 
 test('a change needs the revision it was based on, as JSON, and a stale revision is a conflict that writes nothing', async t => {
@@ -211,6 +236,7 @@ test('the variables of a target are kept per target, listed after the Deno execu
 	assert.equal(answer.status, 200);
 	assert.deepEqual(answer.body.document.settings.map(({ key }) => key), [
 		'cdn.origin',
+		'snapshots.origins',
 		'previews.timeout',
 		'launch.deno',
 		'targets.admin.server.environment',

@@ -1,19 +1,25 @@
 import { Body, BodyError } from '../body.mjs';
+import { Origin } from '../settings/values.mjs';
 import { Caller } from './caller.mjs';
+import { Policy } from './policy.mjs';
 
 /**
  * The HTTP mapping of `beyond-dev-pairing/1`:
  *
  * | Route | Caller | Answer |
  * | --- | --- | --- |
- * | `POST /pairing/codes` (`{origins?}` or no body) | A local tool (the local credential) | `201 {code, expires, origins}` |
- * | `POST /pairing` `{code}` | A browser page of an allowed interface origin | `201 {token, expires, pairing: {id, origin, created}, session}` |
+ * | `POST /pairing/codes` (`{origins?}` or no body) | A local tool (the local credential) | `201 {code, expires, origins, fragment}` |
+ * | `POST /pairing` `{code, snapshots?}` | A browser page of an allowed interface origin | `201 {token, expires, pairing: {id, origin, created}, session}` |
+ * | `PUT /pairing` `{snapshots}` | The paired page | `204`: the Snapshots origin of its pairing |
  * | `DELETE /pairing` | The paired page | `204`: its pairing ends |
  * | `GET /pairings`, `DELETE /pairings`, `DELETE /pairings/:id` | A local tool | The pairings, and their revocation |
+ * | `GET /session` without a token | A browser page of an allowed interface origin | `200 {protocol, capabilities, pairing: null}` |
  *
  * A route of local tools is refused to any other caller with `401 CREDENTIAL_REQUIRED`, a paired page included: a
- * pairing never creates another one. Every answer is `no-store`, and a code or a token is never logged, written to
- * disk or put in an address.
+ * pairing never creates another one. Every answer is `no-store`, and a code or a token is never logged or written to
+ * disk. A code may travel in the fragment of an interface link (`fragment`, `code=XXXX-XXXX`), which a browser never
+ * sends to a server or in a `Referer`; never in a query. A page without a token learns only what the service
+ * implements from `GET /session`; any other caller is answered with the refusal its credentials give.
  */
 export class PairingRoutes {
 	static LIMIT = 4096;
@@ -77,7 +83,23 @@ export class PairingRoutes {
 	async #code(request, response) {
 		if (PairingRoutes.#local(request, response)) return;
 		const body = await new Body(request, { limit: PairingRoutes.LIMIT, empty: true }).read();
-		PairingRoutes.#answer(response, 201, this.#pairing.code(this.#origins(body)));
+		const created = this.#pairing.code(this.#origins(body));
+		PairingRoutes.#answer(response, 201, { ...created, fragment: `code=${created.code}` });
+	}
+
+	/**
+	 * The Snapshots origin a page declares: https, or http on a loopback name or one under `localhost`, with no path,
+	 * query, fragment or credentials
+	 *
+	 * @throws {BodyError} `400 PAIRING_DESTINATION_INVALID`
+	 */
+	static destination(value) {
+		const parsed = value === null ? { message: 'null' } : new Origin().parse(value);
+		if (parsed.message) {
+			const message = 'The Snapshots origin is https, or http on a loopback name, with no path, query, fragment or credentials, such as "https://snapshots.example.com"';
+			throw new BodyError(400, 'PAIRING_DESTINATION_INVALID', message);
+		}
+		return parsed.value;
 	}
 
 	async #pair(request, response) {
@@ -89,13 +111,40 @@ export class PairingRoutes {
 			return PairingRoutes.#refuse(response, 403, 'PAIRING_ORIGIN', `Pages of ${origin} cannot pair with this service: it is not one of its interface origins`);
 		}
 
-		const { code } = await new Body(request, { limit: PairingRoutes.LIMIT }).read();
-		const redeemed = this.#pairing.redeem(code, origin);
+		const { code, snapshots } = await new Body(request, { limit: PairingRoutes.LIMIT }).read();
+		// A declaration that is not an origin is refused before the code is used, which stays valid for another attempt
+		const declared = snapshots === undefined ? void 0 : PairingRoutes.destination(snapshots);
+		const redeemed = this.#pairing.redeem(code, origin, { snapshots: declared });
 		if (redeemed.refusal) return PairingRoutes.#refuse(response, redeemed.refusal.status, redeemed.refusal.code, redeemed.refusal.message);
 
 		const { token, expires, pairing } = redeemed;
 		const session = await this.#session();
 		PairingRoutes.#answer(response, 201, { token, expires, pairing: { id: pairing.id, origin: pairing.origin, created: pairing.created }, session });
+	}
+
+	async #declare(request, response) {
+		const caller = Caller.of(request);
+		if (caller?.kind !== 'paired') return PairingRoutes.#refuse(response, 404, 'PAIRING_NOT_FOUND', 'This request presents no pairing to declare a Snapshots origin for');
+		const { snapshots } = await new Body(request, { limit: PairingRoutes.LIMIT }).read();
+		caller.declare(PairingRoutes.destination(snapshots));
+		PairingRoutes.#answer(response, 204);
+	}
+
+	/**
+	 * What a page without a token learns: what the service implements, and that it is not paired. Any other caller
+	 * reaches the session route, or its refusal
+	 */
+	async #probe(request, response, next) {
+		const caller = Caller.of(request);
+		if (caller?.kind !== 'visitor') return next();
+		const { origin } = request.headers;
+		const anonymous = request.headers.authorization === undefined && Policy.browser(request) && origin && origin !== 'null' && this.#pairing.allows(origin);
+		if (!anonymous) {
+			const { status, code, message } = caller.refusal('session.read');
+			return PairingRoutes.#refuse(response, status, code, message);
+		}
+		const { protocol, capabilities } = await this.#session();
+		PairingRoutes.#answer(response, 200, { protocol, capabilities, pairing: null });
 	}
 
 	#leave(request, response) {
@@ -125,11 +174,13 @@ export class PairingRoutes {
 	setup(app) {
 		const route = handler => (request, response, next) =>
 			Promise.resolve()
-				.then(() => handler(request, response))
+				.then(() => handler(request, response, next))
 				.catch(error => (error instanceof BodyError ? PairingRoutes.#answer(response, error.status, error.body) : next(error)));
 
 		app.post('/pairing/codes', route((request, response) => this.#code(request, response)));
 		app.post('/pairing', route((request, response) => this.#pair(request, response)));
+		app.put('/pairing', route((request, response) => this.#declare(request, response)));
+		app.get('/session', route((request, response, next) => this.#probe(request, response, next)));
 		app.delete('/pairing', route((request, response) => this.#leave(request, response)));
 		app.get('/pairings', route((request, response) => this.#list(request, response)));
 		app.delete('/pairings', route((request, response) => this.#revoke(request, response)));

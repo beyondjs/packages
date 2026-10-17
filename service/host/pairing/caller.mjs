@@ -55,20 +55,44 @@ export class Caller {
 	#pairing;
 	#observe;
 	#leave;
+	#snapshots;
+	#declare;
 
 	/**
 	 * @param {'local' | 'paired' | 'consumer' | 'visitor' | 'previewer'} kind
 	 * @param {{refusal?: {status: number, code: string, message: string}, pairing?: object, observe?: Function,
-	 * leave?: Function}} [details] Why a caller lacks a capability (what its token answered, `PAIRING_REQUIRED` without
-	 * one, `CREDENTIAL_REQUIRED` for a process) and, for a paired caller, its pairing, how to observe its end and how to
-	 * end it
+	 * leave?: Function, snapshots?: string, declare?: Function}} [details] Why a caller lacks a capability (what its token
+	 * answered, `PAIRING_REQUIRED` without one, `CREDENTIAL_REQUIRED` for a process) and, for a paired caller, its
+	 * pairing, how to observe its end, how to end it, the Snapshots origin it declared and how it declares one
 	 */
-	constructor(kind, { refusal = Pairings.refusal('PAIRING_REQUIRED'), pairing, observe, leave } = {}) {
+	constructor(kind, { refusal = Pairings.refusal('PAIRING_REQUIRED'), pairing, observe, leave, snapshots, declare } = {}) {
 		this.#kind = kind;
 		this.#refusal = refusal;
 		this.#pairing = pairing;
 		this.#observe = observe;
 		this.#leave = leave;
+		this.#snapshots = snapshots;
+		this.#declare = declare;
+	}
+
+	/**
+	 * The Snapshots origin a paired caller declared for its pairing, undefined for none
+	 */
+	get snapshots() {
+		return this.#snapshots;
+	}
+
+	/**
+	 * Declares the Snapshots origin of a paired caller's pairing, which its transfers may upload to
+	 *
+	 * @param {string} origin A valid origin
+	 * @returns {boolean} Whether there was a pairing to declare it for
+	 */
+	declare(origin) {
+		if (!this.#declare) return false;
+		this.#declare(origin);
+		this.#snapshots = origin;
+		return true;
 	}
 
 	get kind() {

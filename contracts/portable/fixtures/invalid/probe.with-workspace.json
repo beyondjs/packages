@@ -1,0 +1,10 @@
+{
+	"protocol": "beyond-dev-session/1",
+	"capabilities": {
+		"pairing": 1
+	},
+	"pairing": null,
+	"workspace": {
+		"root": "/work"
+	}
+}

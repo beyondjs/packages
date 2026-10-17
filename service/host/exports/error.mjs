@@ -24,6 +24,7 @@ export class ExportError extends Error {
 	});
 
 	#code;
+	#details;
 	get code() {
 		return this.#code;
 	}
@@ -33,19 +34,22 @@ export class ExportError extends Error {
 	}
 
 	/**
-	 * The error as a document of an export or of an answer: `{code, message}`
+	 * The error as a document of an export or of an answer: `{code, message, details?}`
 	 */
 	get described() {
-		return { code: this.#code, message: this.message };
+		return { code: this.#code, message: this.message, ...(this.#details ? { details: structuredClone(this.#details) } : {}) };
 	}
 
 	/**
 	 * @param {string} code
 	 * @param {string} message
+	 * @param {object} [details] What a client shows under technical details, such as the origin of `EXPORT_DESTINATION`
+	 * and the allowed ones
 	 */
-	constructor(code, message) {
+	constructor(code, message, details) {
 		super(message);
 		this.name = 'ExportError';
 		this.#code = code;
+		this.#details = details;
 	}
 }

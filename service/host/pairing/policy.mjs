@@ -107,8 +107,8 @@ export class Policy {
 		}
 		if (browser) {
 			if (scheme?.toLowerCase() !== 'bearer') return new Caller('visitor');
-			const { refusal, pairing, observe, leave } = this.#pairings.verify(value, this.#origin(request));
-			return refusal ? new Caller('visitor', { refusal }) : new Caller('paired', { pairing, observe, leave });
+			const { refusal, ...verified } = this.#pairings.verify(value, this.#origin(request));
+			return refusal ? new Caller('visitor', { refusal }) : new Caller('paired', verified);
 		}
 
 		const forwarded = Forwarding.of(request.headers);

@@ -1,0 +1,11 @@
+{
+	"code": "7KQ2-MX9D",
+	"expires": "2026-10-10T12:10:00.000Z",
+	"origins": [
+		"http://127.0.0.1:4000",
+		"http://localhost:4000",
+		"http://[::1]:4000",
+		"https://packages.example"
+	],
+	"fragment": "?code=7KQ2-MX9D"
+}
