@@ -8,7 +8,7 @@ import { LaunchError } from './error.mjs';
  *
  * | Route | Answer |
  * | --- | --- |
- * | `GET /launches` | `200 {protocol, launches}`, the newest first |
+ * | `GET /launches` | `200 {protocol, launches, listeners}`, the launches newest first, and the declared targets whose port something listens on (`{application, target, port, address, launch?}`) |
  * | `POST /launches {application, target}` with `Idempotency-Key` | `202 {launch}` (`Location: /launches/<id>`); the same key answers the same launch (`200`); `409 LAUNCH_RUNNING`; `422 TARGET_NOT_LAUNCHABLE`; `404 APPLICATION_NOT_FOUND`, `TARGET_NOT_FOUND` |
  * | `GET /launches/:id` | `200 {launch}`; `404 LAUNCH_NOT_FOUND` |
  * | `POST /launches/:id/stop` | `202 {launch}`; `409 LAUNCH_ENDED` |
@@ -111,8 +111,9 @@ export class LaunchRoutes {
 	 */
 	setup(app) {
 		const route = LaunchRoutes.#route;
-		app.get('/launches', route('inspect.read', (request, response) => {
-			LaunchRoutes.#answer(response, 200, { protocol: LaunchRoutes.PROTOCOL, launches: this.#launches.list() });
+		app.get('/launches', route('inspect.read', async (request, response) => {
+			const listeners = await this.#launches.listeners();
+			LaunchRoutes.#answer(response, 200, { protocol: LaunchRoutes.PROTOCOL, launches: this.#launches.list(), listeners });
 		}));
 		app.post('/launches', route('launch.run', async (request, response) => {
 			const key = LaunchRoutes.#key(request);

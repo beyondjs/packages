@@ -25,11 +25,14 @@ export class Target {
 	#specifier;
 	#environment;
 	#readiness;
+	#port;
 
 	/**
-	 * @param {{application: string, target: string, specifier: string, environment: 'node' | 'deno', readiness?: string}} values
+	 * @param {{application: string, target: string, specifier: string, environment: 'node' | 'deno', readiness?: string,
+	 * port?: number}} values
 	 */
-	constructor({ application, target, specifier, environment, readiness }) {
+	constructor({ application, target, specifier, environment, readiness, port }) {
+		this.#port = port;
 		this.#application = application;
 		this.#target = target;
 		this.#specifier = specifier;
@@ -58,6 +61,13 @@ export class Target {
 	 */
 	get readiness() {
 		return this.#readiness;
+	}
+
+	/**
+	 * The port its declaration names (`port`), undefined when it names none
+	 */
+	get port() {
+		return this.#port;
 	}
 
 	/**
@@ -127,6 +137,7 @@ export class Target {
 
 		const output = declared.readiness?.output;
 		const readiness = typeof output === 'string' && output ? output : void 0;
-		return new Target({ application, target, specifier, environment, readiness });
+		const port = Number.isInteger(declared.port) && declared.port > 0 && declared.port < 65536 ? declared.port : void 0;
+		return new Target({ application, target, specifier, environment, readiness, port });
 	}
 }

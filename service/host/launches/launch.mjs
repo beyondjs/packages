@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { Failure } from './failure.mjs';
 import { Group } from './group.mjs';
 import { Output } from './output.mjs';
 
@@ -13,7 +14,7 @@ import { Output } from './output.mjs';
  * | `ready` | Its declared readiness text appeared in its output |
  * | `stopping` | It was asked to stop: `SIGTERM` to its group, `SIGKILL` once the bound of the stop passes |
  * | `exited` | It ended after a stop, or by itself with code 0 (once ready, when a readiness is declared) |
- * | `failed` | It could not be started, or it ended by itself otherwise; `reason` says how, with the end of its output |
+ * | `failed` | It could not be started, or it ended by itself otherwise; `reason` says how, with the end of its output, and `failure` why, in a person's words (`Failure`) |
  *
  * A process that lives is never said to be ready without its declared readiness (`readiness`: `observed`, `waiting`
  * or `undeclared`), and nothing here says that it serves.
@@ -48,6 +49,7 @@ export class Launch {
 	#ended;
 	#exit;
 	#reason;
+	#failure;
 	#observed = false;
 	#gone = false;
 	#requested = false;
@@ -57,17 +59,20 @@ export class Launch {
 	#timer;
 	#finish;
 	#diagnostics;
+	#port;
 	#ending = new Promise(resolve => (this.#finish = resolve));
 
 	/**
 	 * @param {{application: string, target: string, specifier: string, environment: string, readiness?: string}} target
 	 * What is launched, and the text whose appearance in the output makes the process ready
 	 * @param {{changed?: (launch: Launch) => void, announce?: (launch: Launch) => void, clock?: {now(): number},
-	 * diagnostics?: {code: string, message: string}[]}} [options] Called when the state changes, and when lines arrived
-	 * (at most four times a second); what the preparation of its command said (a variable it did not give)
+	 * diagnostics?: {code: string, message: string}[], port?: number}} [options] Called when the state changes, and when
+	 * lines arrived (at most four times a second); what the preparation of its command said (a variable it did not give);
+	 * the port it is given to listen on, when it is known
 	 */
-	constructor(target, { changed = () => void 0, announce = () => void 0, clock = Date, diagnostics = [] } = {}) {
+	constructor(target, { changed = () => void 0, announce = () => void 0, clock = Date, diagnostics = [], port } = {}) {
 		this.#target = target;
+		this.#port = port;
 		this.#changed = changed;
 		this.#clock = clock;
 		this.#diagnostics = diagnostics.map(diagnostic => ({ ...diagnostic }));
@@ -84,6 +89,13 @@ export class Launch {
 
 	get target() {
 		return this.#target.target;
+	}
+
+	/**
+	 * The port it is given to listen on, undefined when it is not known
+	 */
+	get port() {
+		return this.#port;
 	}
 
 	get state() {
@@ -146,6 +158,22 @@ export class Launch {
 	}
 
 	/**
+	 * Fails the launch before any process is started, as when the port it listens on is taken
+	 *
+	 * @param {{code: string, message: string}} failure
+	 */
+	refuse(failure) {
+		this.#started = this.#now();
+		this.#gone = true;
+		this.#ended = this.#started;
+		this.#failure = { ...failure };
+		this.#reason = { code: 'LAUNCH_REFUSED', message: `Nothing was started: ${failure.message}` };
+		this.#output.close();
+		this.#set('failed');
+		this.#finish();
+	}
+
+	/**
 	 * Asks the process to stop: `SIGTERM` to its group now, `SIGKILL` to whatever of the group remains once the bound
 	 * passed. Asking again while it stops changes nothing.
 	 *
@@ -190,7 +218,9 @@ export class Launch {
 			...(this.#ended ? { ended: this.#ended } : {}),
 			...(this.#exit ? { exit: { ...this.#exit } } : {}),
 			readiness: readiness ? (this.#observed ? 'observed' : 'waiting') : 'undeclared',
+			...(this.#port ? { port: this.#port } : {}),
 			...(this.#reason ? { reason: { ...this.#reason, ...(this.#reason.tail ? { tail: [...this.#reason.tail] } : {}) } } : {}),
+			...(this.#failure ? { failure: { ...this.#failure } } : {}),
 			...(this.#diagnostics.length ? { diagnostics: this.#diagnostics.map(diagnostic => ({ ...diagnostic })) } : {})
 		};
 	}
@@ -251,6 +281,7 @@ export class Launch {
 			const how = signal ? `by the signal ${signal}` : `with code ${code}`;
 			const when = declared && !this.#observed ? ', before its readiness was observed' : '';
 			this.#reason = { code: 'LAUNCH_EXITED', message: `The process ended by itself ${how}${when}`, tail: this.#output.tail(Launch.TAIL) };
+			this.#failure = Failure.of({ lines: this.#output.read(0).lines.map(({ text }) => text), code, signal });
 		}
 		this.#set(expected ? 'exited' : 'failed');
 		this.#finish();

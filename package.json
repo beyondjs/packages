@@ -16,6 +16,8 @@
 	},
 	"exports": {
 		"./service": "./service/index.mjs",
+		"./service/stacks": "./service/stacks/index.mjs",
+		"./service/stacks/register": "./service/stacks/register.mjs",
 		"./package.json": "./package.json"
 	},
 	"description": "BeyondJS Packages",

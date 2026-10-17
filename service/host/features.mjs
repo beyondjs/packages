@@ -14,11 +14,11 @@
  * }
  * ```
  *
- * `context` is `{root, settings, workspace, events, holds, operations, services, log, origins, environment}`: the canonical root,
+ * `context` is `{root, settings, workspace, events, holds, operations, services, log, journal, origins, environment}`: the canonical root,
  * the settings of the host (never the start token), the hosted workspace, the host's event bus (`events.emit(type,
  * data)` reaches the development extension's event stream), what keeps the service alive while work runs, the shared
  * long operations, the registry of the objects the development extension shares (`services.get('files')`,
- * `services.get('applications')`), the log, the origins of the service once it listens (`origins.api()`,
+ * `services.get('applications')`), the log, the service log its clients read (`journal`, `GET /logs`), the origins of the service once it listens (`origins.api()`,
  * `origins.preview()`), and the environment of the host. A feature that is not enabled for this
  * service (a launch on a service started without the `launch` setting, for example) mounts nothing and claims no
  * capability.
@@ -28,8 +28,10 @@ export class Features {
 	 * The features, in the order they are mounted, each loaded when the host starts
 	 */
 	static LIST = Object.freeze([
+		['logs', () => import('./logs/index.mjs')],
 		['settings', () => import('./settings/index.mjs')],
 		['launches', () => import('./launches/index.mjs')],
+		['tests', () => import('./tests/index.mjs')],
 		['dependencies', () => import('./dependencies/index.mjs')],
 		['production', () => import('./production/index.mjs')]
 	]);

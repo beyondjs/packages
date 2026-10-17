@@ -29,7 +29,7 @@ On a service that pairs, the routes are reached by paired pages and local tools 
 
 | Route | Answer |
 | --- | --- |
-| `GET /launches` | `200 {protocol: 'beyond-launches/1', launches}`, the newest first |
+| `GET /launches` | `200 {protocol: 'beyond-launches/1', launches, listeners}`: the launches, the newest first, and the declared backend targets whose port something listens on now ([what is already running](#what-is-already-running)) |
 | `POST /launches {application, target}` with `Idempotency-Key` | `202 {launch}` with `Location: /launches/<id>`; the same key for the same target answers the same launch (`200`) |
 | `GET /launches/:id` | `200 {launch}` |
 | `POST /launches/:id/stop` | `202 {launch}` |
@@ -75,7 +75,19 @@ Bodies are JSON (`Content-Type: application/json`, at most 4096 bytes); every an
 | `ready` | The readiness text the target declares (`readiness.output`) appeared in its standard output or error |
 | `stopping` | A stop was asked: `SIGTERM` to its process group, `SIGKILL` once `BEYOND_LAUNCH_STOP` passed |
 | `exited` | It ended after a stop, or by itself with code 0 (and, when it declares a readiness, after it was observed); `exit: {code, signal}` |
-| `failed` | It could not be started (`reason.code: LAUNCH_SPAWN_FAILED`), or it ended by itself otherwise (`LAUNCH_EXITED`, with `reason.tail`, the last lines of its output) |
+| `failed` | It could not be started (`reason.code: LAUNCH_SPAWN_FAILED`), its port was taken (`LAUNCH_REFUSED`, no process started), or it ended by itself otherwise (`LAUNCH_EXITED`, with `reason.tail`, the last lines of its output); `failure` says why in a person's words |
+
+**Why it failed.** A launch that failed because its port was taken, or whose process ended by itself, carries `failure: {code, message, port?, address?, specifier?}`, read from its output and its exit ([Failure](../service/host/launches/failure.mjs)); the raw output stays in `reason.tail` and the output route:
+
+| `failure.code` | When | `message` |
+| --- | --- | --- |
+| `PORT_IN_USE` | `EADDRINUSE` in its output, with `port` and `address`; or its port accepted connections just before the start | `Port 5231 is already in use` |
+| `PERMISSION_DENIED` | `EACCES` listening on a port | `Permission denied to listen on port 80` |
+| `MODULE_MISSING` | `ERR_MODULE_NOT_FOUND`, "Cannot find package" or "Cannot find module", with `specifier` | `express is imported by /work/api/server.js but is not a dependency of @app/api: add it to its dependencies and run beyond install` |
+| `SYNTAX` | A `SyntaxError` | `Syntax error: …` |
+| `EXITED` | Anything else | `The process ended by itself with code 1`, or the signal that ended it |
+
+A launch whose port is known also says it (`port`).
 
 `readiness` is `observed`, `waiting` or `undeclared`. A process that lives is never said to be ready without its declared readiness, and nothing here says that it serves: whether it answers is observed by whoever asks it. `diagnostics`, present only when there are some, is what the preparation of its command said: `LAUNCH_VARIABLE_IGNORED` with the `name` of each reserved variable the target's settings hold and that was not given ([below](#how-a-target-runs)).
 
@@ -83,11 +95,21 @@ Bodies are JSON (`Content-Type: application/json`, at most 4096 bytes); every an
 
 **Events.** On the event stream of the development extension (`GET /events`): `launch.changed {launch}` at every change of state, and `launch.output {launch, next}` when lines arrived, at most four times a second. Both carry the whole record of the launch. `launch.output` is transient: it reaches the subscribers that are open, in order with the other events, and is never kept in the replayed log, so a chatty process never pushes the source events out of it (`Development.TRANSIENT`). A client that reconnects, with its cursor or after a `resync`, reads the lines it missed with `GET /launches/:id/output?after=<the last line it has>`, and `launch.changed`, which is kept, is replayed.
 
+## What is already running
+
+A target's port is the `PORT` of the variables the settings keep for it (`targets.<application>.<target>.environment`), else the `port` its declaration names; at a launch, the `PORT` of the environment the process is given counts too (the service's own, when the settings set none). Just before a process is started, a connection to that port on `127.0.0.1` and `::1` is tried for at most 500 ms: when one is accepted, the launch fails at once with `failure.code: PORT_IN_USE` and no process is started, so an interface offers another port (the target's `PORT` setting) instead of reading a stack.
+
+`GET /launches` adds `listeners`: for every declared backend target whose port is known and accepts a connection now, `{application, target, port, address, launch?}`, where `launch` names the live launch of this service that holds it. A listener without `launch` was started outside this service: an interface says it runs, started outside Packages, and offers no stop. At most 64 targets are checked, in parallel, within the same bound.
+
 ## How a target runs
 
 The target is resolved by the catalog: the specifier a launch imports (`launch.specifier`: the public specifier of its entry, or the versioned one the catalog resolved, `entry.vspecifier`, when several local versions of its package publish it, which is how the session of the service names it, so the version its `selection` names is the one that runs), its runtime and its readiness. Its process runs in the workspace root, in a process group of its own, with the environment of the service without the service's own settings and credentials (`BEYOND_HOST_OPTIONS`, `BEYOND_SERVICE_OPTIONS`, `BEYOND_AUTHORITY`, `BEYOND_ENVIRONMENT`, `BEYOND_TRUST_LOOPBACK` and any `BEYOND_*` variable that names a token, secret, credential, password or key), and with the variables the settings feature keeps for the target (`targets.<application>.<target>.environment`), which never replace the loader configuration: a reserved name (`LD_*`, `DYLD_*`, `NODE_OPTIONS`, `NODE_PATH`, `BEE_*`, `BEYOND_*`, `DENO_*`), which a change of the settings refuses and a settings file may still hold, is not given, and the launch says so in its `diagnostics`.
 
-- **Node** runs as the command line runs a module: `node --import <register> <launcher> <specifier>`, with `BEE_URL` the API origin of the service, `BEE_ADAPTER=packages` and `BEE_IMPORT_MAP` empty, so the bootstrap's own loader configuration never reaches it.
+- **Node** runs as the command line runs a module: `node --enable-source-maps --import <stacks> --import <register> <launcher> <specifier>`, with `BEE_URL` the API origin of the service, `BEE_ADAPTER=packages` and `BEE_IMPORT_MAP` empty, so the bootstrap's own loader configuration never reaches it. `<stacks>` is `@beyond-js/packages/service/stacks/register` ([below](#uncaught-errors)).
+
+### Uncaught errors
+
+A Node target runs with source maps applied to its stacks and with `@beyond-js/packages/service/stacks/register` imported first ([service/stacks](../service/stacks/index.mjs)). An uncaught error is then printed without the frames of the toolchain (Node's internals, `@beyond-js/kernel`, BEE Node, the bootstrap, and the directories of the registration and the launcher, which the launch names in `BEYOND_STACKS_HIDDEN`), and the process ends with code 1; a stack whose frames are all the toolchain's is printed whole. A package that cannot be found is said first as what to do: `<specifier> is imported by <file> but is not a dependency of <package>: add it to its dependencies and run beyond install`, the package being the nearest `package.json` above the importing file that names one; a missing relative module is said as `<path>, imported by <file>, does not exist`. A program that listens to `uncaughtException` itself keeps its own behavior. The command line can do the same for `beyond run ./main` with `node --enable-source-maps --import @beyond-js/packages/service/stacks/register …`, and `Stacks` (`@beyond-js/packages/service/stacks`) formats an error the same way.
 - **Deno** runs `deno run --no-config --no-lock --allow-net --allow-import --allow-env --reload=<origin>/ --import-map=<origin>/importmap.json?target=node&format=esm` over [deno.mjs](../service/host/launches/deno.mjs), a module of the feature that imports the specifier. `--no-config` and `--no-lock` keep the workspace's Deno configuration and lock file out of it; `--reload=<origin>/` fetches the service's modules again at every launch, so a rebuilt module is never taken from Deno's cache, which is `<root>/.beyond/launches/deno` (`DENO_DIR`, in the state directory, whose `.gitignore` the launch writes when it is missing) and keeps what other origins delivered. The executable (the `launch` setting's, else `launch.deno`, else `BEYOND_DENO`) is checked at every launch as a change of `launch.deno` is: an absolute path to a file the service may execute that answers `--version` as Deno 2 within 5 seconds, run with only `PATH`, `HOME` and `NO_COLOR` (`DENO_INVALID` otherwise, nothing created). The target imports what the service's Node import map names: the public modules of the workspace and of the supplied packages, such as the development runtime of composed modules. Installed packages are not in that map, so a Deno target that imports one fails to load it; nor is a versioned specifier, so a Deno target whose package several local versions publish fails to load the entry its launch imports.
 
 ## Bounds and the end of the service
@@ -117,6 +139,7 @@ The live launches and the last 20 ended ones are kept in memory with their outpu
 
 ```sh
 node --test "service/test/launches*.test.mjs"     # the feature with stand-ins for the catalog, the registration, the launcher and Deno
+node --test service/test/stacks.test.mjs          # uncaught errors and missing packages, printed as a launched target prints them
 node --test tests/launches/service.test.mjs        # the real service of this checkout (PKG-A10, a Node target end to end)
 node --test tests/launches/versions.test.mjs       # the real service with two local versions of the target's package
 BEYOND_DENO=<Deno 2 executable> node --test tests/launches/deno.test.mjs   # a Deno target end to end; skipped without it

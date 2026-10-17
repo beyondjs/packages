@@ -1,5 +1,7 @@
+import { Failure } from './failure.mjs';
 import { Launch } from './launch.mjs';
 import { LaunchError } from './error.mjs';
+import { Ports } from './ports.mjs';
 import { Target } from './target.mjs';
 
 /**
@@ -21,6 +23,9 @@ import { Target } from './target.mjs';
  *   (`LAUNCH_RUNNING`); requests for one target are decided one after the other, so two at once never start two
  *   processes.
  * - **Kept in memory.** Every live launch, and the last `Launches.RETAINED` ended ones with their output.
+ * - **A taken port starts nothing.** When the port a target is given (`PORT` of its environment, or its declaration's
+ *   `port`) already accepts connections just before the start, the launch fails at once with `PORT_IN_USE` and no
+ *   process is started. `listeners()` says which declared targets' ports something listens on now.
  * - **Closed at the end.** `end()` closes the registry before it stops anything: a request decided afterwards, one whose
  *   target the catalog resolves only then included, is answered `UNAVAILABLE` (the service is ending) and starts no
  *   process, so nothing outlives the service.
@@ -36,6 +41,8 @@ export class Launches {
 	#events;
 	#bound;
 	#resolution;
+	#settings;
+	#ports;
 	#launches = new Map();
 	#requests = new Map();
 	#turns = new Map();
@@ -43,11 +50,15 @@ export class Launches {
 
 	/**
 	 * @param {{catalog: () => object | undefined, command: import('./command.mjs').Command, events?: {emit(type: string,
-	 * data: object): void}, bound: number, resolution: number}} options How to reach the catalog of applications, how a
-	 * target is run, where changes are announced, the milliseconds a stop waits before `SIGKILL`, and the milliseconds the
-	 * resolution of a target and the preparation of its command may take before the request is answered as unavailable
+	 * data: object): void}, bound: number, resolution: number, settings?: () => ({value?: (key: string) => unknown} |
+	 * undefined), ports?: Ports}} options How to reach the catalog of applications, how a target is run, where changes are
+	 * announced, the milliseconds a stop waits before `SIGKILL`, the milliseconds the resolution of a target and the
+	 * preparation of its command may take before the request is answered as unavailable, how to reach the settings (a
+	 * target's `PORT`) and what tells whether a port is taken
 	 */
-	constructor({ catalog, command, events, bound, resolution }) {
+	constructor({ catalog, command, events, bound, resolution, settings = () => void 0, ports = new Ports() }) {
+		this.#settings = settings;
+		this.#ports = ports;
 		this.#catalog = catalog;
 		this.#command = command;
 		this.#events = events;
@@ -62,6 +73,34 @@ export class Launches {
 	 */
 	list() {
 		return [...this.#launches.values()].reverse().map(launch => launch.toJSON());
+	}
+
+	/**
+	 * The declared backend targets whose port something listens on now: `{application, target, port, address, launch?}`,
+	 * `launch` naming the live launch of this service that holds it. A target's port is the `PORT` of its variables in the
+	 * settings, or the one its declaration names
+	 *
+	 * @returns {Promise<object[]>}
+	 */
+	async listeners() {
+		const catalog = this.#catalog()?.catalog?.();
+		const targets = (catalog?.applications ?? []).flatMap(application =>
+			(application.targets ?? []).filter(target => target.kind === 'backend').map(target => ({ application: application.id, target: target.id, declared: target }))
+		);
+		const settings = this.#settings();
+		const known = await Promise.all(
+			targets.slice(0, 64).map(async ({ application, target, declared }) => {
+				const variables = await settings?.value?.(`targets.${application}.${target}.environment`);
+				return { application, target, port: Ports.of(variables, declared) };
+			})
+		);
+		const found = await Promise.all(known.filter(({ port }) => port).map(async one => ({ ...one, listener: await this.#ports.listener(one.port) })));
+		return found
+			.filter(({ listener }) => listener)
+			.map(({ application, target, port, listener }) => {
+				const own = [...this.#launches.values()].find(launch => launch.live && launch.application === application && launch.target === target && launch.port === port);
+				return { application, target, port, address: listener.address, ...(own ? { launch: own.id } : {}) };
+			});
 	}
 
 	/**
@@ -219,11 +258,16 @@ export class Launches {
 		if (this.#closed) throw Launches.#ending();
 
 		const { resolved, command } = outcome;
+		// A port something already listens on fails the launch before any process starts
+		const port = Ports.of(command.env, resolved);
+		const listener = port ? await this.#ports.listener(port) : void 0;
+		if (this.#closed) throw Launches.#ending();
+
 		const changed = launch => this.#events?.emit('launch.changed', { launch: launch.toJSON() });
 		const announce = launch => this.#events?.emit('launch.output', { launch: launch.toJSON(), next: launch.output.next });
-		const launch = new Launch(resolved, { changed, announce, diagnostics: command.diagnostics });
+		const launch = new Launch(resolved, { changed, announce, diagnostics: command.diagnostics, port });
 		this.#launches.set(launch.id, launch);
-		launch.start(command);
+		listener ? launch.refuse(Failure.taken(port, listener.address)) : launch.start(command);
 		this.#prune();
 		return launch;
 	}

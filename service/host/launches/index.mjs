@@ -82,7 +82,8 @@ export class Feature {
 		// The services are read at each launch: the development extension registers its own once it is mounted
 		const readable = Feature.#readable(settings, environment);
 		const command = new Command(settings.launch, { root, environment, readable, settings: () => services?.get('settings'), origin: () => origins?.api?.() });
-		this.#launches = new Launches({ catalog: () => services?.get('applications'), command, events, bound: this.#bound, resolution });
+		const configured = () => services?.get('settings');
+		this.#launches = new Launches({ catalog: () => services?.get('applications'), command, events, bound: this.#bound, resolution, settings: configured });
 
 		// A process that exits without time for a stop leaves no launch behind
 		this.#exit = () => this.#launches.kill();

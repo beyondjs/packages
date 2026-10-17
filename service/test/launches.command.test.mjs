@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Command } from '../host/launches/command.mjs';
 import { Target } from '../host/launches/target.mjs';
@@ -102,9 +102,10 @@ test('Node runs the launcher under the registration, with the loader of the serv
 	const run = await command.of(new Target({ application: 'app', target: 'api', specifier: '@scope/api/server', environment: 'node' }));
 
 	assert.equal(run.executable, process.execPath);
-	assert.deepEqual(run.args, ['--import', pathToFileURL(SETTING.node.register).href, SETTING.node.launcher, '@scope/api/server']);
+	assert.deepEqual(run.args, ['--enable-source-maps', '--import', Command.STACKS, '--import', pathToFileURL(SETTING.node.register).href, SETTING.node.launcher, '@scope/api/server']);
 	assert.equal(run.cwd, directory);
-	assert.deepEqual(run.env, { PATH: '/usr/bin', GITHUB_TOKEN: 'the person\'s own', BEYOND_HOME: '/home/beyond', LAUNCH_VARIABLE: 'kept', BEE_URL: ORIGIN, BEE_ADAPTER: 'packages', BEE_IMPORT_MAP: '' });
+	const hidden = JSON.stringify([dirname(SETTING.node.register), dirname(SETTING.node.launcher)]);
+	assert.deepEqual(run.env, { PATH: '/usr/bin', GITHUB_TOKEN: 'the person\'s own', BEYOND_HOME: '/home/beyond', LAUNCH_VARIABLE: 'kept', BEE_URL: ORIGIN, BEE_ADAPTER: 'packages', BEE_IMPORT_MAP: '', BEYOND_STACKS_HIDDEN: hidden });
 	// The reserved names the settings file holds are left out, and each one is said
 	const ignored = ['BEE_ADAPTER', 'NODE_OPTIONS', 'LD_PRELOAD', 'DYLD_INSERT_LIBRARIES', 'NODE_PATH', 'BEYOND_DENO', 'DENO_DIR'];
 	assert.deepEqual(run.diagnostics.map(({ code, name }) => [code, name]), ignored.map(name => ['LAUNCH_VARIABLE_IGNORED', name]));
@@ -112,7 +113,7 @@ test('Node runs the launcher under the registration, with the loader of the serv
 	// File URLs are accepted as the setting gives them
 	const urls = { node: { register: pathToFileURL('/a/register.mjs').href, launcher: pathToFileURL('/a/launcher.mjs').href } };
 	const given = await new Command(urls, { root: directory, environment: {}, origin: () => ORIGIN }).of(new Target({ application: 'a', target: 'b', specifier: 'x/y', environment: 'node' }));
-	assert.deepEqual(given.args.slice(0, 3), ['--import', 'file:///a/register.mjs', '/a/launcher.mjs']);
+	assert.deepEqual(given.args.slice(3, 6), ['--import', 'file:///a/register.mjs', '/a/launcher.mjs']);
 	assert.equal(Command.valid(urls), true);
 	assert.equal(Command.valid({ node: { register: 'register.mjs', launcher: '/a/launcher.mjs' } }), false);
 	assert.equal(Command.valid({ deno: {} }), false);

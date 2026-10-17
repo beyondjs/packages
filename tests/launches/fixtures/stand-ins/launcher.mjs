@@ -82,6 +82,27 @@ const behaviors = {
 		keep();
 		end();
 	},
+	// Listens on the PORT it is given and says so
+	port() {
+		const server = createServer((request, response) => response.end('stand-in answer'));
+		server.listen(Number(process.env.PORT), '127.0.0.1', () => console.log(`stand-in listening on port ${process.env.PORT}`));
+		process.once('SIGTERM', () => server.close(() => process.exit(0)));
+	},
+	// Listens twice on one port: the second fails as a port that is taken, with Node's own uncaught EADDRINUSE
+	busy() {
+		const first = createServer().listen(0, '127.0.0.1', () => createServer().listen(first.address().port, '127.0.0.1'));
+	},
+	// Imports a package nobody installed: Node's own ERR_MODULE_NOT_FOUND
+	missing() {
+		import('stand-in-not-a-dependency').then(() => console.log('imported'));
+	},
+	// Throws an uncaught error from a function of its own
+	throws() {
+		const fail = () => {
+			throw new Error('stand-in failure');
+		};
+		setTimeout(fail, 0);
+	},
 	// Ends by itself while a process it started keeps its output open: the end of the launch does not wait for that output
 	orphan() {
 		const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: ['ignore', 'inherit', 'inherit'] });

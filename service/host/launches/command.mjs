@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Deno } from '../settings/deno.mjs';
 import { Executable, Variables } from '../settings/values.mjs';
@@ -9,9 +9,12 @@ import { LaunchError } from './error.mjs';
  * The command that runs a launchable target: the executable, its arguments, the directory, the environment, and what
  * the launch says of how it prepared them (`diagnostics`).
  *
- * - **Node** runs as the command line runs a module: `node --import <register> <launcher> <specifier>`, the BEE Node
- *   registration and the command line's launcher that the `launch` setting names, with the loader configured for this
- *   service (`BEE_URL` its API origin, `BEE_ADAPTER=packages`, `BEE_IMPORT_MAP` empty).
+ * - **Node** runs as the command line runs a module: `node --enable-source-maps --import <stacks> --import <register>
+ *   <launcher> <specifier>`, the BEE Node registration and the command line's launcher that the `launch` setting names,
+ *   with the loader configured for this service (`BEE_URL` its API origin, `BEE_ADAPTER=packages`, `BEE_IMPORT_MAP`
+ *   empty). An uncaught error is printed source-mapped and without the toolchain's frames, a missing package as what to
+ *   do about it (`Command.STACKS`, `service/stacks`), the registration's and the launcher's directories hidden too
+ *   (`BEYOND_STACKS_HIDDEN`).
  * - **Deno** runs `deno run --allow-net --allow-import --allow-env` with the service's Node import map
  *   (`<origin>/importmap.json?target=node&format=esm`) over `deno.mjs` of this directory, which imports the specifier.
  *   It also passes `--no-config` and `--no-lock`, so no configuration or lock file of the workspace is read or written,
@@ -43,6 +46,11 @@ export class Command {
 	 * The module a Deno launch runs, which imports the specifier it is given
 	 */
 	static ENTRY = fileURLToPath(new URL('./deno.mjs', import.meta.url));
+
+	/**
+	 * The module a Node launch imports first, which prints an uncaught error without the toolchain's frames
+	 */
+	static STACKS = new URL('../../stacks/register.mjs', import.meta.url).href;
 
 	static #NAME = /^[A-Z_][A-Z0-9_]*$/;
 
@@ -109,8 +117,11 @@ export class Command {
 		const { register, launcher } = this.#setting.node;
 		const url = register.startsWith('file:') ? register : pathToFileURL(register).href;
 		const script = launcher.startsWith('file:') ? fileURLToPath(launcher) : launcher;
-		const env = { ...environment, BEE_URL: origin, BEE_ADAPTER: 'packages', BEE_IMPORT_MAP: '' };
-		return { executable: process.execPath, args: ['--import', url, script, specifier], cwd: this.#root, env };
+		const path = url.startsWith('file:') ? fileURLToPath(url) : url;
+		const hidden = JSON.stringify([dirname(path), dirname(script)]);
+		const env = { ...environment, BEE_URL: origin, BEE_ADAPTER: 'packages', BEE_IMPORT_MAP: '', BEYOND_STACKS_HIDDEN: hidden };
+		const args = ['--enable-source-maps', '--import', Command.STACKS, '--import', url, script, specifier];
+		return { executable: process.execPath, args, cwd: this.#root, env };
 	}
 
 	async #deno({ specifier }, origin, environment) {

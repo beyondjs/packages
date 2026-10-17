@@ -30,6 +30,7 @@ import { Hosted } from './hosted.mjs';
 import { Hosts } from './hosts.mjs';
 import { Installer } from './installer.mjs';
 import { Lifetime } from './lifetime.mjs';
+import { Journal } from './logs/journal.mjs';
 import { Operations } from './operations/operations.mjs';
 import { OperationRoutes } from './operations/routes.mjs';
 import { Portable } from './portable.mjs';
@@ -41,7 +42,15 @@ import { Startup } from './settings/startup.mjs';
 import { Selection } from './selection.mjs';
 
 const settings = JSON.parse(process.env.BEYOND_HOST_OPTIONS);
-const log = (...values) => console.log(new Date().toISOString(), ...values);
+
+// What the service logs is also kept for its clients (GET /logs): a line that starts with "warning:" or "failed:" is
+// one of that level
+const journal = new Journal();
+const log = (...values) => {
+	console.log(new Date().toISOString(), ...values);
+	const text = values.map(value => (value instanceof Error ? value.message : String(value))).join(' ');
+	journal.add(/^warning\b/i.test(text) ? 'warn' : /^failed\b/i.test(text) ? 'error' : 'info', 'service', text);
+};
 
 /**
  * Reports the outcome of the start to the supervisor through the pipe it opened as fd 3. This process has
@@ -179,7 +188,7 @@ try {
 	const { token, credential, ...visible } = settings;
 	// The origins are known once the service listens: a feature reads them when it needs them (a launched consumer's BEE_URL)
 	const origins = { api: () => description.origin, preview: () => description.preview };
-	features = new Features({ root: settings.root, settings: visible, workspace, events, holds, operations, services, log, origins, environment: process.env });
+	features = new Features({ root: settings.root, settings: visible, workspace, events, holds, operations, services, log, journal, origins, environment: process.env });
 	await features.load();
 	new OperationRoutes(operations).setup(app);
 	features.setup(app);
@@ -199,6 +208,7 @@ try {
 
 	await extensions.setup(app, { workspace, settings, events, services });
 	new Reloads({ workspace, events, log, deadline: reading }).start(services.get('log'));
+	services.get('logs')?.follow(services.get('log'));
 	Routes.errors(app);
 	await portable?.start();
 
