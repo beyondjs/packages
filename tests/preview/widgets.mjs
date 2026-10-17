@@ -1,7 +1,9 @@
 /**
  * The shared stylesheet of a package in a running page: every widget of the package that publishes `./global`
  * adopts it inside its own root, and a development update of that sheet reaches every one of them and no widget
- * of another package. The page is the preview document of the real development service with the Widgets
+ * of another package. An edit of a module that a widget reads through another module renders that widget again in
+ * place, and the development overlay shows a view that throws and a source that does not compile until they are
+ * corrected, when the widget mounts again by itself. The page is the preview document of the real development service with the Widgets
  * sources and the development runtime as packages of the workspace; the runtime of the page applies the update.
  */
 import assert from 'node:assert/strict';
@@ -13,6 +15,7 @@ const { BEE_URL, WATCHERS_URL } = process.env;
 if (!BEE_URL || !WATCHERS_URL) throw new Error('Set BEE_URL and WATCHERS_URL to the Engine servers of Packages and of the watchers utility.');
 
 const GLOBAL = '@fixture/ui@0.1.0/global';
+const WORDS = '@fixture/words@0.1.0/source';
 const ENTRY = '@fixture/page/main';
 const fork = new Fork();
 const cleanup = [];
@@ -48,6 +51,11 @@ const painted = color => {
 	return viewer.page.waitForFunction(done, color, { timeout: 60000 });
 };
 const global = links => links.filter(href => href.includes('/@fixture/ui@0.1.0/styles/global'));
+
+/**
+ * The text of the development overlay the page shows, or null when it shows none
+ */
+const overlay = () => viewer.page.evaluate(() => document.querySelector('[data-beyond-overlay]')?.shadowRoot?.textContent ?? null);
 
 try {
 	await step('service: the preview reaches three widgets of two packages, and the runtime is its coordinator', async () => {
@@ -111,6 +119,59 @@ try {
 		const errors = (await viewer.events()).filter(([type]) => type === 'error');
 		assert.deepEqual(errors, []);
 		assert.deepEqual(viewer.observed.errors.filter(message => !/Failed to load resource/.test(message)), []);
+	});
+
+	await step('dependency: an edit of a module a widget reads through another module renders the widget again in place', async () => {
+		const from = viewer.seen;
+		const navigations = viewer.observed.navigations.length;
+		before = await probe();
+		await viewer.page.evaluate(() => (window.marker = 'kept'));
+
+		await writeFile(workspace.file('words/source/index.ts'), `export const suffix = ' updated';\n`);
+		await viewer.page.waitForFunction(() => document.querySelector('ui-first')?.shadowRoot?.querySelector('p')?.textContent === 'first updated', null, { timeout: 60000 });
+
+		const after = await probe();
+		assert.deepEqual([after.second, after.third], [before.second, before.third], 'the widgets that do not read it are untouched');
+		assert.deepEqual([await viewer.page.evaluate(() => window.marker), viewer.observed.navigations.length], ['kept', navigations], 'an update, not a reload');
+		const events = await viewer.events(from);
+		assert.ok(events.some(([type, module]) => type === 'applied' && module === WORDS), JSON.stringify(events));
+		assert.deepEqual(events.filter(([type]) => ['reload', 'error'].includes(type)), []);
+		assert.equal(await overlay(), null);
+	});
+
+	const text = workspace.file('words/text/index.ts');
+	let words;
+	const shows = expected => viewer.page.waitForFunction(expected => document.querySelector('ui-first')?.shadowRoot?.querySelector('p')?.textContent === expected, expected, { timeout: 60000 });
+	const reports = expected => viewer.page.waitForFunction(expected => document.querySelector('[data-beyond-overlay]')?.shadowRoot?.textContent.includes(expected), expected, { timeout: 60000 });
+
+	await step('render error: a widget whose view throws is shown in the overlay, and mounts again once corrected', async () => {
+		words = await readFile(text, 'utf8');
+		await writeFile(text, words.replace('=> `${name}${suffix}`;', "=> { throw new Error(`${name} cannot render`); };"));
+		await reports('first cannot render');
+
+		await writeFile(text, words.replace('`${name}${suffix}`', '`${name}${suffix}!`'));
+		await shows('first updated!');
+		assert.equal(await overlay(), null, 'the overlay is gone once the view mounts');
+		assert.equal(await viewer.page.evaluate(() => window.marker), 'kept', 'mounted again without a reload');
+	});
+
+	await step('build error: a source that does not compile is shown with its location and its lines; the correction removes it', async () => {
+		await writeFile(text, words.replace('`${name}${suffix}`;', '`${name}${suffix}`);'));
+		await reports('words/text/index.ts:');
+		const shown = await overlay();
+		assert.match(shown, /words\/text\/index\.ts:\d+:\d+/, shown);
+		assert.ok(shown.includes('${name}${suffix}`);'), `the lines around the error are shown: ${shown}`);
+		assert.equal((await probe()).first.text, 'first updated!', 'the page keeps the last code that built');
+
+		await writeFile(text, words);
+		await shows('first updated');
+		assert.equal(await overlay(), null);
+		assert.equal(await viewer.page.evaluate(() => window.marker), 'kept');
+	});
+
+	await step('lifecycle: the page reported only the failures the steps caused, and closing releases its connection', async () => {
+		const unexpected = viewer.observed.errors.filter(message => !/Failed to load resource|first cannot render/.test(message));
+		assert.deepEqual(unexpected, []);
 		assert.equal(await viewer.close(), false);
 	});
 } finally {

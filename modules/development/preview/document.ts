@@ -10,7 +10,9 @@ import type { IPreviewDescription } from './index';
  * document registers this service in it first, so that the runtime applies the updates the service
  * announces. It gives the runtime the part of the session it needs — the modules in development and the
  * options of their updates — so the runtime never reads `/session`, which a visitor's grant does not
- * allow. The document applies no update by itself, and it never reloads.
+ * allow. A runtime that publishes `Preview` presents the page in development: the overlay of what does not
+ * build or throws, and a reload when an update cannot be shown in place or the entry did not load. The document
+ * itself applies no update and never reloads.
  */
 export class Document {
 	#description: IPreviewDescription;
@@ -34,17 +36,28 @@ export class Document {
 		const { entry, updates, diagnostics } = this.#description;
 		const lines = diagnostics.map(({ code, message }) => `console.error(${this.#json(`[beyond preview] ${code}: ${message}`)});`);
 
+		// A runtime that presents a preview (`Preview`) shows the development overlay and loads the document again
+		// when an update cannot be shown in place; an older one only applies updates
+		lines.push('let preview;');
 		if (updates.runtime) {
 			lines.push(
 				'try {',
-				`\tconst { local } = await import(${this.#json(updates.runtime)});`,
-				`\tawait local.register({ origin: new URL('..', document.baseURI).href, options: ${this.#json(updates.session.options)}, session: ${this.#json(updates.session)} });`,
+				`\tconst runtime = await import(${this.#json(updates.runtime)});`,
+				`\tawait runtime.local.register({ origin: new URL('..', document.baseURI).href, options: ${this.#json(updates.session.options)}, session: ${this.#json(updates.session)} });`,
+				`\tpreview = runtime.Preview && new runtime.Preview(runtime.local).start(${this.#json(diagnostics)});`,
 				'} catch (error) {',
 				`\tconsole.error('[beyond preview] The development runtime could not connect, so updates are not applied:', error);`,
 				'}'
 			);
 		}
-		lines.push(`await import(${this.#json(entry.specifier)});`);
+		lines.push(
+			'try {',
+			`\tawait import(${this.#json(entry.specifier)});`,
+			'} catch (error) {',
+			'\tif (!preview) throw error;',
+			'\tpreview.failed(error);',
+			'}'
+		);
 		return lines.join('\n');
 	}
 

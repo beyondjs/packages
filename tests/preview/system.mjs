@@ -45,7 +45,9 @@ export class SystemPage {
 			if (file) return void outgoing.writeHead(200, { 'content-type': file.type }).end(file.body);
 
 			const { hostname, port } = this.#target;
-			const upstream = request({ hostname, port, path: incoming.url, method: incoming.method, headers: incoming.headers }, answer => {
+			// It names the service it forwards to, as the service checks the host a request names
+			const headers = { ...incoming.headers, host: `${hostname}:${port}` };
+			const upstream = request({ hostname, port, path: incoming.url, method: incoming.method, headers }, answer => {
 				outgoing.writeHead(answer.statusCode, answer.headers);
 				answer.pipe(outgoing);
 				// A service that stops cuts its event stream: the page must see its stream end too

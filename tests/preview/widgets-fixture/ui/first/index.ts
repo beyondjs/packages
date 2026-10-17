@@ -1,8 +1,10 @@
 import { WidgetClientController } from '@beyond-js/widgets/controller';
+import { phrase } from '@fixture/words/text';
 
 /**
  * A widget written without a view framework: it links inside its root the stylesheets Widgets gives it, removes
- * the ones Widgets no longer lists, and writes one paragraph into its holder
+ * the ones Widgets no longer lists, and writes one paragraph into its holder with the text `@fixture/words/text`
+ * makes of its name
  */
 export class Controller extends WidgetClientController {
 	get #holder(): HTMLElement {
@@ -27,7 +29,7 @@ export class Controller extends WidgetClientController {
 	mount() {
 		this.#stylesheets();
 		this.styles.on('change', this.#stylesheets);
-		this.#holder.innerHTML = '<p>first</p>';
+		this.#holder.innerHTML = `<p>${phrase('first')}</p>`;
 		this.#holder.style.display = '';
 	}
 
