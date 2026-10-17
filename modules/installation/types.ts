@@ -139,6 +139,8 @@ export /*bundle*/ interface IReleases {
 	tags: Record<string, string>;
 	// The deprecation message of each deprecated version
 	deprecated: Record<string, string>;
+	// The versions only the Beyond toolchain carries (no registry publishes them), the highest first; absent when none
+	supplied?: string[];
 	// When the answer was read (ISO-8601)
 	checked: string;
 	error?: { code: string; message: string };

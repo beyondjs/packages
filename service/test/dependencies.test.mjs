@@ -123,6 +123,23 @@ test('the preflight blocks what only the toolchain supplies, and tells denied, u
 	assert.deepEqual(counts, { declared: 8, available: 2, blocked: 3, unavailable: 1, skipped: 1, unverified: 1 });
 });
 
+test('the preflight finds available what only the toolchain\'s archives carry, apart from a registry release', async t => {
+	const stage = await Stage.start(t, { fixture: 'hello', supplied: ['widgets', 'react-19-widgets'] });
+	stage.installation.catalog = {
+		react: releases(['19.1.1']),
+		'react-dom': releases(['19.1.1']),
+		'@beyond-js/react-19-widgets': { ...releases(['1.0.0']), supplied: ['1.0.0'] },
+		'@beyond-js/widgets': { ...releases(['1.1.5', '1.1.4']), supplied: ['1.1.5'] }
+	};
+
+	const { dependencies } = (await stage.run('/dependencies/preflight', {})).result;
+	const status = name => dependencies.find(one => one.name === name);
+	const adapter = status('@beyond-js/react-19-widgets');
+	assert.deepEqual([adapter.status, adapter.source, adapter.version], ['available', 'toolchain', '1.0.0']);
+	assert.deepEqual([status('@beyond-js/widgets').source, status('@beyond-js/widgets').version], ['toolchain', '1.1.5']);
+	assert.deepEqual([status('react').source, status('react').status], ['registry', 'available']);
+});
+
 test('a plan is refused before it starts when it is malformed, names nothing declared, or was read from another state', async t => {
 	const stage = await Stage.start(t, { lock: true, state: 'ready' });
 	const { base } = (await stage.send('GET', '/dependencies')).body;

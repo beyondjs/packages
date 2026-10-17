@@ -132,3 +132,11 @@ test('a Beyond package no registry has says how to get it', async t => {
 	assert.match(missing.message, /@beyond-js\/unpublished/);
 	assert.match(missing.message, /Beyond command line/);
 });
+
+test('the releases of a name say which versions only the toolchain carries', async t => {
+	const { create } = await setup(t);
+	const installation = await create();
+	const [runtime, a] = await installation.releases(['@fixture/runtime', 'lib-a']);
+	assert.deepEqual([runtime.found, runtime.versions, runtime.supplied], [true, ['1.0.0'], ['1.0.0']]);
+	assert.equal(a.supplied, undefined);
+});

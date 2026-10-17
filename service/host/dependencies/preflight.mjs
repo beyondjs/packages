@@ -122,6 +122,10 @@ export class Preflight {
 		const said = `${entry.importer} declares ${entry.name} ${entry.range}`;
 		if (releases?.found) {
 			const satisfying = releases.versions.filter(version => semver.satisfies(version, range));
+			// A version only the Beyond toolchain carries is installed from its archives, which this machine has
+			if (satisfying.length && releases.supplied?.includes(satisfying[0])) {
+				return { ...base, source: 'toolchain', status: 'available', version: satisfying[0], satisfying: satisfying.length };
+			}
 			if (satisfying.length) return { ...base, source: 'registry', status: 'available', version: satisfying[0], satisfying: satisfying.length };
 			const highest = releases.versions[0] ? `the highest it publishes is ${releases.versions[0]}` : 'it publishes no version';
 			const finding = { code: 'VERSION_UNRESOLVED', message: `${said}, and ${releases.registry ?? 'its registry'} publishes no version that satisfies it: ${highest}`, recovery: ['Change the range to a published version'] };

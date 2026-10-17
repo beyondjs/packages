@@ -121,6 +121,8 @@ export class Inventory {
 		if (provider === 'workspace') return { kind: 'member', member: node.member };
 		if (provider === 'supplied') return { kind: 'supplied', from: node.origin.from ?? 'toolchain' };
 		if (provider === 'declared') return { kind: 'declared' };
+		// A release only the Beyond toolchain carries, installed from its archives
+		if (provider === 'toolchain') return { kind: 'toolchain' };
 		if (provider === 'npm') return { kind: 'registry', registry: node.origin.registry ?? 'https://registry.npmjs.org/' };
 		if (provider.startsWith('registry-')) return { kind: 'registry', registry: node.origin.registry };
 		if (provider.startsWith('git-')) return { kind: 'git', registry: node.origin.registry };

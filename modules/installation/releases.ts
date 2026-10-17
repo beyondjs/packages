@@ -101,6 +101,9 @@ export class Releases {
 			if (typeof message === 'string' && message) deprecated[version] = message;
 		});
 		const access = identity?.visibility === 'private' ? 'private' : 'public';
-		return { name, found: true, ...located, access, versions, tags, deprecated, checked };
+		// A release the toolchain added names its toolchain archive address instead of a registry's
+		const supplied = versions.filter(version => String(published[version]?.dist?.tarball ?? '').startsWith('toolchain:'));
+		const carried = supplied.length ? { supplied } : {};
+		return { name, found: true, ...located, access, versions, tags, deprecated, ...carried, checked };
 	}
 }
