@@ -31,7 +31,7 @@ test('the service claims its settings, and a value its environment sets is fixed
 	assert.equal(served.session.capabilities.settings, 1);
 	const { status, body } = await read();
 	assert.equal(status, 200);
-	assert.deepEqual(setting(body, 'workspace.timeout'), { key: 'workspace.timeout', default: 120000, applies: 'restart', variable: 'BEYOND_WORKSPACE_TIMEOUT', value: 200000, source: 'environment', editable: false });
+	assert.deepEqual(setting(body, 'workspace.timeout'), { key: 'workspace.timeout', default: 120000, applies: 'restart', variable: 'BEYOND_WORKSPACE_TIMEOUT', value: 200000, source: 'environment', editable: false, reason: { code: 'SETTING_FIXED', message: 'Set when the server was started; start it again to change it' } });
 	assert.deepEqual([setting(body, 'cdn.origin').source, setting(body, 'previews.timeout').source], ['default', 'default'], 'an empty variable is no value');
 	assert.deepEqual(refused(await change({ 'workspace.timeout': 300000 }, body.revision)), [403, 'SETTING_FIXED']);
 });
