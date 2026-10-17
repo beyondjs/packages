@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
  * ```json
  * {
  *   "protocol": "beyond-web-export/1", "id": "exp_…", "application": "site", "target": "web",
- *   "strategy": "self-contained", "base": "/", "entry": {"specifier": "@site/web/main", "source": "catalog"},
+ *   "strategy": "self-contained", "base": "/", "plan": "installed", "entry": {"specifier": "@site/web/main", "source": "catalog"},
  *   "files": [{"path": "index.html", "kind": "document", "size": 512, "digest": "sha256-…"}, …],
  *   "sources": [{"name": "@site/web", "version": "1.0.0", "provider": "workspace"}, …],
  *   "cdn": {"origin": "https://cdn.example", "modules": [{"specifier": "react", "url": "…", "integrity": "sha256-…"}]},
@@ -20,7 +20,9 @@ import { createHash } from 'node:crypto';
  *
  * A file's `digest` is the SHA-256 of its bytes as subresource integrity metadata. `sources` lists each package an
  * output came from with where the service read it (`workspace`, `supplied` by the toolchain, `store` of an installed
- * graph, or `installed` in the workspace's directories); `cdn` is present for the `cdn` strategy only.
+ * graph, or `installed` in the workspace's directories); `cdn` is present for the `cdn` strategy only. `plan` is
+ * `installed` when the outputs were compiled from the workspace's installed graph, as `beyond build` compiles them, and
+ * `development` when there was none and they came from what the development service supplies.
  */
 export class Manifest {
 	static PROTOCOL = 'beyond-web-export/1';
@@ -54,11 +56,11 @@ export class Manifest {
 	}
 
 	/**
-	 * @param {{id: string, target: object, strategy: string, base: string, files: {file: string, kind: string,
+	 * @param {{id: string, target: object, strategy: string, base: string, plan?: string, files: {file: string, kind: string,
 	 * content: string | Buffer, module?: string}[], provenance: object[], cdn?: {origin: string, modules: object[]},
 	 * installation?: object, toolchain: object, diagnostics: object[], created: string}} specs
 	 */
-	static of({ id, target, strategy, base, files, provenance, cdn, installation, toolchain, diagnostics, created }) {
+	static of({ id, target, strategy, base, plan, files, provenance, cdn, installation, toolchain, diagnostics, created }) {
 		const listed = files
 			.map(({ file, kind, content, module }) => ({ path: file, kind, size: Buffer.byteLength(content), digest: Manifest.digest(content), ...(module ? { module } : {}) }))
 			.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
@@ -69,6 +71,7 @@ export class Manifest {
 			target: target.target,
 			strategy,
 			base,
+			...(plan ? { plan } : {}),
 			entry: { ...target.entry, source: target.source },
 			files: listed,
 			sources: Manifest.sources(files, provenance),

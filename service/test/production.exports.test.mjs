@@ -247,3 +247,34 @@ test('an export interrupted between its moves is put right when the service star
 	assert.deepEqual((await records.get(later)).destination, 'dist/site');
 	assert.ok(!existsSync(join(root, '.beyond', 'production', 'staging')), 'nothing staged is left');
 });
+
+test('without a destination the export goes to the service own folder, replaces its earlier one there, and its last count reaches its total', async t => {
+	const { root, run } = await setup(t);
+	const { destination, application, target } = { ...BODY, destination: undefined };
+	const first = await run({ application, target, strategy: 'self-contained', destination });
+	assert.equal(first.state, 'succeeded', JSON.stringify(first.error));
+	assert.equal(first.result.export.destination, '.beyond/production/exports/site/web');
+	assert.ok(existsSync(join(root, '.beyond', 'production', 'exports', 'site', 'web', 'index.html')));
+	assert.equal(existsSync(join(root, 'dist')), false, 'nothing beside the sources');
+	const write = first.steps.find(step => step.id === 'write');
+	assert.equal(write.counts.done, write.counts.total, 'the last phase reaches its total');
+
+	const second = await run({ application, target, strategy: 'self-contained' });
+	assert.equal(second.state, 'succeeded', 'the earlier export there is replaced without being named');
+	const manifest = JSON.parse(readFileSync(join(root, '.beyond', 'production', 'exports', 'site', 'web', 'beyond-export.json'), 'utf8'));
+	assert.equal(manifest.id, second.result.export.id);
+});
+
+test('an export made without an installed graph says it is for trying the page only, and records its plan', async t => {
+	const { root, run } = await setup(t);
+	const ended = await run(BODY);
+	const { export: answer } = ended.result;
+	assert.deepEqual([answer.plan, answer.developmentOnly], ['development', true]);
+	assert.match(answer.reason, /not what beyond build produces/);
+	assert.doesNotMatch(answer.reason, /BEYOND_/);
+	assert.equal(JSON.parse(readFileSync(join(root, 'dist', 'web', 'beyond-export.json'), 'utf8')).plan, 'development');
+
+	const installed = await setup(t, { page: Object.assign(stand(), { execution: { nodes: new Map() } }) });
+	const built = (await installed.run(BODY)).result.export;
+	assert.deepEqual([built.plan, built.developmentOnly], ['installed', undefined]);
+});

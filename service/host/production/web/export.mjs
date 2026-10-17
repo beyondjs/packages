@@ -35,6 +35,11 @@ export class WebExport {
 		{ id: 'write', expected: { median: 300, p90: 3000 } }
 	]);
 	static STRATEGIES = Object.freeze(['self-contained', 'cdn']);
+
+	/**
+	 * What an export made without an installed graph is
+	 */
+	static DEVELOPMENT = 'This export was made from the packages the development service supplies, without an installed graph, so it is for trying the page only: it is not what beyond build produces, and CI cannot reproduce it. Install the workspace (beyond install) to export what a build makes';
 	static #BASE = /^\/([A-Za-z0-9._~-]+\/)*$/;
 
 	#root;
@@ -69,8 +74,9 @@ export class WebExport {
 			throw new ProductionError('REQUEST_INVALID', '"base" is the path the export is served under, such as "/" or "/app/"');
 		}
 		if (replace !== undefined && (typeof replace !== 'string' || !/^exp_[0-9a-f]{24}$/.test(replace))) throw new ProductionError('REQUEST_INVALID', '"replace" names an earlier export by its identifier');
-		const resolved = new Destination(this.#root, this.#context.members()).resolve(destination);
-		return { application, target, strategy, destination: resolved.relative, base: normalized, ...(replace ? { replace } : {}), ...(entry !== undefined ? { entry } : {}) };
+		const resolved = new Destination(this.#root, this.#context.members()).resolve(destination, { application, target });
+		const managed = resolved.managed ? { managed: true } : {};
+		return { application, target, strategy, destination: resolved.relative, ...managed, base: normalized, ...(replace ? { replace } : {}), ...(entry !== undefined ? { entry } : {}) };
 	}
 
 	/**
@@ -84,7 +90,7 @@ export class WebExport {
 
 		const step = operation.step('target').begin();
 		const target = await new Target(services).resolve(request);
-		const destination = new Destination(this.#root, this.#context.members()).resolve(request.destination);
+		const destination = new Destination(this.#root, this.#context.members()).resolve(request.managed ? void 0 : request.destination, request);
 		await destination.check({ ...target, replace });
 		const cdn = strategy === 'cdn' ? this.#cdn(delivery, origin()) : void 0;
 		step.done();
@@ -105,11 +111,14 @@ export class WebExport {
 		const writing = operation.step('write').begin();
 		const page = new Page({ title: target.title ?? `${target.application}/${target.target}`, entry: target.entry.specifier, importmap: walked.importmap, links: walked.links }).html;
 		const files = [...walked.files, { file: 'index.html', kind: 'document', content: page }];
+		// Without an installed graph the outputs come from what the development supplies: not what beyond build makes
+		const plan = delivery.execution ? 'installed' : 'development';
 		const manifest = Manifest.of({
 			id,
 			target,
 			strategy,
 			base,
+			plan,
 			files,
 			provenance: (await delivery.provenance?.().catch(() => [])) ?? [],
 			...(cdn ? { cdn: { origin: cdn, modules: walked.cdn } } : {}),
@@ -123,7 +132,9 @@ export class WebExport {
 		await records.write(record);
 		writing.done();
 		const bytes = manifest.files.reduce((total, file) => total + file.size, 0);
-		return { export: { id, application: target.application, target: target.target, strategy, base, destination: destination.relative, files: manifest.files.length, bytes, manifest: Manifest.FILE }, manifest };
+		const development = plan === 'development' ? { developmentOnly: true, reason: WebExport.DEVELOPMENT } : {};
+		const answer = { id, application: target.application, target: target.target, strategy, base, destination: destination.relative, files: manifest.files.length, bytes, manifest: Manifest.FILE, plan, ...development };
+		return { export: answer, manifest };
 	}
 
 	/**
@@ -132,7 +143,7 @@ export class WebExport {
 	 */
 	#cdn(delivery, origin) {
 		if (delivery.execution) throw new ProductionError('EXPORT_STRATEGY_UNSUPPORTED', 'The workspace is installed (beyond install): every node of its graph is served by this environment, so the "cdn" strategy has no external package to reference. Export it "self-contained"');
-		if (!origin) throw new ProductionError('EXPORT_STRATEGY_UNSUPPORTED', 'No CDN origin is configured (BEYOND_CDN_ORIGIN, or the cdn.origin setting): the "cdn" strategy references external packages there');
+		if (!origin) throw new ProductionError('EXPORT_STRATEGY_UNSUPPORTED', 'No CDN origin is set: the "cdn" strategy references external packages there. Set it in Settings (cdn.origin), or export it self-contained', { setting: 'cdn.origin', variable: 'BEYOND_CDN_ORIGIN' });
 		return origin;
 	}
 
@@ -183,6 +194,8 @@ export class WebExport {
 				step.count(++done, files.length + 1, 'files');
 			}
 			await writeFile(join(staging.path, Manifest.FILE), `${JSON.stringify(manifest, null, '\t')}\n`);
+			// The manifest is the last file: the count reaches its total
+			step.count(files.length + 1, files.length + 1, 'files');
 			// Another export may have written the destination while this one ran
 			await destination.check({ application: request.application, target: request.target, replace: request.replace });
 			await destination.commit(staging);

@@ -5,7 +5,9 @@ import { Rules } from '../../exports/rules.mjs';
 import { ProductionError } from '../error.mjs';
 
 /**
- * Where a web export is written: a directory inside the workspace root, named relative to it (`dist/web`).
+ * Where a web export is written: a directory inside the workspace root, named relative to it (`dist/web`), or, when the
+ * request names none, the service's own `.beyond/production/exports/<application>/<target>`, which the watchers, the
+ * File API and Git never see, and where an earlier export of the same target is replaced without being named.
  *
  * It is refused (`EXPORT_DESTINATION_INVALID`) when it is absolute, has an empty, `.` or `..` segment, goes through
  * `.beyond`, `node_modules` or `.git`, is the root, is or contains a member's directory, lies inside a member other than
@@ -30,6 +32,12 @@ export class Destination {
 	#members;
 	#relative;
 	#directory;
+	#managed = false;
+
+	/**
+	 * The directory of the service's own exports, relative to the root
+	 */
+	static MANAGED = '.beyond/production/exports';
 
 	/**
 	 * @param {string} root The canonical root of the workspace
@@ -56,11 +64,25 @@ export class Destination {
 	}
 
 	/**
-	 * @param {unknown} path The destination as the request names it
+	 * Whether this is the service's own directory of the target's export
+	 */
+	get managed() {
+		return this.#managed;
+	}
+
+	/**
+	 * @param {unknown} path The destination as the request names it, undefined for the service's own
+	 * @param {{application?: string, target?: string}} [named] The target exported, which names the service's own
 	 * @returns {Destination}
 	 * @throws {ProductionError} `EXPORT_DESTINATION_INVALID`
 	 */
-	resolve(path) {
+	resolve(path, { application, target } = {}) {
+		if (path === undefined && application && target) {
+			this.#managed = true;
+			this.#relative = `${Destination.MANAGED}/${application}/${target}`;
+			this.#directory = join(this.#root, ...this.#relative.split('/'));
+			return this;
+		}
 		if (typeof path !== 'string' || !path || path.length > 512) throw Destination.#invalid('"destination" is a directory inside the workspace, relative to its root');
 		const segments = path.replace(/\/+$/, '').split('/');
 		const malformed = path.startsWith('/') || path.includes('\\') || path.includes('\0') || segments.some(segment => !segment || segment === '.' || segment === '..');
@@ -116,7 +138,7 @@ export class Destination {
 
 		const previous = await this.#previous();
 		const same = previous && previous.application === application && previous.target === target;
-		if (same && replace === previous.id) return { state: 'replace', previous: previous.id };
+		if (same && (replace === previous.id || this.#managed)) return { state: 'replace', previous: previous.id };
 		const conflict = same
 			? `"${this.#relative}" holds the export ${previous.id} of ${application}/${target}: name it in "replace" to replace it`
 			: `"${this.#relative}" holds files that are not an export of ${application}/${target}: choose another destination, or empty it yourself`;

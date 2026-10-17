@@ -74,7 +74,7 @@ export class Registry {
 			text = await response.text();
 		} catch (error) {
 			const timeout = error?.name === 'TimeoutError' || error?.name === 'AbortError';
-			const reason = timeout ? `The registry did not answer within ${this.#timeout} ms (BEYOND_REGISTRY_TIMEOUT)` : `The registry could not be reached: ${error?.cause?.code ?? error?.message ?? error}`;
+			const reason = timeout ? `The registry did not answer within ${this.#timeout} ms` : `The registry could not be reached: ${error?.cause?.code ?? error?.message ?? error}`;
 			return answer('unavailable', { reason });
 		}
 

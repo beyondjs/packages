@@ -26,7 +26,7 @@ Each directory is one release: its `package.json` as the registry publishes it (
 
 ## Supplied packages (`supplied/`)
 
-`widgets` (`@beyond-js/widgets` 1.1.0) and `react-19-widgets` (`@beyond-js/react-19-widgets` 1.0.0) stand for the packages the toolchain supplies to live development; the harness gives them to the host as its `supplied` setting. No registry of the fixtures publishes them.
+`widgets` (`@beyond-js/widgets` 1.1.0) and `react-19-widgets` (`@beyond-js/react-19-widgets` 1.0.0) stand for the packages the toolchain supplies to live development; the harness gives them to the host as its `supplied` setting. No registry of the fixtures publishes them. `react` (`react` 19.3.0) stands for a library the toolchain's installation resolves for a workspace without an installed graph (`libraries` of the harness, given with `library: true`): the inventory lists it as supplied from the installation, with its version.
 
 ## Lock (`locks/workspace.json`)
 

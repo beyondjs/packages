@@ -126,7 +126,7 @@ export class Production {
 			const expired = new Promise(resolve => (timer = setTimeout(resolve, bound, 'expired')));
 			try {
 				const read = await Promise.race([declarations.read(specifier), expired]);
-				if (read === 'expired') return { state: 'unknown', code: 'DECLARATION_TIMEOUT', message: `The declaration was not produced within ${bound} ms (BEYOND_DECLARATION_TIMEOUT)` };
+				if (read === 'expired') return { state: 'unknown', code: 'DECLARATION_TIMEOUT', message: `The declaration was not produced within ${bound} ms`, variable: 'BEYOND_DECLARATION_TIMEOUT' };
 				return { state: 'generated', provenance: 'generated' };
 			} catch (error) {
 				if (error?.code === 'DECLARATION_INVALID') return { state: 'invalid', code: 'DECLARATION_INVALID', message: error.message };

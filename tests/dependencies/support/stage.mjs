@@ -117,8 +117,10 @@ export class Stage {
 	/**
 	 * @param {import('node:test').TestContext} t
 	 * @param {{fixture?: string, lock?: boolean, files?: boolean, before?: Function, state?: string, supplied?: string[],
-	 * published?: object[] | (() => Promise<object[]>), applications?: {catalog(): unknown}}} [options] `published` is
-	 * what the served workspace publishes, or what answers it; `applications` the catalog the extension would share
+	 * libraries?: string[], published?: object[] | (() => Promise<object[]>), applications?: {catalog(): unknown}}}
+	 * [options] `libraries` are supplied fixtures given as libraries of the toolchain's installation (`library: true`);
+	 * `published` is what the served workspace publishes, or what answers it; `applications` the catalog the extension
+	 * would share
 	 */
 	static async start(t, options = {}) {
 		const stage = new Stage();
@@ -127,15 +129,16 @@ export class Stage {
 		return stage;
 	}
 
-	async #start({ fixture = 'workspace', lock = false, files = true, before, state = 'missing', supplied = [], published = [], applications }) {
+	async #start({ fixture = 'workspace', lock = false, files = true, before, state = 'missing', supplied = [], libraries = [], published = [], applications }) {
 		this.#directory = realpathSync(mkdtempSync(join(tmpdir(), 'beyond-dependencies-')));
 		this.root = join(this.#directory, 'workspace');
 		cpSync(join(FIXTURES, fixture), this.root, { recursive: true });
 		lock && cpSync(join(FIXTURES, 'locks', 'workspace.json'), join(this.root, 'beyond-lock.json'));
-		const copies = supplied.map(name => {
+		const copies = [...supplied, ...libraries].map(name => {
 			const path = join(this.#directory, 'supplied', name);
 			cpSync(join(FIXTURES, 'supplied', name), path, { recursive: true });
-			return { name: JSON.parse(readFileSync(join(path, 'package.json'), 'utf8')).name, path };
+			const library = libraries.includes(name) ? { library: true } : {};
+			return { name: JSON.parse(readFileSync(join(path, 'package.json'), 'utf8')).name, path, ...library };
 		});
 
 		const services = new Services();

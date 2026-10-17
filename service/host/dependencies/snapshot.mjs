@@ -187,10 +187,10 @@ export class Snapshot {
 	 */
 	static #versions(supplied) {
 		const listed = [];
-		for (const { name, path } of Array.isArray(supplied) ? supplied : []) {
+		for (const { name, path, library } of Array.isArray(supplied) ? supplied : []) {
 			try {
 				const { version } = JSON.parse(readFileSync(join(path, 'package.json'), 'utf8'));
-				typeof name === 'string' && typeof version === 'string' && listed.push({ name, version, path });
+				typeof name === 'string' && typeof version === 'string' && listed.push({ name, version, path, ...(library ? { library: true } : {}) });
 			} catch {
 				// A package the toolchain could not describe is not one it supplies
 			}

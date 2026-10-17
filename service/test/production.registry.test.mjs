@@ -76,7 +76,7 @@ test('a registry that does not answer is unavailable within the bound, and one t
 	const started = Date.now();
 	const waited = await status(silent, { environment: { BEYOND_REGISTRY_TIMEOUT: '300' } });
 	assert.equal(waited.state, 'unavailable');
-	assert.match(waited.reason, /300 ms \(BEYOND_REGISTRY_TIMEOUT\)/);
+	assert.match(waited.reason, /did not answer within 300 ms$/);
 	assert.ok(Date.now() - started < 5000, 'the bound ends the wait');
 
 	// A port nothing listens on

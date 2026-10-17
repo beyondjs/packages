@@ -12,7 +12,7 @@ The feature lives in [service/host/production](../service/host/production/index.
 | `POST /production/packages/:member/archives` | `202 {operation}` `production.pack` |
 | `POST /production/packages/:member/status {registry?, archive?}` | `202 {operation}` `production.status` |
 | `POST /production/packages/:member/publish {archive, registry, access, tag?, confirm}` with `Idempotency-Key` | `202 {operation}` `production.publish` |
-| `POST /production/exports {application, target, strategy?, destination, base?, replace?}` with `Idempotency-Key` | `202 {operation}` `production.export` |
+| `POST /production/exports {application, target, strategy?, destination?, base?, replace?}` with `Idempotency-Key` | `202 {operation}` `production.export` |
 | `GET /production/exports`, `GET /production/exports/:id` | `200 {protocol, exports}` (newest first), `200 {export}` |
 
 `:member` is a member's directory relative to the root, encoded (`packages%2Fui`; the root package is `%2E`, since a URL parser removes a `.` segment), or its package name (`%40scope%2Fui`) when one member has it. A started operation answers `202` with `Location: /operations/<id>`; the same `Idempotency-Key` for the same kind answers the operation it created (`200`). Bodies are JSON (`415 CONTENT_TYPE_UNSUPPORTED` otherwise) and every answer is `no-store`.
@@ -110,7 +110,7 @@ The complete web export of a frontend execution target: a directory a static hos
 | --- | --- |
 | `application`, `target` | The execution target, resolved by the catalog of applications (`beyond-applications/1`); only a `frontend` one has a web export |
 | `strategy` | `self-contained` (default): every output the page needs is written. `cdn`: the workspace's own modules (and the toolchain's) are written, and the installed packages are referenced on the configured CDN origin, each pinned by the integrity of the digest the CDN answered for it |
-| `destination` | A directory inside the workspace root, relative to it |
+| `destination` | A directory inside the workspace root, relative to it; without it, the service's own `.beyond/production/exports/<application>/<target>` |
 | `base` | The path the export is served under, `/` by default |
 | `replace` | The identifier of an earlier export of the same target that the destination holds |
 
@@ -131,6 +131,8 @@ The steps:
 
 Every address in the document and the import map is under `base` (`/m/…` by default), so a deep route a static host answers with `index.html` loads the same modules; an address a module writes relative to itself resolves the same way from its file. Nothing else enters the export: no development route, update connection, pairing, token, secret (an asset named like one is `EXPORT_SECRET_REFUSED`) or path of the machine. An import without an address (`EXPORT_UNRESOLVED`), one on another origin in a self-contained export (`EXPORT_REMOTE_REFUSED`), a module that does not build (its diagnostics) or builds no production output fails the export, which writes nothing.
 
+**Without a destination** the export goes to `.beyond/production/exports/<application>/<target>`, in the service's state directory, which ignores itself for Git and which neither the watchers nor the File API see, so an export never lands beside the sources; an earlier export of the same target there is replaced without being named. A person copies it from there, or names a destination of the workspace.
+
 **The destination** is refused (`EXPORT_DESTINATION_INVALID`) when it is absolute, has an empty, `.` or `..` segment, goes through `.beyond`, `node_modules` or `.git`, is or contains a member's directory, lies inside a member other than the root package, or reaches anything through a symbolic link. One that holds files is written only in place of an earlier export of the same target named by `replace`; anything else is `EXPORT_DESTINATION_CONFLICT`, whose `details.replace` names the earlier export of the same target when there is one. The check is repeated before the move, so two exports never write over each other.
 
 **The `cdn` strategy** needs a CDN origin (the `cdn.origin` setting, or `BEYOND_CDN_ORIGIN`) and a workspace that was not installed: an installed workspace serves every node of its graph itself, which is `EXPORT_STRATEGY_UNSUPPORTED`. Each address on the CDN is checked as a preview checks it ([the preview's externals](development-contract.md)); one the CDN does not hold, cannot be bound to or did not answer for has no address, and the export fails with that reason.
@@ -150,9 +152,13 @@ Every address in the document and the import map is under `base` (`/m/…` by de
 }
 ```
 
-`digest` is the SHA-256 of each file as subresource integrity metadata; `sources` names the package each output came from and where the service read it (`workspace`, `supplied` by the toolchain, `store` of the installed graph, `installed` in the workspace's directories); `installation` is the state of the installed graph and the digest of its lock; `cdn` (`{origin, modules: [{specifier, url, integrity}]}`) is present for the `cdn` strategy. Outputs are reproducible under the same toolchain and inputs: two exports of unchanged sources list the same digests.
+`digest` is the SHA-256 of each file as subresource integrity metadata; `sources` names the package each output came from and where the service read it (`workspace`, `supplied` by the toolchain, `store` of the installed graph, `installed` in the workspace's directories); `installation` is the state of the installed graph and the digest of its lock; `plan` is `installed` when the outputs were compiled from the installed graph, as `beyond build` compiles them, or `development` when the workspace has no installed graph and they came from what the development service supplies; `cdn` (`{origin, modules: [{specifier, url, integrity}]}`) is present for the `cdn` strategy. Outputs are reproducible under the same toolchain and inputs: two exports of unchanged sources list the same digests.
 
 A catalog that cannot resolve targets (a development extension that predates `beyond-applications/1`) is `APPLICATIONS_UNAVAILABLE`, unless the request names the entry's public specifier (`entry`), which exists for validations of such a Core: the export then says so in its manifest (`entry.source: request`, `EXPORT_ENTRY_FROM_REQUEST`). The command line never sends one.
+
+**An export without an installed graph is for trying the page only.** Its answer (`result.export` of the operation) says `plan: 'development'`, `developmentOnly: true` and a `reason`: it is not what `beyond build` produces, which requires an installed graph, and a CI machine cannot reproduce it. An export from an installed graph says `plan: 'installed'`. Both share the walk, the production outputs and the writing; what differs is where the packages come from.
+
+**Progress.** The `write` step counts the files it writes, the manifest last, so a successful export ends with its count at its total (`N of N files`); `outputs` counts the modules it walked against those it knows of, and ends at its total too.
 
 ## The headless build
 

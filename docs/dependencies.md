@@ -21,7 +21,7 @@ A request that starts an operation may carry an `Idempotency-Key`, with the one 
 
 ## The inventory
 
-`GET /dependencies` reads the workspace as it is on disk now: the declaration, the lock, the projection's state and the packages the toolchain supplies (the host's `supplied` setting). It requests nothing from a registry.
+`GET /dependencies` reads the workspace as it is on disk now: the declaration, the lock, the projection's state and the packages the toolchain supplies (the host's `supplied` setting, and the libraries of its `runtime` setting resolved from the toolchain's installation). It requests nothing from a registry.
 
 ```json
 {
@@ -47,7 +47,7 @@ A request that starts an operation may carry an `Idempotency-Key`, with the one 
 ```
 
 - **Members** are the importers of the graph: every member whose manifest can be used, and the root package (`.`, `root: true`) when it declares dependencies without being a member. `declared` is what each one declares now, `type` being `prod`, `dev`, `peer` or `optional` by manifest group.
-- **Nodes.** A node of the lock keeps its key (`npm:react@19.1.1`, `registry-<slug>-<digest>:…`, `git:…`, `digest:…`, `workspace:<id>`). A declaration the lock does not hold yet is `declared:<name>`; a package the toolchain supplies, and no member provides, is `supplied:<name>@<version>`, never a member or a node of the installed graph; a name a member provides leads to that member's node. `source.kind` is `registry`, `member`, `supplied`, `git`, `archive`, `snapshot` or `declared`.
+- **Nodes.** A node of the lock keeps its key (`npm:react@19.1.1`, `registry-<slug>-<digest>:…`, `git:…`, `digest:…`, `workspace:<id>`). A declaration the lock does not hold yet is `declared:<name>`; a package the toolchain supplies, and no member provides, is `supplied:<name>@<version>`, never a member or a node of the installed graph; a name a member provides leads to that member's node. `source.kind` is `registry`, `member`, `supplied`, `git`, `archive`, `snapshot` or `declared`; a supplied node adds `source.from`: `toolchain` for a Beyond package the toolchain compiles and serves (Widgets, the development runtime), `installation` for a library its installation resolves for a workspace without an installed graph (the Kernel, and frameworks such as React that the supplied packages depend on, the session's `runtime.packages`), with the version installed there. Only a `member` is a package of the workspace and so in development: a supplied package, whatever imports it, is never said to be in development, and a declared name the toolchain supplies leads to the supplied node with its version rather than to an unresolved `declared:` one.
 - **Status.** `installed` (the projection locates it), `locked` (the lock holds it, the projection does not), `supplied`, `declared` (nothing resolved it yet) or `missing` (its sources are gone, `SOURCE_MISSING`, or the lock skipped it, an optional dependency that could not be pinned).
 - **Edges.** `dependencies` and `dependents` are the lock's edges, with the edges of declarations it does not hold yet; a peer carries the `context` it was provided in, and a skipped optional edge has `key: null` and the reason it was `skipped`.
 - **Scope.** `workspace` (every node), `member:<id>` or `node:<key>`: the node, every node it reaches and every node that reaches it, each once, however many paths lead there. At most 5000 nodes are listed; `truncated` says when the scope holds more.

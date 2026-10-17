@@ -16,6 +16,10 @@ const KINDS = Object.freeze({ prod: 'dependency', dev: 'build', peer: 'peer', op
  *   member's node.
  * - `status` is `installed` (the projection locates it), `locked` (the lock holds it, the projection does not),
  *   `supplied`, `declared` (nothing resolved it yet) or `missing` (its sources are gone, or the lock skipped it).
+ * - `source` says where its sources come from, one frame for each fact: `member` (the workspace, the only packages in
+ *   development), `supplied` (the toolchain, `from: 'toolchain'` for a Beyond package it compiles and serves,
+ *   `from: 'installation'` for a library its installation resolves, such as React, with the version installed there),
+ *   or a registry, Git, an archive or a snapshot for a node of the lock.
  * - `declared` lists what each importer declares now for the node's name; `dependencies` and `dependents` are the
  *   edges of the graph, the lock's and those of declarations the lock does not hold yet.
  */
@@ -55,8 +59,9 @@ export class Inventory {
 			graph.has(key) || graph.add(key, { name, version, origin: { provider: 'workspace' }, member: id, visibility: 'public', integrity: null, tarball: null });
 			graph.members[id] ??= { name, version, node: key };
 		}
-		for (const { name, version } of snapshot.supplied) {
-			!owned.has(name) && graph.add(`supplied:${name}@${version}`, { name, version, origin: { provider: 'supplied' } });
+		for (const { name, version, library } of snapshot.supplied) {
+			const origin = { provider: 'supplied', from: library ? 'installation' : 'toolchain' };
+			!owned.has(name) && graph.add(`supplied:${name}@${version}`, { name, version, origin });
 		}
 
 		for (const importer of snapshot.importers) {
@@ -114,7 +119,7 @@ export class Inventory {
 	static source(node) {
 		const provider = String(node?.origin?.provider ?? '');
 		if (provider === 'workspace') return { kind: 'member', member: node.member };
-		if (provider === 'supplied') return { kind: 'supplied' };
+		if (provider === 'supplied') return { kind: 'supplied', from: node.origin.from ?? 'toolchain' };
 		if (provider === 'declared') return { kind: 'declared' };
 		if (provider === 'npm') return { kind: 'registry', registry: node.origin.registry ?? 'https://registry.npmjs.org/' };
 		if (provider.startsWith('registry-')) return { kind: 'registry', registry: node.origin.registry };

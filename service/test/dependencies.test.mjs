@@ -6,8 +6,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { Host } from '../host/dependencies/host.mjs';
 import { Stage } from '../../tests/dependencies/support/stage.mjs';
 
 const releases = (versions, extra = {}) => ({ found: true, registry: 'https://registry.npmjs.org/', access: 'public', versions, tags: { latest: versions[0] }, deprecated: {}, ...extra });
@@ -142,4 +143,22 @@ test('a plan is refused before it starts when it is malformed, names nothing dec
 	assert.deepEqual(stale.body.error.details.current, base);
 	assert.equal(stage.installation.calls.length, 0, 'nothing was resolved');
 	assert.equal((await stage.send('GET', '/dependencies/plans/pln_x')).status, 404);
+});
+
+test('a library the toolchain supplies is labelled as supplied from its installation, with its version, never as in development', async t => {
+	const stage = await Stage.start(t, { fixture: 'hello', supplied: ['widgets'], libraries: ['react'] });
+	const { body } = await stage.send('GET', '/dependencies');
+	const byKey = Object.fromEntries(body.nodes.map(node => [node.key, node]));
+	const react = byKey['supplied:react@19.3.0'];
+	assert.deepEqual([react.status, react.version, react.source], ['supplied', '19.3.0', { kind: 'supplied', from: 'installation' }]);
+	assert.deepEqual(react.declared, [{ importer: 'app', range: '^19.0.0', type: 'prod' }], 'what app declares leads to it');
+	assert.deepEqual(byKey['supplied:@beyond-js/widgets@1.1.0'].source, { kind: 'supplied', from: 'toolchain' });
+	assert.equal(byKey['declared:react-dom'].version, null, 'a name nothing supplies is still declared only');
+	assert.equal(Object.values(byKey).some(node => node.source.kind === 'member' && node.name === 'react'), false);
+
+	const runtime = { packages: ['semver', 'not-installed-anywhere'], base: new URL('../../package.json', import.meta.url).href };
+	const [semver] = Host.libraries(runtime, [{ name: 'other' }]);
+	assert.deepEqual([semver.name, semver.library, existsSync(join(semver.path, 'package.json'))], ['semver', true, true]);
+	assert.deepEqual(Host.libraries(runtime, [{ name: 'semver' }]), [], 'a supplied package is not a library too; one not installed is left out');
+	assert.deepEqual(Host.libraries(undefined), []);
 });

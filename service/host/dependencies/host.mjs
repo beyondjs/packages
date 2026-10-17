@@ -1,3 +1,4 @@
+import { Component } from '../../component.mjs';
 import { Snapshot } from './snapshot.mjs';
 
 /**
@@ -32,7 +33,32 @@ export class Host {
 	 */
 	async snapshot() {
 		const Execution = await this.#modules.execution();
-		return await Snapshot.read(this.#context.root, { Execution, supplied: this.#context.settings?.supplied ?? [] });
+		const supplied = this.#context.settings?.supplied ?? [];
+		return await Snapshot.read(this.#context.root, { Execution, supplied: [...supplied, ...Host.libraries(this.#context.settings?.runtime, supplied)] });
+	}
+
+	/**
+	 * The libraries the toolchain supplies besides its Beyond packages, which a workspace without an installed graph
+	 * resolves from the toolchain's installation: the packages of the session's runtime (the Kernel, and the frameworks
+	 * the supplied packages depend on, such as React), each `{name, path, library: true}`; one that is not installed is
+	 * left out
+	 *
+	 * @param {{packages?: string[], base?: string} | undefined} runtime
+	 * @param {{name: string}[]} supplied
+	 */
+	static libraries(runtime, supplied = []) {
+		const { packages = [], base } = runtime ?? {};
+		if (!base) return [];
+		const named = new Set(supplied.map(({ name }) => name));
+		return packages
+			.filter(name => !named.has(name))
+			.flatMap(name => {
+				try {
+					return [{ name, path: Component.installed(name, base).path, library: true }];
+				} catch {
+					return [];
+				}
+			});
 	}
 
 	/**

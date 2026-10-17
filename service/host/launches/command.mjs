@@ -153,8 +153,8 @@ export class Command {
 	async #executable() {
 		const configured = this.#setting.deno?.executable ?? (await this.#settings()?.value?.('launch.deno')) ?? this.#environment.BEYOND_DENO;
 		if (typeof configured !== 'string' || !configured) {
-			const message = 'Deno is not configured on this development service: set the "launch.deno" setting or BEYOND_DENO to a Deno 2 executable';
-			throw LaunchError.unlaunchable('DENO_NOT_CONFIGURED', message);
+			const message = 'Deno is not set up on this development service: set the Deno executable in Settings (launch.deno)';
+			throw new LaunchError('TARGET_NOT_LAUNCHABLE', message, { reason: 'DENO_NOT_CONFIGURED', setting: 'launch.deno', variable: 'BEYOND_DENO' });
 		}
 		const path = resolve(configured);
 		const { message } = await this.#check.verify(path);
