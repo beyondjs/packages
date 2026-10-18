@@ -171,7 +171,7 @@ Dependency management uses these compatible extensions of `@beyond-js/packages/i
 
 - A `version` change pins a release across the workspace: every importer whose ranges admit it moves, and the plan discloses each one. A per-importer version is expressed with a `range`.
 - Manifests outside the served root (a member declared through `beyond.workspaces` elsewhere) are planned and never edited: the plan is invalid with `MANIFEST_OUTSIDE_ROOT`.
-- The preflight checks registry ranges and members; git, archive and path sources are resolved only by the installation, and the checks list registry nodes only. Snapshot sources are listed by kind when a lock records them; capture identities are not read here.
+- The preflight checks registry ranges and members; git, archive and path sources are resolved only by the installation, and the checks list registry nodes only. Snapshot sources are listed by kind when a lock records them; snapshot identities are not read here.
 - The plan measures the resolution, not the compilation that follows an application: which public modules and targets are affected is listed, the outputs they will generate or reuse are not measured.
 - The installation routes' own queue (`GET /installation`'s `running`, `queued`) does not see an application; both are serialized by the installation module.
 - The duplicated-singleton list is fixed; the catalog of applications is read only when the development extension shares one.

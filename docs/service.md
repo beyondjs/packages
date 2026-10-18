@@ -1,6 +1,6 @@
 # Development service
 
-The development service is the Dev Server of Packages for one workspace: it hosts Packages for that workspace, serves its compiled public modules over the compiled-module API (`@beyond-js/artifact-api`), describes and checks the workspace for its clients, and ends according to who is using it. It is part of the `@beyond-js/packages` distribution, under [service/](../service/index.mjs), and its clients import `@beyond-js/packages/service`. The Beyond command line and the environment of a Workspace project are two such clients. Importing it starts nothing.
+The development service is the Dev Server of Packages for one workspace: it hosts Packages for that workspace, serves its compiled public modules over the compiled-module API (`@beyond-js/artifact-api`), describes and checks the workspace for its clients, and ends according to who is using it. It is part of the `@beyond-js/packages` distribution, under [service/](../service/index.mjs), and its clients import `@beyond-js/packages/service`. The Beyond command line, Conduict's runner on a machine and the environment of a Workspace project, kept until the migration to Packages closes, are such clients. Importing it starts nothing.
 
 ```js
 import { Context, Service } from '@beyond-js/packages/service';
@@ -36,7 +36,7 @@ Either way the supervisor receives a launch description (`execArgv`, `env`, `cwd
 
 The service is the Dev Server that Packages owns, it has no dependency that Packages does not already have a reason for (`express` for the HTTP routes Packages defines, `@beyond-js/kernel` as the runtime its artifacts import, `@beyond-js/artifact-api` for the contract), and a consumer that only compiles, such as CDN delivery, pays nothing for files it does not import. Nothing about its lifecycle justifies a second package.
 
-What does have its own package is the bootstrap, for a reason that is independent of where startup code is written: its dependencies are a second compiler (Engine, with its whole tree), a loader used only to reach that compiler, Node type declarations for it and the dependencies of a service compiled from bundled source. None of them belongs to a compiled Packages, and declaring them in `@beyond-js/packages` would install them for every consumer forever. `@beyond-js/packages-bootstrap` is a provisional name; its availability in a registry has not been checked.
+What does have its own package is the bootstrap, for a reason that is independent of where startup code is written: its dependencies are a second compiler (Engine, with its whole tree), a loader used only to reach that compiler, Node type declarations for it and the dependencies of a service compiled from bundled source. None of them belongs to a compiled Packages, and declaring them in `@beyond-js/packages` would install them for every consumer forever. `@beyond-js/packages-bootstrap` is a provisional name; its availability in a registry has not been checked, and its manifest, like this one, carries the metadata of a `preview` publication that has not happened.
 
 ## Processes
 
