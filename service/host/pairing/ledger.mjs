@@ -113,12 +113,14 @@ export class Ledger {
 	}
 
 	/**
-	 * Writes the entries whole; no entry removes the file
+	 * Writes the entries whole; no entry removes the file, and a workspace that no longer exists is left alone
 	 *
 	 * @param {{hash: string, id: string, origin: string, created: number, used: number, expires: number, snapshots?:
 	 * string}[]} entries
 	 */
 	write(entries) {
+		// A workspace that is gone keeps nothing: the service that stops after it was removed never creates it again
+		if (!existsSync(this.#root)) return;
 		if (!entries.length) {
 			existsSync(this.#file) && rmSync(this.#file, { force: true });
 			return;

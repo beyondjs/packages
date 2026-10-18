@@ -156,3 +156,16 @@ test('a file that cannot be written is reported, and the pairing still works unt
 	assert.ok(pairings.verify(token, ORIGIN).pairing);
 	assert.match(reports[0], /could not be written/);
 });
+
+test('a service that stops after its workspace was removed never creates the workspace again', t => {
+	const root = workspace(t);
+	const time = clock();
+	const { pairings } = start(t, root, { clock: time });
+	const { token } = pairings.issue(ORIGIN);
+	// A use the file does not hold yet (within the interval a use is saved at), which the stop would write
+	time.advance(1000);
+	pairings.verify(token, ORIGIN);
+	rmSync(root, { recursive: true, force: true });
+	pairings.close();
+	assert.equal(existsSync(root), false, 'nothing of the workspace was written again');
+});
