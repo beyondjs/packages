@@ -20,15 +20,14 @@ const FAMILIES = ['bundle', 'core', 'styles', 'routing'];
  * the module of the selected runtime. Anything outside the Kernel families, and every specifier when the
  * runtime is the Kernel itself, is imported as written.
  */
-export /*bundle*/ class Compatibility {
+export class Compatibility {
 	#runtime: string;
 	#name: string;
 
 	/**
-	 * @param runtime The runtime public module the artifact imports, such as `@scope/runtime/bundle`; the Kernel
-	 * when none is selected
+	 * @param runtime The runtime public module the artifact imports, such as `@scope/runtime/bundle`
 	 */
-	constructor(runtime: string = KERNEL) {
+	constructor(runtime: string) {
 		this.#runtime = runtime;
 
 		const segments = runtime.split('/');
