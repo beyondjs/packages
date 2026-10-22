@@ -1,5 +1,7 @@
 # packages agent instructions
 
+**Interface writing.** Name the task or object; use specific action verbs and consistent terms. Keep one idea per sentence, aiming for 15 words without hiding permissions, costs, privacy or recovery. Remove filler and repeated introductions. Offer contextual help only when useful; distinguish dynamic names from explanatory copy. Review complete journeys and intentional languages. The family guidance is `branding/docs/writing.md` in the Beyond Suite checkout; this paragraph remains sufficient in a standalone clone.
+
 For CDN v1 work, read the [maintained implementation contract](docs/cdn-contract.md); preserve its stage boundaries and distinguish approved scope from source evidence and unvalidated capabilities.
 
 Canonical instructions for this repository and its descendants. Tool-specific files must only reference AGENTS.md. This is an independent Git repository; the current coordinated branch is `feature/next`.
