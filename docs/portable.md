@@ -14,7 +14,7 @@ How a development service is used by the Packages interface from a browser, and 
 
 ## Every service
 
-A service that does not pair, as Conduict's runner and a Workspace environment start it, keeps its access with four corrections that every service receives:
+A service that does not pair, as the Conduict Machine Manager and a Workspace environment start it, keeps its access with four corrections that every service receives:
 
 - **`Host` is checked on every request of a loopback bind** (`403 HOST_REFUSED`): a loopback name (`127.0.0.1`, `localhost`, `[::1]`) with the port the request arrived on, or the public host of that port. A site whose name was made to resolve to this machine (DNS rebinding) names itself and is refused, preflights included. Behind another address something else decides who reaches the service.
 - **Cross-origin headers only on the compiled-module routes.** The contract's `Access-Control-Allow-Origin: *` (and the answer to a preflight) is given to `/m/`, `/u/`, `/resolution.json` and `/importmap.json` only; the session, the state, the files and every other route are not readable by a page of another origin.
@@ -25,7 +25,7 @@ Conduict's development proxy rewrites `Host` to `127.0.0.1:<port>` and `Origin` 
 
 ### A loopback service that does not pair
 
-A service on the loopback address that neither pairs nor verifies delegated grants, as `beyond test` and `beyond install` start it, and Conduict's runner behind its proxy, has no authentication, so it also answers pages of other origins only what the compiled-module contract lets them read ([SameOrigin](../service/host/same-origin.mjs)):
+A service on the loopback address that neither pairs nor verifies delegated grants, as `beyond test` and `beyond install` start it, and Conduict's Machine Manager behind its proxy, has no authentication, so it also answers pages of other origins only what the compiled-module contract lets them read ([SameOrigin](../service/host/same-origin.mjs)):
 
 - **A change from a page of another origin is refused** (`403 ORIGIN_REFUSED`): any method but `GET`, `HEAD` and `OPTIONS` sent with an `Origin` other than the one it addressed. A page sends its own on every such request, even one without a body, which needs no preflight (`POST /builds`, `POST /builds/:id/cancel`); a process sends none, and Conduict's proxy sends the service's own.
 - **A page of another origin cannot attach** (`GET /attach`, `403 ORIGIN_REFUSED`), told by its `Origin` or, for a request that carries none (an image, a classic script), by a `Sec-Fetch-Site` other than `same-origin` or `none`: no page keeps the service alive.

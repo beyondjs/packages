@@ -27,8 +27,8 @@ import { Pairing } from './pairing/index.mjs';
  * portable.describe(request, session);      // the session as this caller receives it
  * ```
  *
- * A service started without the setting does not construct this and behaves as before; the Conduict runner, which
- * starts the service behind its own development proxy, is one. A service that pairs listens on a loopback address
+ * A service started without the setting does not construct this and behaves as before; the Conduict Machine Manager,
+ * which starts the service behind its own development proxy, is one. A service that pairs listens on a loopback address
  * unless it is reached through a public origin, and refuses delegated access (`BEYOND_AUTHORITY`), which reads
  * `Authorization: Bearer` too.
  */

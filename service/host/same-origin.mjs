@@ -3,7 +3,7 @@ import { Scope } from './pairing/scope.mjs';
 
 /**
  * What a page of another origin reaches on a loopback service that does not pair browsers and verifies no delegated
- * grant, as `beyond test` and `beyond install` start it (and Conduict's runner, behind its development proxy). Such a
+ * grant, as `beyond test` and `beyond install` start it (and the Conduict Machine Manager, behind its development proxy). Such a
  * service has no authentication, so a page of any site the developer opens could otherwise use it while it runs:
  *
  * - A change (any method but `GET`, `HEAD` and `OPTIONS`) sent with an `Origin` other than the one it was addressed to

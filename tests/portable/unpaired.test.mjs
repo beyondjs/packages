@@ -11,7 +11,7 @@ const TEXT = '/m/@portable/app@1.0.0/modules/text';
 const code = answer => [answer.status, answer.body?.error?.code];
 
 /**
- * A service started without pairing, as Conduict's runner starts it behind its development proxy: it keeps its access,
+ * A service started without pairing, as the Conduict Machine Manager starts it behind its development proxy: it keeps its access,
  * with the corrections every service receives
  */
 const served = new Served();

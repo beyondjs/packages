@@ -1,6 +1,6 @@
 # Development service
 
-The development service is the Dev Server of Packages for one workspace: it hosts Packages for that workspace, serves its compiled public modules over the compiled-module API (`@beyond-js/artifact-api`), describes and checks the workspace for its clients, and ends according to who is using it. It is part of the `@beyond-js/packages` distribution, under [service/](../service/index.mjs), and its clients import `@beyond-js/packages/service`. The Beyond command line, Conduict's runner on a machine and the environment of a Workspace project, kept until the migration to Packages closes, are such clients. Importing it starts nothing.
+The development service is the Dev Server of Packages for one workspace: it hosts Packages for that workspace, serves its compiled public modules over the compiled-module API (`@beyond-js/artifact-api`), describes and checks the workspace for its clients, and ends according to who is using it. It is part of the `@beyond-js/packages` distribution, under [service/](../service/index.mjs), and its clients import `@beyond-js/packages/service`. The Beyond command line, the Conduict Machine Manager on a machine and the environment of a Workspace project, kept until the migration to Packages closes, are such clients. Importing it starts nothing.
 
 ```js
 import { Context, Service } from '@beyond-js/packages/service';

@@ -10,7 +10,7 @@ Inspector is no longer an independent product component. Integrate required insp
 
 ## Consumers and authority
 
-Standalone CLI can run Core against a local directory without Docker or a product UI. Packages UI inspects and controls Core, with no backend of its own. Conduict owns machines, repository copies and its supervisor; Accounts owns people and sign-in, Projects owns common project authorization and Packages enablement. Conduict runs the same service per authorized copy through `files/2`, `development/1` and `archive/1`; see [portable connections](portable.md) for standalone pairing and [the service](service.md) for its lifecycle.
+Standalone CLI can run Core against a local directory without Docker or a product UI. Packages UI inspects and controls Core, with no backend of its own. Conduict owns machines, repository copies and the Conduict Machine Manager; Accounts owns people and sign-in, Projects owns common project authorization and Packages enablement. Conduict runs the same service per authorized copy through `files/2`, `development/1` and `archive/1`; see [portable connections](portable.md) for standalone pairing and [the service](service.md) for its lifecycle.
 
 Workspace 2026 is retired from the family's entries and remains the migration source: its code and running estate, with its central administration and environment rules, are kept until the migration to Packages closes, and nothing new is added to it. Its legacy environment grants do not define the target product architecture. Packages validates delegated root/operation authorization, expiry and revocation without a parallel roles database. Docker alone does not prove untrusted-code isolation.
 
