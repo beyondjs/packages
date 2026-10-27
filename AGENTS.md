@@ -35,3 +35,7 @@ Two authoring models coexist and must not be mixed. This implementation is autho
 - Every wait ends: a database, another product, a provider, a child process or a stream has a bound; an outage is answered as unavailable, never as a refusal, an internal error or a sign-out; a change that got no answer is reported as an unknown outcome; and every waiting state offers a way out. The service's bounds and their variables are in [the service guide](docs/service.md#embedding-the-service). New waits follow them and add a test of the hang itself. When the Beyond Suite checkout is available, the family convention is its `docs/family/bounded-waits.md`.
 
 Documentation follows [the local documentation standards](docs/AGENTS.md).
+
+## Tests on a shared computer
+
+In a Beyond Suite checkout shared with other sessions, every test command of this repository takes a turn in the suite's machine-wide test queue. Run it from this repository: `node <suite>/tools/queue/index.mjs heavy -- <command>` for full suites, browser, Docker or live runs, and `light` for the files a change affects. Run a long heavy run in the background, never split a suite into parallel runs, and never lower priority with `taskpolicy`. This repository's scripts never call the queue themselves, so a standalone clone runs them directly. The rule is the suite's `docs/suite/testing.md`, section "Sharing the machine".
