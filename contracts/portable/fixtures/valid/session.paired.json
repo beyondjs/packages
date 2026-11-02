@@ -12,7 +12,7 @@
 	},
 	"exports": {
 		"destinations": [
-			"https://snapshots.beyondjs.com",
+			"https://api.snapshots.beyondjs.com",
 			"http://snapshots.beyond.localhost:5300"
 		]
 	}

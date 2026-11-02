@@ -82,7 +82,7 @@ test('an upload address outside the allowed Snapshots origins refuses the transf
 	await assert.rejects(exports.transfer(created.id, { capture: { id: CAPTURE }, grants }), error => {
 		assert.deepEqual([error.code, error.status], ['EXPORT_DESTINATION', 403]);
 		assert.equal(error.described.details.origin, 'https://elsewhere.example');
-		assert.ok(error.described.details.allowed.includes('https://snapshots.beyondjs.com'), 'the family default is allowed');
+		assert.ok(error.described.details.allowed.includes('https://api.snapshots.beyondjs.com'), 'the family default is allowed');
 		assert.doesNotMatch(error.message, /BEYOND_/, 'no variable in the message');
 		return true;
 	});
@@ -90,7 +90,7 @@ test('an upload address outside the allowed Snapshots origins refuses the transf
 	const unconfigured = new Exports(workspace(t, { additions: false }), { environment: {} });
 	const own = await unconfigured.create(['packages/plain']);
 	await assert.rejects(unconfigured.transfer(own.id, { capture: { id: CAPTURE }, grants: snapshots.grants(CAPTURE, ['packages/plain']) }), error => {
-		assert.deepEqual(error.described.details.allowed, ['https://snapshots.beyondjs.com']);
+		assert.deepEqual(error.described.details.allowed, ['https://api.snapshots.beyondjs.com']);
 		return error.code === 'EXPORT_DESTINATION';
 	});
 	assert.equal(snapshots.uploads.length, 0);
@@ -253,7 +253,7 @@ test('a Snapshots origin the paired page declared, or the setting holds, admits 
 	const again = await exports.create(['packages/plain']);
 	await assert.rejects(exports.transfer(again.id, body()), error => error.code === 'EXPORT_DESTINATION', 'without a declaration');
 	configured = [snapshots.origin];
-	assert.deepEqual(exports.destinations(undefined), ['https://snapshots.beyondjs.com', snapshots.origin]);
+	assert.deepEqual(exports.destinations(undefined), ['https://api.snapshots.beyondjs.com', snapshots.origin]);
 	assert.equal((await exports.transfer(again.id, body())).transfer.packages[0].state, 'queued', 'the setting, read at the transfer');
 	await settled(exports, again.id);
 });

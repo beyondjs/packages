@@ -150,7 +150,7 @@ An export is `{id, protocol, state, created, expires, packages: [{path, name, ve
 A transfer uploads only to an allowed Snapshots origin, which for the caller that requests it is the union of:
 
 1. `BEYOND_SNAPSHOTS_ORIGINS` (origins separated by commas) when the service was started with it; a value that is not an allowed origin fails the start;
-2. the family's own Snapshots, `https://snapshots.beyondjs.com`;
+2. the family's own Snapshots, `https://api.snapshots.beyondjs.com`;
 3. the origin the paired page declared for its own pairing (`POST /pairing {code, snapshots}` or `PUT /pairing {snapshots}`), for the transfers requested with that pairing's token only;
 4. the `snapshots.origins` setting ([settings](settings.md)), read at each transfer.
 

@@ -4,7 +4,7 @@ import { Transfer } from './transfer.mjs';
  * The Snapshots origins a transfer may upload to, for the caller that requests it: the union of
  *
  * 1. the origins of `BEYOND_SNAPSHOTS_ORIGINS` (separated by commas), when the service was started with it;
- * 2. the family's own Snapshots, `Destinations.FAMILY` (`https://snapshots.beyondjs.com`);
+ * 2. the family's own Snapshots, `Destinations.FAMILY` (`https://api.snapshots.beyondjs.com`);
  * 3. the origin the paired page declared for its own pairing (`POST /pairing {code, snapshots}`, `PUT /pairing`),
  *    for the transfers requested with that pairing's token only;
  * 4. the `snapshots.origins` setting, read at each transfer.
@@ -13,11 +13,11 @@ import { Transfer } from './transfer.mjs';
  *
  * ```js
  * const destinations = new Destinations({ environment: process.env, settings: () => ['https://snapshots.example'] });
- * destinations.for(Caller.of(request));   // ['https://snapshots.beyondjs.com', 'https://snapshots.example', …]
+ * destinations.for(Caller.of(request));   // ['https://api.snapshots.beyondjs.com', 'https://snapshots.example', …]
  * ```
  */
 export class Destinations {
-	static FAMILY = 'https://snapshots.beyondjs.com';
+	static FAMILY = 'https://api.snapshots.beyondjs.com';
 
 	#environment;
 	#settings;

@@ -41,7 +41,7 @@ test('a paired page reads its own pairing and the Snapshots origins it may uploa
 	assert.equal(body.workspace.root !== undefined, true, 'the whole session');
 	assert.deepEqual(Object.keys(body.pairing).sort(), ['created', 'expires', 'id', 'origin']);
 	assert.deepEqual([body.pairing.id, body.pairing.origin], [pairing.id, UI]);
-	assert.deepEqual(body.exports, { destinations: ['https://snapshots.beyondjs.com'] });
+	assert.deepEqual(body.exports, { destinations: ['https://api.snapshots.beyondjs.com'] });
 });
 
 test('a page declares its Snapshots origin when it pairs or later, for its own pairing only', async t => {
@@ -55,7 +55,7 @@ test('a page declares its Snapshots origin when it pairs or later, for its own p
 	assert.equal(paired.status, 201, 'the code was not used by the refused declaration');
 	const bearer = { origin: UI, authorization: `Bearer ${paired.body.token}` };
 	const read = async headers => (await send('GET', '/session', headers)).body.exports.destinations;
-	assert.deepEqual(await read(bearer), ['https://started.example', 'https://snapshots.beyondjs.com', 'http://snapshots.beyond.localhost:5300', 'https://configured.example']);
+	assert.deepEqual(await read(bearer), ['https://started.example', 'https://api.snapshots.beyondjs.com', 'http://snapshots.beyond.localhost:5300', 'https://configured.example']);
 
 	for (const snapshots of ['https://snapshots.example.com/v1', 'https://snapshots.example.com?x=1', 'ftp://snapshots.example.com', 'https://user:secret@snapshots.example.com', 'http://snapshots.example.com', null, 7]) {
 		assert.deepEqual(code(await send('PUT', '/pairing', { ...bearer, ...JSON_TYPE }, JSON.stringify({ snapshots }))), [400, 'PAIRING_DESTINATION_INVALID'], String(snapshots));
