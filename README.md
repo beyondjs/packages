@@ -22,6 +22,7 @@ Beyond also compiles packages into distributable outputs for publication and con
 - [Local Dev Server settings](docs/settings.md): `beyond-dev-settings/1`, the bounded settings a person changes from the Packages interface.
 - [Production](docs/production.md): `beyond-production/1`, a package's registry archive and publication, and the web export of a frontend target.
 - [Package resolution and source fetching](docs/cdn-resolution.md), [publication forms, analysis and generated outputs](docs/cdn-outputs.md) and [semantic TypeScript diagnostics](docs/cdn-diagnostics.md): the public modules CDN's preparation uses.
+- [Cloud templates](templates/cloud/README.md): the versioned catalog (`beyond-cloud-templates/1`) of the smallest packages a person publishes from the cloud through Beyond CDN, which Snapshots vendors, checked and compiled by [the templates validation](tests/templates/README.md).
 - [Development and acceptance](docs/development.md): execution roles, configuration, current blockers and the functional widget development loop.
 - [Architecture and bundlers SDK](docs/architecture.md): actual public extension interfaces, source/output flow, artifacts, diagnostics and lifecycle.
 - [Programming conventions](docs/programming.md): Beyond authoring, public versus internal modules, naming, state and tests.

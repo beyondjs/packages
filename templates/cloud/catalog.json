@@ -1,0 +1,30 @@
+{
+	"protocol": "beyond-cloud-templates/1",
+	"version": "1.0.0",
+	"templates": [
+		{
+			"name": "frontend",
+			"title": "A minimal web module",
+			"kind": "frontend",
+			"platform": "web",
+			"form": "module",
+			"entry": "main",
+			"directory": "frontend",
+			"package": "page",
+			"files": ["package.json", "main/module.json", "main/index.ts"],
+			"digest": "sha256:15c4e222f6e64f4fc43c9ffb719a3ac415ea3c6356fa69750734d892ca1c3215"
+		},
+		{
+			"name": "react",
+			"title": "A React counter",
+			"kind": "frontend",
+			"platform": "web",
+			"form": "npm",
+			"entry": ".",
+			"directory": "react",
+			"package": "counter",
+			"files": ["package.json", "main.tsx"],
+			"digest": "sha256:6c12a006c2dac91f558163ae7d54419f020a3b36f8aa94f30953ff306f475a3d"
+		}
+	]
+}

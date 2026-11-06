@@ -1,0 +1,23 @@
+{
+	"name": "page",
+	"version": "0.1.0",
+	"private": true,
+	"beyond": {
+		"modules": ".",
+		"bundler": "esbuild",
+		"publication": {
+			"protocol": "beyond-publication/1",
+			"form": "source"
+		}
+	},
+	"bundlers": {
+		"esbuild": {
+			"specifier": "@beyond-js/packages/bundlers/esbuild",
+			"processors": {
+				"bundle": {
+					"compiler": "esbuild"
+				}
+			}
+		}
+	}
+}
