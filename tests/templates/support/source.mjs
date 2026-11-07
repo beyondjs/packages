@@ -1,8 +1,8 @@
 /**
  * What CDN's source check (`beyond-source-checks/1`) and its preparation ask of this implementation for one
  * revision, written here against the public modules they call, with the inputs CDN gives them: the conditions
- * `{platform: 'browser', environment: 'production'}`, the `esbuild` compiler, the `esm` format and a confined
- * compilation. CDN's own unit operations (`src/runners/unit/operations/check.mjs`, `compile.mjs`, `analyze.mjs`
+ * `{platform: 'browser', environment: 'production'}` for a template that runs on the web and `{platform: 'node', …}`
+ * for one that runs on Node (a backend target), the `esbuild` compiler, the `esm` format and a confined compilation. CDN's own unit operations (`src/runners/unit/operations/check.mjs`, `compile.mjs`, `analyze.mjs`
  * and `generate.mjs` in its repository) are the reference; this file follows them and adds nothing of its own.
  *
  * - `modules`: the public modules the revision publishes, by opening its package confined (`Pinned`).
@@ -20,23 +20,27 @@ import { Generation } from '@beyond-js/packages/generation';
 import { Diagnostics } from '@beyond-js/packages/diagnostics';
 
 export class SourceCheck {
-	static CONDITIONS = { platform: 'browser', environment: 'production' };
+	/** The conditions of a CDN target by the platform its template names */
+	static CONDITIONS = { web: { platform: 'browser', environment: 'production' }, node: { platform: 'node', environment: 'production' } };
 
 	#store;
 	#compiler;
+	#conditions;
 
 	/**
 	 * @param {import('./store.mjs').Store} store
 	 * @param {string} compiler The esbuild compiler selection
+	 * @param {'web' | 'node'} platform What the template runs on
 	 */
-	constructor(store, compiler) {
+	constructor(store, compiler, platform = 'web') {
 		this.#store = store;
 		this.#compiler = compiler;
+		this.#conditions = SourceCheck.CONDITIONS[platform];
 	}
 
 	get #options() {
 		const { graph, sources } = this.#store;
-		return { graph, sources, conditions: SourceCheck.CONDITIONS, format: 'esm', compiler: this.#compiler, confined: true };
+		return { graph, sources, conditions: this.#conditions, format: 'esm', compiler: this.#compiler, confined: true };
 	}
 
 	/**
@@ -46,7 +50,7 @@ export class SourceCheck {
 		const { graph, sources, key } = this.#store;
 		const node = graph.nodes[key];
 		const root = realpathSync(this.#store.directory);
-		const pinned = new Pinned(graph, sources, SourceCheck.CONDITIONS, true);
+		const pinned = new Pinned(graph, sources, this.#conditions, true);
 		try {
 			const { opened } = await pinned.open(key);
 			if (!opened) return [];
@@ -74,7 +78,7 @@ export class SourceCheck {
 		for (const program of SourceCheck.#programs(files, await this.modules())) {
 			const result = await Diagnostics.check({
 				module: { package: node.name, version: node.version, root, subpath: program.subpath === '.' ? '.' : `./${program.subpath}`, entry: program.entry, path: program.directory, files: program.files },
-				conditions: SourceCheck.CONDITIONS,
+				conditions: this.#conditions,
 				dependencies: { packages: this.#store.dependencies },
 				limits: { ms: 240_000, files: 2000, diagnostics: 100_000 }
 			});

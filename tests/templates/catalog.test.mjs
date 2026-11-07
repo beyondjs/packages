@@ -17,6 +17,9 @@ import { Catalog } from './support/catalog.mjs';
 const catalog = await new Catalog().read();
 const exact = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
+/** The platform each kind of CDN target runs on */
+const PLATFORMS = { frontend: 'web', backend: 'node' };
+
 /** What each form names as its entry, and the members of every template */
 const ENTRIES = { module: 'main', npm: '.' };
 const MEMBERS = ['digest', 'directory', 'entry', 'files', 'form', 'kind', 'name', 'package', 'platform', 'title'];
@@ -43,8 +46,8 @@ for (const template of catalog.templates) {
 		}
 		assert.match(template.name, /^[a-z][a-z0-9-]*$/);
 		assert.match(template.directory, /^[a-z][a-z0-9-]*$/, 'the directory is one plain name under templates/cloud');
-		assert.equal(template.kind, 'frontend');
-		assert.equal(template.platform, 'web');
+		assert.ok(Object.hasOwn(PLATFORMS, template.kind), `the kind is one of ${Object.keys(PLATFORMS)}`);
+		assert.equal(template.platform, PLATFORMS[template.kind], `a ${template.kind} runs on ${PLATFORMS[template.kind]}`);
 		assert.ok(Object.hasOwn(ENTRIES, template.form), `the form is one of ${Object.keys(ENTRIES)}`);
 		assert.equal(template.entry, ENTRIES[template.form], `the ${template.form} form's entry is "${ENTRIES[template.form]}"`);
 		assert.match(template.digest, /^sha256:[0-9a-f]{64}$/);

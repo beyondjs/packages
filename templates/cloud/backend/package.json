@@ -1,0 +1,7 @@
+{
+	"name": "service",
+	"version": "0.1.0",
+	"type": "module",
+	"exports": { ".": "./server.ts" },
+	"devDependencies": { "@types/node": "22.20.5" }
+}

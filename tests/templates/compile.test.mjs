@@ -28,7 +28,7 @@ for (const template of catalog.templates) {
 		const store = new Store();
 		t.after(() => store.remove());
 		await store.create(catalog.directory(template));
-		const source = new SourceCheck(store, compiler);
+		const source = new SourceCheck(store, compiler, template.platform);
 
 		await t.test('it publishes the entry the catalog names, and nothing else', async () => {
 			const modules = await source.modules();
