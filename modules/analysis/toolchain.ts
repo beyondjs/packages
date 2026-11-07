@@ -85,7 +85,8 @@ export /*bundle*/ class Toolchain {
 	 * raised wrote other bytes for the same inputs.
 	 *
 	 * `2`: a builtin is written with its `node:` scheme (`util` is `node:util`), and its `require` returns its
-	 * default export.
+	 * default export. The key also names the major version of the Node that prepares, whose `builtinModules`
+	 * decides which bare names are builtins.
 	 */
 	static BOUNDARY = '2';
 
@@ -122,7 +123,8 @@ export /*bundle*/ class Toolchain {
 		const options = this.options(opened);
 		const { version, assigned, provenance } = this.#compiler.identity;
 		const sharing = opened.form === 'npm' ? Toolchain.SHARING : void 0;
-		const boundary = platform === 'node' ? Toolchain.BOUNDARY : void 0;
+		// Which names are builtins is a fact of the Node that prepares (`builtinModules`), so its major is part of it
+		const boundary = platform === 'node' ? { revision: Toolchain.BOUNDARY, node: process.versions.node.split('.')[0] } : void 0;
 		const configuration = { options, assigned, revision: provenance?.revision, sharing, boundary, system: this.#format === 'system' ? Toolchain.system : void 0, ...this.#confinement };
 		const conditions = [...new Set([options.platform, ...options.conditions])].sort();
 		return { compiler: { name: 'esbuild', version, configuration: Compatibility.digest(configuration) }, conditions, format: this.#format };
