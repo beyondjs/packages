@@ -52,9 +52,9 @@ What a backend's dependencies may contain is what [the outputs guide](cdn-output
 
 Measured on 2026-11-07 with CDN's frameworks acceptance (`acceptance/frameworks.mjs` in the CDN repository): each case is published in a registry of the run, which passes every other name through to registry.npmjs.org, and prepared as a backend target by the CDN worker image's own unit children (`resolve`, `fetch`, `analyze`, `generate`, with the worker's payloads, confined); its outputs and the release's `resolution.json` and `importmap.json` are laid out under `/_r/1/` as an application host serves them, and a host runs the entry with BEE Node's `resolution` adapter and with Deno. The worker image is CDN `2b9ed15` (A-29's confined worker) with this repository at the revision named below; BEE Node `e869324` on Node 22.21.1; one loaded shared machine, loopback network, cold caches. It is not CDN's service, database, job lifecycle or published delivery, and nothing is hosted.
 
-Each cell is the time from the host's start to `GET /health` answering 200, then the time from `SIGTERM` to the exit, with a `GET /slow` (1.5 s) sent before the signal finishing every time. Preparation is the four stages' wall time, every unit a fresh container of the worker image.
+Each cell is the time from the host's start to `GET /health` answering 200, then the time from `SIGTERM` to the exit, with a `GET /slow` (1.5 s) sent before the signal finishing every time. A second process of each case is then sent `SIGTERM` with a request held open that no drain lets finish (its headers never end): every case below, on every host, exited with code 0 8.0 s after the signal, its own drain bound. The agent plugin's template 2 before its drain exited the process (agent-plugin `9fa3517`) was killed 15 s after the signal on Deno 2.5.6, whose `closeAllConnections()` does nothing once the server is closing, and exited in 8.0 s on Node and Deno 2.9.6. Preparation is the four stages' wall time, every unit a fresh container of the worker image.
 
-**This revision** (`86a9767`; the run's image compiled the same modules from a local commit; `Toolchain.SHARING` 2, `Toolchain.BOUNDARY` 2):
+**This revision** (`86a9767`, and again at `1342230` with the held request; the run's image compiled the same modules from a local commit; `Toolchain.SHARING` 2, `Toolchain.BOUNDARY` 2):
 
 | Case | Preparation | Node 22.21.1, BEE Node | Deno 2.9.6 | Deno 2.5.6 |
 | --- | --- | --- | --- | --- |
@@ -96,13 +96,15 @@ These revisions reach a release only when CDN's worker image runs them. That re-
 
 ## What the sharing plan costs
 
-A subpath now carries another only when the two share a file once each is delivered with the others' entry points as references, which the plan learns by compiling, confined and in memory, each subpath that another reaches, with those references (`Sharing`'s `#files`, cached per plan). Measured on the same runs as the table above, the `analyze` unit's own cost (`cost.ms` of `Analysis.measured`, one run each on a loaded machine):
+A subpath now carries another only when the two share a file once each is delivered with the others' entry points as references, which the plan learns by compiling, confined and in memory, each subpath that another reaches, with those references (`Sharing`'s `#files`, cached per plan). Measured on 2026-11-07 with the frameworks acceptance, Hono alone, three runs per image alternating `e881a98` and `1342230` on one loaded machine, from the `analyze` unit's answer (`cost.ms` of `Analysis.measured`, and the process's CPU):
 
-| Case | Modules in the inventory | `e881a98` | This revision |
-| --- | --- | --- | --- |
-| Hono 4.13.16 (77 public subpaths) | 6 | 3.1 s | 4.6 s |
-| Fastify 5.12.8 | 51 | 1.4 s | 1.5 s |
-| Express 5.3.0 | 93 | 1.4 s | 1.9 s |
+| Run | `e881a98` | This revision |
+| --- | --- | --- |
+| Hono's `analyze` unit, wall time (`cost.ms`), three paired runs | 7.2 s, 3.2 s, 5.0 s (median 5.0 s) | 4.3 s, 5.0 s, 5.2 s (median 5.0 s) |
+| Its CPU time (user) | 2.7 s, 2.2 s, 3.5 s (median 2.7 s) | 2.7 s, 3.1 s, 3.6 s (median 3.1 s) |
+| Hono's whole preparation (four stages, 9 units) | 28.9 s, 20.1 s, 29.5 s (median 28.9 s) | 23.2 s, 30.8 s, 28.0 s (median 28.0 s) |
+
+Hono publishes 77 subpaths, of which the application's inventory reaches 6. On this loaded machine the plan's trial bundles cost about 0.4 s of CPU in Hono's analysis, and less than the spread between runs in its wall time and in the whole preparation. Fastify (51 modules) and Express (93) analysed in 1.4–1.9 s with either revision.
 
 Every generation unit of an npm package plans it again in its own process, so a package with many subpaths pays that cost in each of its units; making the plan a recorded fact of the analysis, handed to its units, is the way to pay it once.
 
