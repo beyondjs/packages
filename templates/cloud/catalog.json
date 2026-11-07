@@ -1,6 +1,6 @@
 {
 	"protocol": "beyond-cloud-templates/1",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"templates": [
 		{
 			"name": "frontend",
@@ -25,6 +25,18 @@
 			"package": "counter",
 			"files": ["package.json", "main.tsx"],
 			"digest": "sha256:6c12a006c2dac91f558163ae7d54419f020a3b36f8aa94f30953ff306f475a3d"
+		},
+		{
+			"name": "backend",
+			"title": "A Node service",
+			"kind": "backend",
+			"platform": "node",
+			"form": "npm",
+			"entry": ".",
+			"directory": "backend",
+			"package": "service",
+			"files": ["package.json", "routes.ts", "server.ts"],
+			"digest": "sha256:61dc1e7fcc6fd730aff5a085af281751bf2fc7f79710a949a2e72ab93b65666f"
 		}
 	]
 }
