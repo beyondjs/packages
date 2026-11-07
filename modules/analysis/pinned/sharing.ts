@@ -72,6 +72,13 @@ export /*bundle*/ interface ISharingSettings extends Pick<IBundleRequest, 'platf
  * A facade keeps the public identity of the subpath and its live bindings, and adds nothing private: what
  * a page loads is still public modules only.
  *
+ * Reaching the entry point of another subpath relates two subpaths only when they would share a file once
+ * compiled as they are delivered, each with the entry points of the others kept as references: a subpath
+ * that reaches another only through its entry point already shares its state through that reference, so it
+ * carries nothing. That keeps a carrier from being evaluated where only what it contains was imported: an
+ * adapter for one runtime (`hono/bun`, which reads `Bun` when it is evaluated) reaches the entry points of
+ * the generic subpaths it builds on, and would otherwise carry them, breaking them everywhere else.
+ *
  * The union names every re-export instead of starring it, so a name two subpaths export is carried for
  * both rather than becoming ambiguous and dropped by the compiler without saying so. A subpath the union
  * cannot name — one that re-exports an external module in turn, or whose API has a name that is not an
@@ -175,6 +182,7 @@ export /*bundle*/ class Plan {
 	}
 
 	#scans: Map<string, IScanned> = new Map();
+	#delivered: Map<string, Promise<Set<string> | undefined>> = new Map();
 	#scanned(subpath: string): IScanned {
 		return this.#scans.get(subpath);
 	}
@@ -215,8 +223,48 @@ export /*bundle*/ class Plan {
 	}
 
 	/**
-	 * The largest graphs carry the subpaths whose entry points they reach; a union the compiler refuses, or
-	 * one that does not publish everything it promised, leaves the subpaths it was built for on their own
+	 * The entry point file of every other public subpath with its specifier, which a subpath compiled on its
+	 * own keeps as references (as `NpmPackage.entries` gives them to the compilation)
+	 */
+	#entries(except: string): Map<string, string> {
+		const { name, subpaths, resolve, file } = this.#settings;
+		const own = resolve(except).target;
+		const entries: Map<string, string> = new Map();
+		subpaths.forEach(subpath => {
+			const { target } = resolve(subpath);
+			const found = target && target !== own && !target.endsWith('.json') && file(target);
+			subpath !== except && found && !entries.has(found) && entries.set(found, subpath === '.' ? name : `${name}/${subpath.slice(2)}`);
+		});
+		return entries;
+	}
+
+	/**
+	 * The files a subpath bundles as it is delivered on its own: the entry points of the others kept as
+	 * references, relative to the root
+	 */
+	#files(scanned: IScanned): Promise<Set<string> | undefined> {
+		if (!this.#delivered.has(scanned.subpath)) {
+			const files = this.#bundle(scanned.subpath, scanned.entry, void 0, this.#entries(scanned.subpath)).then(({ bundled }) =>
+				bundled ? new Set(bundled.inputs.map(input => (input.startsWith('.') ? input : `./${input}`))) : void 0
+			);
+			this.#delivered.set(scanned.subpath, files);
+		}
+		return this.#delivered.get(scanned.subpath);
+	}
+
+	/**
+	 * Whether two subpaths delivered on their own would each carry a copy of a file
+	 */
+	async #shares(carrier: IScanned, one: IScanned): Promise<boolean> {
+		const [own, other] = await Promise.all([this.#files(carrier), this.#files(one)]);
+		if (!own || !other) return true;
+		return [...other].some(file => own.has(file));
+	}
+
+	/**
+	 * The largest graphs carry the subpaths whose entry points they reach and with which they would share a
+	 * file; a union the compiler refuses, or one that does not publish everything it promised, leaves the
+	 * subpaths it was built for on their own
 	 */
 	async #assign() {
 		const scanned = [...this.#scans.values()].sort((a, b) => b.inputs.size - a.inputs.size || a.subpath.localeCompare(b.subpath));
@@ -225,7 +273,8 @@ export /*bundle*/ class Plan {
 		for (const carrier of scanned) {
 			if (assigned.has(carrier.subpath)) continue;
 			const reached = (one: IScanned) => one !== carrier && !assigned.has(one.subpath) && carrier.inputs.has(one.relative);
-			const contained = scanned.filter(one => reached(one) && Plan.nameable(one));
+			const contained: IScanned[] = [];
+			for (const one of scanned) reached(one) && Plan.nameable(one) && (await this.#shares(carrier, one)) && contained.push(one);
 			if (!contained.length) continue;
 
 			this.#roles.set(carrier.subpath, { kind: 'carrier', contained });

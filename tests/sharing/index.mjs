@@ -99,6 +99,21 @@ try {
 		return contained.trim();
 	});
 
+	await step('roles: a subpath that reaches another only through its entry point carries nothing', async () => {
+		const pinned = new Pinned(store.graph, store.sources, conditions);
+		try {
+			const { opened } = await pinned.open(store.key('@fixture/adapter'));
+			const plan = await opened.plan(compiled, conditions);
+			assert.equal(plan.role('.').kind, 'own', `the generic subpath is its own module: ${JSON.stringify(plan.role('.'))}`);
+			assert.equal(plan.role('./runtime').kind, 'own', 'the adapter carries nothing');
+			const root = code(prepared, '@fixture/adapter', '.');
+			assert.doesNotMatch(root, /@fixture\/adapter\/runtime|FixtureRuntime/, 'importing the generic subpath never evaluates the adapter');
+			return 'both own; the root does not load ./runtime';
+		} finally {
+			pinned.destroy();
+		}
+	});
+
 	await step('delivery: subpaths that reach nothing of each other are each delivered on their own', () => {
 		const a = code(prepared, '@fixture/independent', '.');
 		const b = code(prepared, '@fixture/independent', 'b');
@@ -179,7 +194,9 @@ try {
 			// A CommonJS package is not planned: the boundary alone keeps the entry point of `./state` public
 			commonjs: [1, 1],
 			// Two copies: `./state` re-exports an external package, so the union cannot name its API
-			opaque: [1, 0, 0]
+			opaque: [1, 0, 0],
+			// The generic subpath runs where its adapter for another runtime cannot be evaluated
+			adapter: 'core'
 		});
 		return JSON.stringify(observed);
 	});
