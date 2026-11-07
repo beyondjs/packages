@@ -73,8 +73,21 @@ export /*bundle*/ class Toolchain {
 	 * the key of every output of an npm package, because the plan changes what an output contains without
 	 * changing any other input: raise it whenever the plan or the union it compiles changes, so that an output
 	 * stored before is never answered for a key it no longer satisfies.
+	 *
+	 * `2`: a subpath carries another only when the two would share a file delivered on their own, each with the
+	 * entry points of the others kept as references; reaching the other's entry point alone no longer does.
 	 */
-	static SHARING = '1';
+	static SHARING = '2';
+
+	/**
+	 * The revision of what the public boundary writes for Node ([Boundary](../bundlers/esbuild/processors/bundle/boundary.ts)),
+	 * part of the key of every output the selected compiler produces for Node: an output stored before it was
+	 * raised wrote other bytes for the same inputs.
+	 *
+	 * `2`: a builtin is written with its `node:` scheme (`util` is `node:util`), and its `require` returns its
+	 * default export.
+	 */
+	static BOUNDARY = '2';
 
 	/**
 	 * What transforms an ES module into `System.register`. `revision` is raised whenever the transformation
@@ -109,7 +122,8 @@ export /*bundle*/ class Toolchain {
 		const options = this.options(opened);
 		const { version, assigned, provenance } = this.#compiler.identity;
 		const sharing = opened.form === 'npm' ? Toolchain.SHARING : void 0;
-		const configuration = { options, assigned, revision: provenance?.revision, sharing, system: this.#format === 'system' ? Toolchain.system : void 0, ...this.#confinement };
+		const boundary = platform === 'node' ? Toolchain.BOUNDARY : void 0;
+		const configuration = { options, assigned, revision: provenance?.revision, sharing, boundary, system: this.#format === 'system' ? Toolchain.system : void 0, ...this.#confinement };
 		const conditions = [...new Set([options.platform, ...options.conditions])].sort();
 		return { compiler: { name: 'esbuild', version, configuration: Compatibility.digest(configuration) }, conditions, format: this.#format };
 	}

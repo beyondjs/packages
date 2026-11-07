@@ -1,0 +1,7 @@
+{
+	"name": "@fixture/optional",
+	"version": "1.0.0",
+	"main": "./src/index.js",
+	"peerDependenciesMeta": { "absent-peer": { "optional": true } },
+	"optionalDependencies": { "absent-optional": "1.0.0" }
+}

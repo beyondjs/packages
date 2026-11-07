@@ -14,6 +14,7 @@ This validation checks that from the outside: the outputs a consumer receives, a
 | roles | The subpath whose graph reaches another carries it, and that one is a facade over it, named by the public specifier of the carrier |
 | delivery: carrier and facade | The carrier holds the shared file exactly once; the facade references the carrier and nothing else, and carries no copy of the state |
 | delivery: default | A default export of a contained subpath, which `export *` never carries, is named back by its facade |
+| roles: adapter | A subpath that reaches another only through that one's entry point (an adapter for one runtime over a generic subpath) carries nothing: both are delivered on their own, and importing the generic one never evaluates the adapter |
 | delivery: independent | Two subpaths that reach nothing of each other are each delivered on their own, and neither becomes a facade |
 | delivery: collision | A name two subpaths export with different bindings is carried for both, each under a name of its own, instead of being dropped |
 | delivery: opaque | A subpath whose API the union cannot list — one that re-exports an external module in turn, or whose API has a name that is not an identifier — stays on its own, with its copy |
@@ -25,7 +26,7 @@ This validation checks that from the outside: the outputs a consumer receives, a
 
 ## The fixtures
 
-Seven small ordinary npm packages, all version `1.0.0`, checked in under [`fixtures/`](fixtures) so that what decides a role — which files a subpath reaches and which names it exports — is readable as ordinary source. [store.mjs](store.mjs) copies each one into a temporary directory (as `_fixture_<name>`, the directory the former inline generator used) and pins them as a graph in which every package depends on every other one; the copy is removed at the end and the checked-in files are never written. Each `package.json` is tab-indented without a final newline, byte-identical to what that generator wrote.
+Eight small ordinary npm packages, all version `1.0.0`, checked in under [`fixtures/`](fixtures) so that what decides a role — which files a subpath reaches and which names it exports — is readable as ordinary source. [store.mjs](store.mjs) copies each one into a temporary directory (as `_fixture_<name>`, the directory the former inline generator used) and pins them as a graph in which every package depends on every other one; the copy is removed at the end and the checked-in files are never written. Each `package.json` is tab-indented without a final newline, byte-identical to what that generator wrote.
 
 | Directory | Public subpaths | What it is expected to be delivered as |
 | --- | --- | --- |
@@ -35,6 +36,7 @@ Seven small ordinary npm packages, all version `1.0.0`, checked in under [`fixtu
 | [`defaulted`](fixtures/defaulted) | `.`, `./view` | The contained subpath has a default export, which `export *` never carries: its facade names it back |
 | [`commonjs`](fixtures/commonjs) | `.` → `src/index.js`, `./state` → `src/state.js`, `"type": "commonjs"` | The same shape written as CommonJS, which is not an ES module boundary: neither subpath is planned, and the `require` of the other subpath's entry point stays a public reference |
 | [`opaque`](fixtures/opaque) | `.`, `./state` | **Intentionally unlistable**: `./state` re-exports the external `@fixture/independent` with a star, so its API cannot be listed; it is not carried and the root keeps its own copy of the state |
+| [`adapter`](fixtures/adapter) | `.` → `src/index.js`, `./runtime` → `src/runtime.js` | `./runtime` imports the entry point of `.` and nothing else of it, and reads a global of another runtime when it is evaluated (as `hono/bun` reads `Bun`). Each is delivered on its own; the application imports `.` alone and runs |
 | [`app`](fixtures/app) | `./main` → [`src/main.js`](fixtures/app/src/main.js) | The application and the entry of the run (`@fixture/app/main`): it imports every public subpath of every package above and `report()` returns the state each package holds, written through one subpath and read through the other |
 
 ## Run
@@ -47,7 +49,7 @@ BEE_URL=http://localhost:1112,… \
   node --import "$BEE_NODE_DIR/register.mjs" tests/sharing/index.mjs
 ```
 
-Expected: `12/12 steps passed`. `BEYOND_ESBUILD` selects another compiler build, as elsewhere.
+Expected: `13/13 steps passed`. `BEYOND_ESBUILD` selects another compiler build, as elsewhere.
 
 ## Not covered
 

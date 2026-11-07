@@ -24,6 +24,7 @@ const PACKAGES = {
 	'@fixture/defaulted': 'defaulted',
 	'@fixture/commonjs': 'commonjs',
 	'@fixture/opaque': 'opaque',
+	'@fixture/adapter': 'adapter',
 	'@fixture/app': 'app'
 };
 

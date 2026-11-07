@@ -1,0 +1,10 @@
+{
+	"name": "@fixture/adapter",
+	"version": "1.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.js",
+		"./runtime": "./src/runtime.js",
+		"./package.json": "./package.json"
+	}
+}

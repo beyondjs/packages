@@ -10,6 +10,7 @@ import { use as required, value as own } from '@fixture/commonjs';
 import { store as apart } from '@fixture/commonjs/state';
 import { bumped, privately, shared } from '@fixture/opaque';
 import { held } from '@fixture/opaque/state';
+import { core } from '@fixture/adapter';
 
 /**
  * What the delivered application observes: the state each package holds, written through one of its public
@@ -28,6 +29,7 @@ export const report = () => {
 		independent: [a(), b()],
 		collision: [root(), inner()],
 		commonjs: [own(), apart.value],
-		opaque: [privately(), shared(), held.value]
+		opaque: [privately(), shared(), held.value],
+		adapter: core()
 	};
 };
