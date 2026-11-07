@@ -53,7 +53,7 @@ Measured on 2026-11-07 with CDN's frameworks acceptance (`acceptance/frameworks.
 
 Each cell is the time from the host's start to `GET /health` answering 200, then the time from `SIGTERM` to the exit, with a `GET /slow` (1.5 s) sent before the signal finishing every time. Preparation is the four stages' wall time, every unit a fresh container of the worker image.
 
-**This revision** (`d0e0b51`, `Toolchain.SHARING` 2, `Toolchain.BOUNDARY` 2):
+**This revision** (`86a9767`; the run's image compiled the same modules from a local commit; `Toolchain.SHARING` 2, `Toolchain.BOUNDARY` 2):
 
 | Case | Preparation | Node 22.21.1, BEE Node | Deno 2.9.6 | Deno 2.5.6 |
 | --- | --- | --- | --- | --- |
