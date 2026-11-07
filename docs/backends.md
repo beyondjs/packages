@@ -29,7 +29,7 @@ Rules for the code, each of which a run below exercised:
 
 - Import builtins with their `node:` scheme. Preparation writes them so anyway ([Node outputs](cdn-outputs.md#node-outputs-builtins-and-optional-packages)), but the source then reads the same in every runtime.
 - Take `setTimeout` and `setInterval` from `node:timers` when you call `unref()` on them: Deno's global timers before 2.9 return numbers (`setTimeout(...).unref is not a function`).
-- Drain with `server.close()` and close each kept-alive connection once its response ends (`server.closeIdleConnections()` every 100 ms while closing), with a fallback exit below 10 s. A kept-alive connection otherwise holds the exit for the server's keep-alive timeout (5 s in Node, 4.2 s measured), and Fastify's own close for 8 s.
+- Drain with `server.close()` and close each kept-alive connection once its response ends (`server.closeIdleConnections()` every 100 ms while closing), with a fallback that **exits the process** below 10 s (`process.exit`, from a timer of `node:timers`). A kept-alive connection otherwise holds the exit for the server's keep-alive timeout (5 s in Node, 4.2 s measured), and Fastify's own close for 8 s. Closing what is still open is not a bound: Deno before 2.9 makes `closeAllConnections()` do nothing once `close()` has run, so a request still open kept the process past 15 s until it was killed (measured with Deno 2.5.6; Node and Deno 2.9.6 closed it).
 - No `__dirname`, `__filename`, native addons (`.node`) or files read beside the code: a release has none of them.
 - No module loaded by a computed name (`require(name)`, `import(name)`): preparation refuses it unless it is declared, and even declared it throws when it runs.
 
@@ -42,6 +42,7 @@ What a backend's dependencies may contain is what [the outputs guide](cdn-output
 | CommonJS and ES module packages | Converted to ES modules; no `npm install`, no lifecycle script |
 | A builtin, required or imported, bare or with `node:` | Written `node:<name>`; its `require` returns its default export |
 | A guarded `require` of an optional package the release does not hold (`debug` → `supports-color`) | Throws `MODULE_NOT_FOUND` when it runs, when the manifest declares it optional (`optionalDependencies`, `peerDependenciesMeta`). Undeclared: `DEPENDENCY_UNRESOLVED` |
+| A guarded `await import('x')` of an optional package the release does not hold | Not supported: an import stays a reference, so preparation answers `DEPENDENCY_UNRESOLVED` however the package declares it |
 | Subpaths of one package that share files (`svelte`) | One carrier and its facades. An adapter that reaches a generic subpath only through its entry point carries nothing (`hono/bun` over `hono/router`) |
 | `require(expr)`, `import(expr)` | `DYNAMIC_IMPORT_UNKNOWN`; declared, it passes and still throws `Dynamic require of "…" is not supported` when it runs |
 | `__dirname`, `__filename` | Free identifiers: a `ReferenceError` where evaluated |
@@ -82,7 +83,28 @@ Preparation writes every builtin of a Node output with its `node:` scheme. The e
 
 - **It is what lets Deno before 2.9 run a release.** With `e881a98`, Fastify on Deno 2.5.6 stopped at `TypeError: Import "module" not a dependency and not in import map` (a bare builtin); with the scheme written, and a builtin's `require` returning its default export, all five cases run on Deno 2.5.6. Deno 2.9 and later, Node and BEE Node read both spellings, and the other runtimes with Node's builtins that read only the scheme read these outputs too.
 - **It changes nothing else.** Builtins are never inventory items, edges or resolution entries, so an inventory, a release's resolution documents and a graph are the same; only the bytes of Node outputs change.
-- **Its cost is one regeneration.** The key of every Node output of the selected compiler (source and npm forms) includes `Toolchain.BOUNDARY`, now `2`, so a CDN that moves to this revision reuses none of the Node outputs it stored before: each is generated again the first time a preparation needs it, and stored under its new key. Browser outputs, composed outputs (`Toolchain.COMPOSITION`) and distributions keep their keys and their reuse. Every npm output (browser and Node) changes key once more for `Toolchain.SHARING` 2.
+- **Its cost is one regeneration.** The key of every Node output of the selected compiler (source and npm forms) includes `Toolchain.BOUNDARY`, now `2`, with the major version of the Node that prepares (its `builtinModules` decides which names are builtins), so a CDN that moves to this revision reuses none of the Node outputs it stored before: each is generated again the first time a preparation needs it, and stored under its new key.
+- **What keeps its key.** `Toolchain.SHARING` 2 enters the key of every output of an npm package on every platform, so the browser outputs of npm packages (`react`, `react-dom`) change key too. Only the browser outputs of source packages, composed outputs (`Toolchain.COMPOSITION`) and distributions keep their keys and their reuse.
+
+## Reaching CDN
+
+These revisions reach a release only when CDN's worker image runs them. That re-pin of the image's Packages:
+
+- **Keeps confinement.** This revision descends from `e881a98`, the confined compilation CDN's worker pins, and changes neither the confinement nor the confined bundle; the trial bundles of the sharing plan (below) are confined too.
+- **Regenerates once.** Every Node output and every npm output is keyed anew, so the first preparations after it generate their whole graphs: a burst of generation units, then reuse as before.
+- **Leaves the shared public index as it is, unless CDN changes its context.** The shared index (`/m/…` on the shared origin) keeps one output per public URL, and takes a later output of the same *dependency context* (the module's resolution and the integrity of its sources, CDN's `Freezer.context`, form `context/2`) as another build of it, already known. That context names neither `Toolchain.SHARING` nor `Toolchain.BOUNDARY`, yet their bytes are not interchangeable: under `SHARING` 1 `hono/router` is a facade over `hono/bun`, under 2 a module of its own. So after the re-pin every public URL already indexed keeps its `SHARING` 1 bytes on the shared origin, silently, while release-bound delivery (`/_r/<n>/…`) serves each release's own outputs, which are right. The plan this asks of CDN: a new context form (`context/3`) that adds the revisions of the output's key that change its bytes (`SHARING` for npm outputs, `BOUNDARY` for Node outputs), so a regenerated output is recorded as a conflict, visible, instead of known; and a consumer of the shared origin is told that it keeps the earlier plan for those identities.
+
+## What the sharing plan costs
+
+A subpath now carries another only when the two share a file once each is delivered with the others' entry points as references, which the plan learns by compiling, confined and in memory, each subpath that another reaches, with those references (`Sharing`'s `#files`, cached per plan). Measured on the same runs as the table above, the `analyze` unit's own cost (`cost.ms` of `Analysis.measured`, one run each on a loaded machine):
+
+| Case | Modules in the inventory | `e881a98` | This revision |
+| --- | --- | --- | --- |
+| Hono 4.13.16 (77 public subpaths) | 6 | 3.1 s | 4.6 s |
+| Fastify 5.12.8 | 51 | 1.4 s | 1.5 s |
+| Express 5.3.0 | 93 | 1.4 s | 1.9 s |
+
+Every generation unit of an npm package plans it again in its own process, so a package with many subpaths pays that cost in each of its units; making the plan a recorded fact of the analysis, handed to its units, is the way to pay it once.
 
 ## Not established
 
