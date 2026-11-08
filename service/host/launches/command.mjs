@@ -1,6 +1,6 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { DenoConsumer } from '../../consumers/deno.mjs';
 import { Deno } from '../settings/deno.mjs';
 import { Executable, Variables } from '../settings/values.mjs';
 import { LaunchError } from './error.mjs';
@@ -15,11 +15,10 @@ import { LaunchError } from './error.mjs';
  *   empty). An uncaught error is printed source-mapped and without the toolchain's frames, a missing package as what to
  *   do about it (`Command.STACKS`, `service/stacks`), the registration's and the launcher's directories hidden too
  *   (`BEYOND_STACKS_HIDDEN`).
- * - **Deno** runs `deno run --allow-net --allow-import --allow-env` with the service's Node import map
- *   (`<origin>/importmap.json?target=node&format=esm`) over `deno.mjs` of this directory, which imports the specifier.
- *   It also passes `--no-config` and `--no-lock`, so no configuration or lock file of the workspace is read or written,
- *   and `--reload=<origin>/`, so a module the service rebuilt is never taken from the cache, which is
- *   `<root>/.beyond/launches/deno` (`DENO_DIR`, in the state directory that ignores itself for Git). The executable is
+ * - **Deno** runs `deno.mjs` of this directory, which imports the specifier, as a consumer of this service
+ *   (`DenoConsumer`: `deno run --allow-net --allow-import --allow-env` with the service's Node import map, no
+ *   configuration or lock file of the workspace, nothing rebuilt taken from the cache in `<root>/.beyond/launches/deno`,
+ *   which is `DENO_DIR`). The executable is
  *   the `launch` setting's `deno.executable`, else the `launch.deno` setting of the settings feature, else
  *   `BEYOND_DENO`, read at every launch and checked at every launch as the setting is when it is changed: an absolute
  *   path to an existing file the service may execute that answers `--version` as Deno 2 within its bound
@@ -126,24 +125,8 @@ export class Command {
 
 	async #deno({ specifier }, origin, environment) {
 		const executable = await this.#executable();
-		const directory = join(this.#root, '.beyond', 'launches', 'deno');
-		await mkdir(directory, { recursive: true });
-		// The state directory of the service ignores itself for Git, whichever feature created it first
-		await writeFile(join(this.#root, '.beyond', '.gitignore'), '*\n', { flag: 'wx' }).catch(error => {
-			if (error.code !== 'EEXIST') throw error;
-		});
-		const args = [
-			'run',
-			'--no-config',
-			'--no-lock',
-			'--allow-net',
-			'--allow-import',
-			'--allow-env',
-			`--reload=${origin}/`,
-			`--import-map=${origin}/importmap.json?target=node&format=esm`,
-			Command.ENTRY,
-			specifier
-		];
+		const directory = await DenoConsumer.prepare(this.#root);
+		const args = DenoConsumer.arguments({ origin, entry: Command.ENTRY, args: [specifier] });
 		return { executable, args, cwd: this.#root, env: { ...environment, DENO_DIR: directory, NO_COLOR: '1' } };
 	}
 

@@ -11,6 +11,7 @@ import { Host } from './host';
 import { Declaration } from './declaration';
 import { Dependencies } from './dependencies';
 import { Graph } from './graph';
+import { Hot } from './hot';
 
 /**
  * Checks the sources of a public module as one program and emits its public declaration.
@@ -89,6 +90,7 @@ export /*bundle*/ class Processor extends ConditionalProcessor {
 			virtual.set(file, code);
 			graph?.own(file, owners.get(specifier));
 		});
+		virtual.set(`${Host.VIRTUAL}${Hot.FILE}`, Hot.DECLARATION);
 
 		const host = new Host(options, directory, process.cwd(), virtual, specifier => this.#dependencies.published(specifier), graph);
 		const program = ts.createProgram({ rootNames: [...roots, ...virtual.keys()], options, host: host.compiler });

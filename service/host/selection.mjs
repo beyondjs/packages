@@ -6,12 +6,22 @@
  * answer says so (`browser: true`), checks its graph for browsers instead, and gives the address of its preview
  * relative to the service, or null when the service was started without the development extension, which is
  * what serves the preview.
+ *
+ * The answer for a Node consumer also says what applies updates to it once it runs (`updates`): the development
+ * coordinator of the runtime its modules are assembled against (`{runtime: '@beyond-js/local-2026/main'}`), which the
+ * consumer imports and registers with this service, or why there is none (`{reason}`). A runtime package publishes its
+ * coordinator as `main` beside its `bundle`, as for the preview of a page.
  */
 export class Selection {
 	/**
 	 * The extension that serves the preview of the workspace
 	 */
 	static DEVELOPMENT = '@beyond-js/packages/development';
+
+	/**
+	 * The subpath of a runtime package that publishes its development coordinator
+	 */
+	static COORDINATOR = 'main';
 
 	#delivery;
 	#graph;
@@ -43,11 +53,38 @@ export class Selection {
 		const entry = { name, version, subpath, vspecifier };
 		const described = { specifier, vspecifier, name, version, subpath };
 
-		const checked = await this.#graph.check(entry);
-		if (!Selection.#browser(checked, vspecifier)) return { status: 200, body: { selected: described, ...checked } };
+		const { runtimes, ...checked } = await this.#graph.check(entry);
+		if (!Selection.#browser(checked, vspecifier)) {
+			return { status: 200, body: { selected: described, ...checked, updates: await this.#updates(runtimes, directory) } };
+		}
 
-		const web = await this.#graph.check(entry, { ...this.#graph.conditions, platform: 'web' });
+		const { runtimes: _, ...web } = await this.#graph.check(entry, { ...this.#graph.conditions, platform: 'web' });
 		return { status: 200, body: { selected: described, browser: true, preview: await this.#preview(described), ...web } };
+	}
+
+	/**
+	 * What applies updates to a Node consumer of modules assembled against these runtimes: the first coordinator the
+	 * workspace resolves and builds for Node, or why there is none
+	 *
+	 * @param {string[]} runtimes
+	 * @param {string} [directory]
+	 * @returns {Promise<{runtime: string} | {reason: string}>}
+	 */
+	async #updates(runtimes, directory) {
+		if (!runtimes.length) return { reason: 'The modules of this program are assembled against no runtime (the packaging mode), so nothing applies updates to it while it runs' };
+
+		for (const runtime of runtimes) {
+			const name = runtime.split('/').slice(0, runtime.startsWith('@') ? 2 : 1).join('/');
+			const coordinator = `${name}/${Selection.COORDINATOR}`;
+			const { selected } = await this.#delivery.selection.resolve(coordinator, directory);
+			if (!selected) continue;
+
+			const { name: pkg, version } = selected.package;
+			const { failures } = await this.#graph.check({ name: pkg, version, subpath: selected.subpath, vspecifier: selected.vspecifier });
+			if (!failures.length) return { runtime: coordinator };
+		}
+		const message = `The runtime of this program (${runtimes.join(', ')}) has no development coordinator that builds for Node in this workspace, so nothing applies updates to it while it runs`;
+		return { reason: `${message}: compose its modules on one that has, with the \`runtime\` setting of their bundler` };
 	}
 
 	/**

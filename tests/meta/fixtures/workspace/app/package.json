@@ -1,0 +1,19 @@
+{
+	"name": "@fixture/meta",
+	"version": "1.0.0",
+	"exports": {
+		"./hot": "./hot/index.ts",
+		"./plain": "./plain/index.ts",
+		"./reserved": "./reserved/index.ts",
+		"./typo": "./typo/index.ts"
+	},
+	"beyond": {
+		"modules": ".",
+		"bundler": "ts"
+	},
+	"bundlers": {
+		"ts": {
+			"specifier": "@beyond-js/packages/bundlers/ts"
+		}
+	}
+}

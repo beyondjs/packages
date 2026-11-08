@@ -10,3 +10,4 @@ export { PairingClient } from './pairing.mjs';
 export { Installation } from './installation.mjs';
 export { Component } from './component.mjs';
 export { Home } from './home.mjs';
+export { DenoConsumer } from './consumers/deno.mjs';

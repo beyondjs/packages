@@ -29,12 +29,15 @@ export class Graph {
 	 * @param {{name: string, version: string, subpath: string, vspecifier: string}} entry
 	 * @param {{platform: string, environment?: string}} [conditions] What the modules are built for
 	 * @returns {Promise<{modules: string[], failures: {vspecifier: string, code: string, message: string,
-	 * diagnostics?: {code: string, message: string}[]}[]}>}
+	 * diagnostics?: {code: string, message: string}[]}[], runtimes: string[]}>} The modules reached, those that do not
+	 * build, and the runtimes the reached modules are assembled against (`@beyond-js/local-2026/bundle`), in the order
+	 * they were met
 	 */
 	async check(entry, conditions = this.#conditions) {
 		const published = new Map((await this.#delivery.published()).map(module => [module.vspecifier, module]));
 		const visited = new Set();
 		const failures = [];
+		const runtimes = new Set();
 		const pending = [entry.vspecifier];
 
 		while (pending.length) {
@@ -53,11 +56,12 @@ export class Graph {
 				failures.push({ vspecifier, ...failure });
 				continue;
 			}
+			delivered.runtime && runtimes.add(delivered.runtime);
 			delivered.dependencies
 				.filter(dependency => dependency.source === 'workspace')
 				.forEach(dependency => pending.push(dependency.vspecifier));
 		}
 
-		return { modules: [...visited], failures };
+		return { modules: [...visited], failures, runtimes: [...runtimes] };
 	}
 }

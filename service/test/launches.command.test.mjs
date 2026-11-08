@@ -146,7 +146,8 @@ test('Deno runs the entry of this feature with the import map of the service, fr
 		'--allow-net',
 		'--allow-import',
 		'--allow-env',
-		`--reload=${ORIGIN}/`,
+		'--quiet',
+		`--reload=${ORIGIN}`,
 		`--import-map=${ORIGIN}/importmap.json?target=node&format=esm`,
 		Command.ENTRY,
 		'@scope/api/worker'

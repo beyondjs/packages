@@ -1,6 +1,7 @@
 import type { DynamicFile } from '@beyond-js/file/dynamic';
 import type { ProcessorOutput, IProcessorDiagnostic } from '@beyond-js/packages/sdk';
 import * as ts from 'typescript';
+import { Meta } from './meta';
 
 /**
  * A source to transform: its content and the name the source map refers to
@@ -42,6 +43,8 @@ export /*bundle*/ interface ITranspiled {
  * Each source is transpiled on its own: this is a syntactic transformation with per-source maps, and it
  * performs no type checking. Declarations and diagnostics that need the whole program belong to the types
  * conditional. Framework processors reuse `transform` for the scripts and templates they generate.
+ *
+ * `import.meta` is replaced before the CommonJS transformation, because a creator body cannot hold it (`Meta`).
  */
 export /*bundle*/ class Transpiler {
 	static #options(kind: ITranspileSource['kind']): ts.CompilerOptions {
@@ -69,7 +72,9 @@ export /*bundle*/ class Transpiler {
 
 		try {
 			const compilerOptions = Transpiler.#options(kind);
-			const result = ts.transpileModule(content, { compilerOptions, fileName, reportDiagnostics: true });
+			const meta = new Meta();
+			const transformers = { before: [meta.transformer] };
+			const result = ts.transpileModule(content, { compilerOptions, fileName, reportDiagnostics: true, transformers });
 
 			(result.diagnostics ?? []).forEach(diagnostic => {
 				const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
@@ -80,6 +85,7 @@ export /*bundle*/ class Transpiler {
 				})();
 				diagnostics.push({ code: 'TRANSPILE_ERROR', message, position });
 			});
+			meta.diagnostics.forEach(diagnostic => diagnostics.push(diagnostic));
 			// A source that could not be transformed produces no code: its module is reported, not published
 			if (diagnostics.length) return { diagnostics };
 

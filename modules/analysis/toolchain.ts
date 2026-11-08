@@ -64,8 +64,12 @@ export /*bundle*/ class Toolchain {
 	 * `4`: a module whose directory another public module also uses is made of the internal modules its entry
 	 * imports ([Overlap](../sdk/conditional/esm/overlap.ts)), where an output composed before held and evaluated
 	 * every source of the directory, the other module's entry included.
+	 *
+	 * `5`: the creator of an internal module receives the update API of its source as a third argument, and a source
+	 * that writes `import.meta` reads it through the declaration of its envelope, where an output composed before
+	 * refused it or read the artifact's `import.meta` without `hot`.
 	 */
-	static COMPOSITION = '4';
+	static COMPOSITION = '5';
 
 	/**
 	 * The revision of how the public subpaths of an ordinary npm package are delivered: on their own, or as a

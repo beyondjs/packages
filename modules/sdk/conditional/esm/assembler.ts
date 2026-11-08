@@ -6,6 +6,7 @@ import { header } from './header';
 import { Compatibility, KERNEL } from './compatibility';
 import { WIDGETS } from './widget';
 import { Mapping } from './mapping';
+import { Envelope } from './envelope';
 import { posix } from 'path';
 
 /**
@@ -276,9 +277,9 @@ export class Assembler {
 			 * stack traces and coverage point at the original source; the creator boundaries are mapped to
 			 * the ends of that source. A transformer that produced no map is mapped line by line to the file.
 			 */
-			concat.add(null, `__ims.set('${id}', { hash: ${hash}, creator: function (require, exports) {`, mapping.opening);
+			concat.add(null, Envelope.open(id, hash, output.code.code()), mapping.opening);
 			concat.add(mapping.map ? null : mapping.file, output.code.code(), mapping.map);
-			concat.add(null, '}});', mapping.closing);
+			concat.add(null, Envelope.close(), mapping.closing);
 		});
 		add('');
 

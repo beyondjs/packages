@@ -15,16 +15,20 @@ const module = (name, version, subpath) => {
 /**
  * A hosted workspace as the selection reads it: `@fixture/app/main` builds for Node and imports
  * `@fixture/lib/text`; `@fixture/widget/view` builds for browsers only; `@fixture/broken/main` fails for Node and
- * for browsers. With `versions`, a second version of the widget publishes the same specifier. Every build asked
+ * for browsers. With `versions`, a second version of the widget publishes the same specifier. With `runtime`, the app
+ * and the lib are assembled against `@fixture/runtime/bundle`, whose package publishes its coordinator `main` (which
+ * fails to build with `coordinator: 'broken'`, and is not published with `coordinator: 'absent'`). Every build asked
  * for is recorded with its platform.
  */
-const delivery = ({ versions = false, broken = false } = {}) => {
+const delivery = ({ versions = false, broken = false, runtime = false, coordinator = 'valid' } = {}) => {
 	const published = [
 		module('@fixture/app', '1.0.0', './main'),
 		module('@fixture/lib', '1.0.0', './text'),
 		module('@fixture/widget', '1.0.0', './view'),
 		...(versions ? [module('@fixture/widget', '2.0.0', './view')] : []),
-		module('@fixture/broken', '1.0.0', './main')
+		module('@fixture/broken', '1.0.0', './main'),
+		...(runtime ? [module('@fixture/runtime', '1.0.0', './bundle')] : []),
+		...(runtime && coordinator !== 'absent' ? [module('@fixture/runtime', '1.0.0', './main')] : [])
 	];
 	const built = [];
 	const failing = { code: 'BUILD_FAILED', message: 'syntax error', diagnostics: [{ code: 'SYNTAX', message: 'unexpected token' }] };
@@ -43,10 +47,12 @@ const delivery = ({ versions = false, broken = false } = {}) => {
 		module: async ({ vspecifier }, { platform }) => {
 			built.push([vspecifier, platform]);
 			if (vspecifier.startsWith('@fixture/broken')) return { failure: failing };
+			if (vspecifier === '@fixture/runtime@1.0.0/main' && coordinator === 'broken') return { failure: failing };
 			if (vspecifier.startsWith('@fixture/widget') && platform === 'node') return { failure: UNDECLARED };
 			if (vspecifier.startsWith('@fixture/widget') && broken) return { failure: failing };
 			const dependencies = vspecifier.startsWith('@fixture/app') ? [{ specifier: '@fixture/lib/text', source: 'workspace', vspecifier: '@fixture/lib@1.0.0/text' }] : [];
-			return { delivered: { hash: 'h', dependencies } };
+			const assembled = runtime && /^@fixture\/(app|lib)@/.test(vspecifier) ? { runtime: '@fixture/runtime/bundle' } : {};
+			return { delivered: { hash: 'h', dependencies, ...assembled } };
 		}
 	};
 };
@@ -61,7 +67,8 @@ test('a module that builds for Node is checked for Node, as before', async () =>
 	assert.deepEqual(body, {
 		selected: { specifier: '@fixture/app/main', vspecifier: '@fixture/app@1.0.0/main', name: '@fixture/app', version: '1.0.0', subpath: './main' },
 		modules: ['@fixture/app@1.0.0/main', '@fixture/lib@1.0.0/text'],
-		failures: []
+		failures: [],
+		updates: { reason: 'The modules of this program are assembled against no runtime (the packaging mode), so nothing applies updates to it while it runs' }
 	});
 	assert.ok(hosted.built.every(([, platform]) => platform === 'node'));
 });
@@ -127,4 +134,35 @@ test('a selector that names nothing is answered 404 with its diagnostics, throug
 	const found = await fetch(`${origin}/selection?${new URLSearchParams({ selector: '@fixture/widget/view' })}`);
 	assert.equal(found.status, 200);
 	assert.equal((await found.json()).preview, '/preview/?entry=%40fixture%2Fwidget%2Fview');
+});
+
+test('a Node module assembled against a runtime is answered with the coordinator that applies its updates', async () => {
+	const hosted = delivery({ runtime: true });
+	const { body } = await selection(hosted).answer('@fixture/app/main', '/ws');
+	assert.deepEqual(body.updates, { runtime: '@fixture/runtime/main' });
+	assert.deepEqual(body.failures, []);
+	assert.equal('runtimes' in body, false);
+	// The coordinator is checked for Node, as the program is
+	assert.ok(hosted.built.some(([vspecifier, platform]) => vspecifier === '@fixture/runtime@1.0.0/main' && platform === 'node'));
+});
+
+test('a runtime whose package publishes no coordinator is answered with why nothing applies updates', async () => {
+	const { body } = await selection(delivery({ runtime: true, coordinator: 'absent' })).answer('@fixture/app/main', '/ws');
+	assert.equal(body.updates.runtime, undefined);
+	assert.match(body.updates.reason, /@fixture\/runtime\/bundle\) has no development coordinator/);
+	assert.deepEqual(body.failures, []);
+});
+
+test('a coordinator that does not build for Node is not answered, and the program still runs', async () => {
+	const { body } = await selection(delivery({ runtime: true, coordinator: 'broken' })).answer('@fixture/app/main', '/ws');
+	assert.equal(body.updates.runtime, undefined);
+	assert.match(body.updates.reason, /no development coordinator that builds for Node/);
+	assert.deepEqual(body.failures, []);
+});
+
+test('a browser module is answered without updates: its preview applies them', async () => {
+	const { body } = await selection(delivery({ runtime: true })).answer('@fixture/widget/view');
+	assert.equal(body.browser, true);
+	assert.equal('updates' in body, false);
+	assert.equal('runtimes' in body, false);
 });
