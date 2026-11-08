@@ -8,8 +8,9 @@ import * as ts from 'typescript';
  * CommonJS, where `import.meta` cannot stay: the analysis of the CommonJS code refuses it, and the artifact's own
  * `import.meta` has no `hot` of the source. Each `import.meta` is therefore replaced with `__beyond_meta`, which the
  * envelope of the internal module declares as the artifact's `import.meta` with the `hot` the runtime gives that
- * creator (`Assembler`): its `url` and `resolve` are the artifact's, and `hot` is the update API of this source when the
- * runtime applies updates, undefined otherwise.
+ * creator (`Envelope`): its `url` and `resolve` are the artifact's (the address the module was delivered from, never
+ * the directory of the source), and `hot` is the update API of this source while a coordinator of the development
+ * runtime applies updates, undefined otherwise (the legacy Kernel, production, a test run).
  *
  * The name is reserved: a source that writes it itself is refused, because its declaration would collide with the one
  * of the envelope (`NAME_RESERVED`).
@@ -43,11 +44,26 @@ export class Meta {
 					return ts.setTextRange(context.factory.createIdentifier(Meta.NAME), node);
 				}
 				// `text`, not `escapedText`, which TypeScript prefixes with an underscore for a name that starts with two
-				if (ts.isIdentifier(node) && node.text === Meta.NAME) this.#reserved(node);
+				if (ts.isIdentifier(node) && node.text === Meta.NAME && !Meta.#property(node)) this.#reserved(node);
 				return ts.visitEachChild(node, visit, context);
 			};
 			return source => <ts.SourceFile>ts.visitNode(source, visit);
 		};
+	}
+
+	/**
+	 * Whether an identifier only names a property (`o.__beyond_meta`, `{ __beyond_meta: 1 }`, a class or interface
+	 * member), which declares no binding and so cannot collide with the envelope's. A shorthand property
+	 * (`{ __beyond_meta }`) reads the binding, so it is not one.
+	 */
+	static #property(node: ts.Identifier): boolean {
+		const { parent } = node;
+		if (!parent) return false;
+		if ((ts.isPropertyAccessExpression(parent) || ts.isQualifiedName(parent)) && parent.name === node) return true;
+		const named = ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) ||
+			ts.isMethodDeclaration(parent) || ts.isMethodSignature(parent) || ts.isGetAccessorDeclaration(parent) ||
+			ts.isSetAccessorDeclaration(parent) || ts.isEnumMember(parent);
+		return named && (<{ name?: ts.Node }>parent).name === node;
 	}
 
 	#reserved(node: ts.Identifier) {

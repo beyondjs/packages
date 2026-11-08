@@ -11,12 +11,12 @@ export class Hot {
 	readonly data: Record<string, any>;
 	/** This source accepts its own updates: it is evaluated again, after \`dispose\`, instead of reloading what runs it */
 	accept(callback?: (exports: Record<string, any>) => void): void;
-	/** Runs before this source is evaluated again or the program reloads, to release what it holds and keep its state */
+	/** Runs before this evaluation is replaced in place, to release what it holds and keep its state; a program that is started again ends without it */
 	dispose(callback: (data: Record<string, any>) => void): void;
 }
 
 interface ImportMeta {
-	/** The update API of this source, undefined where no development runtime applies updates */
+	/** The update API of this source, undefined where no coordinator of the development runtime applies updates */
 	readonly hot?: ImportMetaHot;
 }
 `;

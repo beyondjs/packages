@@ -6,6 +6,6 @@ Validates that a source of a `ts` module may use `import.meta` in any position (
 BEE_URL=http://localhost:1112 node --import "$BEE_NODE_DIR/register.mjs" --test tests/meta/meta.test.mjs
 ```
 
-Prerequisites: an Engine serving this implementation, as for [stage 1](../stage-1/README.md); no watcher. Expected: 5 tests pass.
+Prerequisites: an Engine serving this implementation, as for [stage 1](../stage-1/README.md); no watcher. Expected: 6 tests pass.
 
 What `import.meta.hot` does once the artifact runs is the development runtime's (`local-2026`, `tests/hot.test.mjs`), and in a running program the command line's `updates` acceptance group.

@@ -18,7 +18,7 @@ import { Workspace } from '@beyond-js/packages/workspace';
 import { Delivery } from '@beyond-js/packages/artifacts';
 
 const FIXTURES = fileURLToPath(new URL('./fixtures/workspace', import.meta.url));
-const ENVELOPE = '__beyond_meta = Object.create(import.meta, { hot: { value: __beyond_meta, enumerable: true } });';
+const ENVELOPE = '__beyond_meta = Object.create(null, { ...Object.getOwnPropertyDescriptors(import.meta), hot: { value: __beyond_meta, enumerable: true } });';
 
 let root, workspace, delivery;
 before(async () => {
@@ -66,8 +66,24 @@ for (const platform of ['node', 'web']) {
 		// The comment of the source that names it stays, as comments do
 		assert.doesNotMatch(hot.split('\n').slice(1).join('\n'), /import\.meta\.(url|hot)/, 'no use of import.meta is left in the code of the source');
 		assert.ok(!half.includes(ENVELOPE), 'a source without import.meta declares nothing');
+		assert.match(hot, /\{ __beyond_meta: 1 \}\.__beyond_meta/, 'a property of the reserved name is kept as it is');
 	});
 }
+
+test('the envelope gives the source a copy of every property of the artifact\'s import.meta, with hot', async () => {
+	// Evaluated as the envelope evaluates it, over an object standing for the import.meta of an artifact
+	const artifact = Object.defineProperties(Object.create(null), {
+		url: { value: 'http://127.0.0.1:4100/m/@fixture/meta@1.0.0/modules/hot', enumerable: true },
+		resolve: { value: specifier => specifier, enumerable: true },
+		hidden: { value: 'kept', enumerable: false }
+	});
+	const hot = { data: {} };
+	const meta = new Function('meta', '__beyond_meta', `${ENVELOPE.replaceAll('import.meta', 'meta')} return __beyond_meta;`)(artifact, hot);
+	assert.deepEqual(Object.keys(meta), ['url', 'resolve', 'hot']);
+	assert.equal(meta.hidden, 'kept');
+	assert.equal(meta.hot, hot);
+	assert.equal(Object.getPrototypeOf(meta), null);
+});
 
 test('a module whose sources write no import.meta is assembled with no declaration of it', async () => {
 	const { delivered, failure } = await compiled('./plain', 'node');

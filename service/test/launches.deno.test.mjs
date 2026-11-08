@@ -22,7 +22,8 @@ test('a Deno target runs the configured executable over the entry of the feature
 
 	const line = (await stage.output(body.launch.id)).find(text => text.startsWith('deno '));
 	const seen = JSON.parse(line.slice('deno '.length));
-	assert.deepEqual(seen.args.slice(0, 6), ['run', '--no-config', '--no-lock', '--allow-net', '--allow-import', '--allow-env']);
+	const { hostname, host } = new URL(stage.origin);
+	assert.deepEqual(seen.args.slice(0, 6), ['run', '--no-config', '--no-lock', `--allow-net=${hostname}`, `--allow-import=${host}`, '--allow-env']);
 	assert.ok(seen.args.includes(`--import-map=${stage.origin}/importmap.json?target=node&format=esm`));
 	assert.ok(seen.args.includes(`--reload=${stage.origin}`), 'Deno 2 reloads nothing for an origin given with a trailing slash');
 	assert.deepEqual(seen.args.slice(-2), [Command.ENTRY, 'stand-in/worker']);

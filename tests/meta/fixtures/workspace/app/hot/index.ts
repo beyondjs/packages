@@ -8,3 +8,7 @@ if (import.meta.hot) {
 	import.meta.hot.dispose(data => (data.count = count));
 	import.meta.hot.accept();
 }
+
+// A property of the reserved name binds nothing and is allowed
+export const keyed = { __beyond_meta: 1 }.__beyond_meta;
+export const keys = Object.keys(import.meta);
