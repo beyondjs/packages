@@ -67,6 +67,7 @@ for (const platform of ['node', 'web']) {
 		assert.doesNotMatch(hot.split('\n').slice(1).join('\n'), /import\.meta\.(url|hot)/, 'no use of import.meta is left in the code of the source');
 		assert.ok(!half.includes(ENVELOPE), 'a source without import.meta declares nothing');
 		assert.match(hot, /\{ __beyond_meta: 1 \}\.__beyond_meta/, 'a property of the reserved name is kept as it is');
+		assert.match(hot, /const \{ __beyond_meta: renamed \} = \{ __beyond_meta: 2 \}/, 'and so is the key a binding pattern reads');
 	});
 }
 

@@ -11,4 +11,6 @@ if (import.meta.hot) {
 
 // A property of the reserved name binds nothing and is allowed
 export const keyed = { __beyond_meta: 1 }.__beyond_meta;
+const { __beyond_meta: renamed } = { __beyond_meta: 2 };
+export const read = renamed;
 export const keys = Object.keys(import.meta);

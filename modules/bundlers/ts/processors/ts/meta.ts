@@ -52,14 +52,17 @@ export class Meta {
 	}
 
 	/**
-	 * Whether an identifier only names a property (`o.__beyond_meta`, `{ __beyond_meta: 1 }`, a class or interface
-	 * member), which declares no binding and so cannot collide with the envelope's. A shorthand property
-	 * (`{ __beyond_meta }`) reads the binding, so it is not one.
+	 * Whether an identifier only names a property (`o.__beyond_meta`, `{ __beyond_meta: 1 }`, the key a binding pattern
+	 * reads, a class or interface member), which declares no binding and so cannot collide with the envelope's. A
+	 * shorthand property (`{ __beyond_meta }`) and a shorthand binding (`const { __beyond_meta } = o`) bind or read the
+	 * name itself, so they are not one.
 	 */
 	static #property(node: ts.Identifier): boolean {
 		const { parent } = node;
 		if (!parent) return false;
 		if ((ts.isPropertyAccessExpression(parent) || ts.isQualifiedName(parent)) && parent.name === node) return true;
+		// The key a binding pattern reads (`const { __beyond_meta: value } = object`): its binding is the other name
+		if (ts.isBindingElement(parent) && parent.propertyName === node) return true;
 		const named = ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) ||
 			ts.isMethodDeclaration(parent) || ts.isMethodSignature(parent) || ts.isGetAccessorDeclaration(parent) ||
 			ts.isSetAccessorDeclaration(parent) || ts.isEnumMember(parent);
