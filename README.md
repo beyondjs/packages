@@ -19,6 +19,7 @@ Beyond also compiles packages into distributable outputs for publication and con
 - [Applications and execution targets](docs/applications.md): the `applications` of a workspace's `beyond.json`, inline or in a file of the workspace, their catalog (`beyond-applications/1`), the resolution of a target, writes of one application through the File API that keep the document as written, `applications.changed` and the host's `workspace.changed`, with schema and fixtures under `contracts/applications` and the real-service validation in `tests/applications`.
 - [Dependency management](docs/dependencies.md): `beyond-dependencies/1`, the inspection, checks, preflight, plans and their application.
 - [Launching execution targets](docs/launches.md): `beyond-launches/1`, backend targets started and followed by the service.
+- [The backend profile](docs/backends.md): what a backend run from a CDN release on Node or Deno does and may contain, and what `node:http`, Hono, Fastify and Express do when they are prepared and run that way.
 - [Local Dev Server settings](docs/settings.md): `beyond-dev-settings/1`, the bounded settings a person changes from the Packages interface.
 - [Production](docs/production.md): `beyond-production/1`, a package's registry archive and publication, and the web export of a frontend target.
 - [Package resolution and source fetching](docs/cdn-resolution.md), [publication forms, analysis and generated outputs](docs/cdn-outputs.md) and [semantic TypeScript diagnostics](docs/cdn-diagnostics.md): the public modules CDN's preparation uses.

@@ -4,7 +4,7 @@
 
 ## Fixtures
 
-The templates themselves, `templates/cloud/<directory>/`, read where they are: the catalog test only reads them, and the compile test copies each one into a unique temporary directory, which it removes at the end, on failure as well. Nothing is substituted. The React template's dependencies (`react`, `react-dom`, `@types/react`, `@types/react-dom` and what they depend on) are installed from the npm registry into a directory of the run beside the copy, at the exact versions its manifest names, with install scripts disabled; each installed package becomes one node of the pinned graph with its own root, as CDN extracts them.
+The templates themselves, `templates/cloud/<directory>/`, read where they are: the catalog test only reads them, and the compile test copies each one into a unique temporary directory, which it removes at the end, on failure as well. Nothing is substituted. The React template's dependencies, and the backend template's `@types/node`, (`react`, `react-dom`, `@types/react`, `@types/react-dom` and what they depend on) are installed from the npm registry into a directory of the run beside the copy, at the exact versions its manifest names, with install scripts disabled; each installed package becomes one node of the pinned graph with its own root, as CDN extracts them.
 
 ## What each file establishes
 
@@ -13,13 +13,13 @@ The templates themselves, `templates/cloud/<directory>/`, read where they are: t
 | Case | Established |
 | --- | --- |
 | the catalog | Protocol `beyond-cloud-templates/1`, an exact semver `version`, templates with unique names and directories |
-| description | Each template has exactly the documented members, kind `frontend`, platform `web`, form `module` with entry `main` or form `npm` with entry `.`, plain relative file paths, `package.json` among them |
+| description | Each template has exactly the documented members, kind `frontend` on platform `web` or kind `backend` on platform `node`, form `module` with entry `main` or form `npm` with entry `.`, plain relative file paths, `package.json` among them |
 | files | The template's directory holds exactly the files listed |
 | manifest | `package.json` names the catalog's `package` at version `0.1.0`; a module template declares the `source` publication and an npm template none |
 | digest | The recorded digest is the digest of the files; a file edited without a new digest fails here, and the message names the digest to record (raise the catalog version with it) |
 | digest rule | Path, byte length and bytes in the listed order, the length counted in bytes |
 
-[compile.test.mjs](compile.test.mjs), under BEE Node with the bootstrap Engine serving this implementation. For each template, with CDN's inputs (conditions `{platform: 'browser', environment: 'production'}`, the `esbuild` compiler, format `esm`, confined), following CDN's unit operations `check`, `compile`, `analyze` and `generate` ([support/source.mjs](support/source.mjs)):
+[compile.test.mjs](compile.test.mjs), under BEE Node with the bootstrap Engine serving this implementation. For each template, with CDN's inputs (conditions `{platform: 'browser', environment: 'production'}`, or `{platform: 'node', …}` for a template that runs on Node, the `esbuild` compiler, format `esm`, confined), following CDN's unit operations `check`, `compile`, `analyze` and `generate` ([support/source.mjs](support/source.mjs)):
 
 | Case | Established |
 | --- | --- |
@@ -43,7 +43,7 @@ BEE_URL=http://localhost:1112 \
   node --import "$BEE_NODE_DIR/register.mjs" --test tests/templates/compile.test.mjs
 ```
 
-Expected: `catalog.test.mjs` passes 10 tests (one for the catalog, four per template, one for the digest rule); `compile.test.mjs` passes both templates with their four cases each.
+Expected: `catalog.test.mjs` passes 14 tests (one for the catalog, four per template, one for the digest rule); `compile.test.mjs` passes the three templates with their four cases each.
 
 ## Not covered
 

@@ -96,7 +96,20 @@ export /*bundle*/ class Target {
 			conditions: this.#module.conditions,
 			mode,
 			minify,
-			confined: !!this.#opened.confinement
+			confined: !!this.#opened.confinement,
+			absent: this.#absent()
 		}).run();
+	}
+
+	/**
+	 * The packages the manifest declares optional (`optionalDependencies`, optional peers of
+	 * `peerDependenciesMeta`) that the pinned graph does not bind for this package
+	 */
+	#absent(): string[] {
+		const { manifest, key } = this.#opened;
+		const peers = Object.entries(manifest.peerDependenciesMeta ?? {}).filter(([, meta]) => (<{ optional?: boolean }>meta)?.optional === true);
+		const optional = new Set([...Object.keys(manifest.optionalDependencies ?? {}), ...peers.map(([name]) => name)]);
+		const { graph } = this.#pinned;
+		return [...optional].filter(name => !graph.resolve(key, name).key && !graph.find(name).length).sort();
 	}
 }

@@ -58,6 +58,12 @@ export /*bundle*/ interface IBundleRequest {
 	 * It is selected by whoever compiles sources it does not trust, never by the sources.
 	 */
 	confined?: boolean;
+
+	/**
+	 * The packages the manifest declares optional that the pinned graph does not hold, whose `require` throws when
+	 * it runs ([Boundary](./boundary.ts))
+	 */
+	absent?: string[];
 }
 
 /**
@@ -171,8 +177,8 @@ export /*bundle*/ class Bundle {
 	 * @returns The bundle, or the diagnostics of a build that failed. It never throws for a build error.
 	 */
 	async run(): Promise<{ bundled?: IBundled; diagnostics: IDiagnostic[] }> {
-		const { root, entry, facade, entries, styles } = this.#request;
-		const boundary = new Boundary(entries, styles);
+		const { root, entry, facade, entries, styles, platform, absent } = this.#request;
+		const boundary = new Boundary(entries, styles, { node: platform === 'node', absent });
 		const resources = new Resources(this.#request.package.root, this.#request.package.subpath);
 		const style = !facade && entry.endsWith('.css');
 		const outfile = style ? 'out.css' : 'out.js';

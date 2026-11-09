@@ -24,7 +24,7 @@ Each template:
 | --- | --- |
 | `name` | What a creator asks for (`frontend`, `react`) |
 | `title` | A short description, sentence case |
-| `kind`, `platform` | The CDN target it is published as: `frontend` on `web` |
+| `kind`, `platform` | The CDN target it is published as: `frontend` on `web`, or `backend` on `node` |
 | `form` | `module`: a Beyond package published as sources (`beyond.publication` `form: "source"`) whose public module is a directory with its `module.json`. `npm`: an ordinary npm package whose `exports` name its entry |
 | `entry` | The public subpath the CDN target names: `main` for the module form, `.` for the npm form |
 | `directory` | Its directory, beside this file |
@@ -70,5 +70,6 @@ A change records the new digest and version together; the validation fails on a 
 | --- | --- | --- |
 | `frontend` | Package `page`, version `0.1.0`, entry `main`, platform `web`, kind `frontend` | `package.json` declares the `source` publication and the packaging bundler `@beyond-js/packages/bundlers/esbuild`; `main/module.json` publishes `main` for the web from `index.ts`, which adds a heading and a sentence to the page |
 | `react` | Package `counter`, version `0.1.0`, entry `.`, platform `web`, kind `frontend` | `package.json` exports `./main.tsx` and depends on `react` and `react-dom` 19.1.0, with their types as development dependencies; `main.tsx` renders a counter button into the page |
+| `backend` | Package `service`, version `0.1.0`, entry `.`, platform `node`, kind `backend` | `package.json` exports `./server.ts`, with `@types/node` 22.20.5 as a development dependency; `routes.ts` answers each request; `server.ts` serves once imported on `HOST` and `PORT`, answers `GET /health` with 200 and on `SIGTERM` accepts no new connection and exits within 10 s ([the backend profile](../../docs/backends.md)) |
 
 The React template imports React as a namespace because the source check and the compilation use the classic JSX transform (`React.createElement`) when a package declares no TypeScript configuration.
